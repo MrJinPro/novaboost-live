@@ -9,8 +9,9 @@ import { BoostBadge } from "@/components/BoostBadge";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Crown, Eye, Flame, Send, Sparkles, Trophy, Zap } from "lucide-react";
 import { formatNumber } from "@/lib/format";
-import { mockActivityFeed, mockStreamers, type StreamerCardData } from "@/lib/mock-platform";
+import { mockStreamers, type StreamerCardData } from "@/lib/mock-platform";
 import { loadStreamerDirectory } from "@/lib/streamers-directory-data";
+import { loadHomeActivityFeed, type HomeActivityItem } from "@/lib/home-activity-data";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/")({
@@ -25,6 +26,7 @@ export const Route = createFileRoute("/")({
 
 function HomePage() {
   const [streamers, setStreamers] = useState<StreamerCardData[]>(mockStreamers);
+  const [activityFeed, setActivityFeed] = useState<HomeActivityItem[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -34,6 +36,10 @@ function HomePage() {
         const data = await loadStreamerDirectory();
         if (active) {
           setStreamers(data);
+          const activity = await loadHomeActivityFeed(data);
+          if (active) {
+            setActivityFeed(activity);
+          }
         }
       } catch (error) {
         if (active) {
@@ -215,7 +221,7 @@ function HomePage() {
             <BentoBlock className="md:col-span-8">
               <BlockHeader icon={<Sparkles className="h-5 w-5 text-blast" />} title="Лента активности" subtitle="Что происходит в реальном времени" />
               <div className="mt-4 space-y-2">
-                {mockActivityFeed.map((item) => (
+                {activityFeed.map((item) => (
                   <div key={item.id} className="flex items-center gap-3 rounded-lg border border-border/40 bg-surface/40 px-3 py-2.5 text-sm">
                     {item.tone === "boost" ? <BoostBadge amount={1500} variant="compact" /> : item.tone === "live" ? <LiveIndicator /> : <Send className="h-4 w-4 text-cosmic" />}
                     <span className="flex-1">
@@ -224,6 +230,7 @@ function HomePage() {
                     </span>
                   </div>
                 ))}
+                {activityFeed.length === 0 && <EmptyState text="Пока нет свежих публичных событий в ленте" />}
               </div>
             </BentoBlock>
 
