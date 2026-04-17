@@ -1,9 +1,11 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import type { Session } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
 import type { AppRole, AppUser } from "@/lib/mock-platform";
 
 interface AuthContextValue {
   user: AppUser | null;
-  session: null;
+  session: Session | null;
   loading: boolean;
   signUp: (payload: {
     role: AppRole;
@@ -12,7 +14,8 @@ interface AuthContextValue {
     displayName: string;
     tiktokUsername: string;
     password: string;
-  }) => Promise<void>;
+    referralStreamerId?: string | null;
+  }) => Promise<{ emailConfirmationRequired: boolean }>;
   signIn: (payload: {
     role: AppRole;
     email: string;
@@ -23,28 +26,151 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
-const STORAGE_KEY = "novaboost-demo-auth";
 
-interface StoredAuthUser extends AppUser {
-  password: string;
+type SupabaseTableClient = {
+  from: (table: string) => {
+    select: (columns: string) => any;
+    insert: (values: Record<string, unknown> | Array<Record<string, unknown>>) => any;
+    upsert: (values: Record<string, unknown> | Array<Record<string, unknown>>, options?: Record<string, unknown>) => any;
+  };
+};
+
+type ProfileRow = {
+  id: string;
+  username: string;
+  display_name: string | null;
+  tiktok_username: string | null;
+};
+
+type StreamerRow = {
+  id: string;
+  user_id: string | null;
+  tiktok_username: string;
+  display_name: string;
+};
+
+const db = supabase as unknown as SupabaseTableClient;
+
+async function getProfile(userId: string) {
+  const { data, error } = await db
+    .from("profiles")
+    .select("id, username, display_name, tiktok_username")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? null) as ProfileRow | null;
+}
+
+async function getStreamer(userId: string) {
+  const { data, error } = await db
+    .from("streamers")
+    .select("id, user_id, tiktok_username, display_name")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? null) as StreamerRow | null;
+}
+
+async function ensureStreamerRecord(userId: string, tiktokUsername: string, fallbackName: string) {
+  const existing = await getStreamer(userId);
+  if (existing) {
+    return existing;
+  }
+
+  const { data, error } = await db
+    .from("streamers")
+    .insert({
+      user_id: userId,
+      tiktok_username: tiktokUsername,
+      display_name: fallbackName,
+    })
+    .select("id, user_id, tiktok_username, display_name")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as StreamerRow;
+}
+
+async function buildAppUser(session: Session): Promise<AppUser> {
+  const [profile, streamer] = await Promise.all([
+    getProfile(session.user.id),
+    getStreamer(session.user.id),
+  ]);
+
+  const username = profile?.username ?? session.user.user_metadata.username ?? session.user.email?.split("@")[0] ?? "user";
+  const displayName = streamer?.display_name ?? profile?.display_name ?? session.user.user_metadata.display_name ?? username;
+  const tiktokUsername = streamer?.tiktok_username ?? profile?.tiktok_username ?? session.user.user_metadata.tiktok_username ?? "";
+
+  return {
+    id: session.user.id,
+    role: streamer ? "streamer" : "viewer",
+    email: session.user.email ?? "",
+    username,
+    displayName,
+    tiktokUsername,
+  };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
-      setLoading(false);
-      return;
-    }
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const existing = JSON.parse(stored) as StoredAuthUser;
-      const { password: _password, ...safeUser } = existing;
-      setUser(safeUser);
-    }
-    setLoading(false);
+    let active = true;
+
+    const syncSession = async (nextSession: Session | null) => {
+      if (!active) {
+        return;
+      }
+
+      setSession(nextSession);
+
+      if (!nextSession) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const nextUser = await buildAppUser(nextSession);
+        if (active) {
+          setUser(nextUser);
+        }
+      } catch {
+        if (active) {
+          setUser(null);
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
+    void supabase.auth.getSession().then(({ data }) => syncSession(data.session));
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      void syncSession(nextSession);
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (payload: {
@@ -54,21 +180,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     displayName: string;
     tiktokUsername: string;
     password: string;
+    referralStreamerId?: string | null;
   }) => {
-    const nextUser: StoredAuthUser = {
-      id: `${payload.role}-${payload.username.toLowerCase()}`,
-      role: payload.role,
+    const { data, error } = await supabase.auth.signUp({
       email: payload.email,
-      username: payload.username,
-      displayName: payload.displayName,
-      tiktokUsername: payload.tiktokUsername,
       password: payload.password,
-    };
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
+      options: {
+        data: {
+          username: payload.username,
+          display_name: payload.displayName,
+          tiktok_username: payload.tiktokUsername,
+          preferred_language: "ru",
+        },
+      },
+    });
+
+    if (error) {
+      throw error;
     }
-    const { password: _password, ...safeUser } = nextUser;
-    setUser(safeUser);
+
+    if (!data.user) {
+      throw new Error("Не удалось создать пользователя в Supabase.");
+    }
+
+    const fallbackName = payload.displayName.trim() || payload.username.trim() || payload.tiktokUsername.trim();
+
+    if (data.session) {
+      const { error: profileError } = await db.from("profiles").upsert(
+        {
+          id: data.user.id,
+          username: payload.username,
+          display_name: payload.displayName,
+          tiktok_username: payload.tiktokUsername,
+        },
+        { onConflict: "id" }
+      );
+
+      if (profileError) {
+        throw profileError;
+      }
+
+      if (payload.role === "streamer") {
+        await ensureStreamerRecord(data.user.id, payload.tiktokUsername, fallbackName);
+      }
+
+      if (payload.role === "viewer" && payload.referralStreamerId) {
+        const { error: referralError } = await db.from("referrals").insert({
+          viewer_id: data.user.id,
+          streamer_id: payload.referralStreamerId,
+        });
+
+        if (referralError && referralError.code !== "23505") {
+          throw referralError;
+        }
+      }
+
+      const nextUser = await buildAppUser(data.session);
+      setSession(data.session);
+      setUser(nextUser);
+    }
+
+    return { emailConfirmationRequired: !data.session };
   };
 
   const signIn = async (payload: {
@@ -77,38 +249,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     tiktokUsername: string;
     password: string;
   }) => {
-    if (typeof window === "undefined") {
-      throw new Error("Вход доступен только в браузере");
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: payload.email,
+      password: payload.password,
+    });
+
+    if (error) {
+      throw error;
     }
 
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (!stored) {
-      throw new Error("Профиль не найден. Сначала зарегистрируйтесь.");
+    if (!data.session) {
+      throw new Error("Supabase не вернул активную сессию после входа.");
     }
 
-    const existing = JSON.parse(stored) as StoredAuthUser;
-    if (
-      existing.role !== payload.role ||
-      existing.email.toLowerCase() !== payload.email.toLowerCase() ||
-      existing.tiktokUsername.toLowerCase() !== payload.tiktokUsername.toLowerCase() ||
-      existing.password !== payload.password
-    ) {
-      throw new Error("Данные входа не совпадают с сохранённым профилем.");
+    const profile = await getProfile(data.user.id);
+
+    if (payload.role === "streamer") {
+      await ensureStreamerRecord(
+        data.user.id,
+        payload.tiktokUsername,
+        profile?.display_name ?? profile?.username ?? payload.tiktokUsername
+      );
     }
 
-    const { password: _password, ...safeUser } = existing;
-    setUser(safeUser);
+    const nextUser = await buildAppUser(data.session);
+
+    if (nextUser.role !== payload.role) {
+      await supabase.auth.signOut();
+      throw new Error(payload.role === "streamer" ? "У этого аккаунта ещё не создан профиль стримера." : "Этот аккаунт относится к кабинету стримера. Выбери вход как стример.");
+    }
+
+    if (nextUser.tiktokUsername.toLowerCase() !== payload.tiktokUsername.toLowerCase()) {
+      await supabase.auth.signOut();
+      throw new Error("TikTok username не совпадает с профилем в базе.");
+    }
+
+    setSession(data.session);
+    setUser(nextUser);
   };
 
   const signOut = async () => {
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem(STORAGE_KEY);
-    }
+    await supabase.auth.signOut();
+    setSession(null);
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session: null, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

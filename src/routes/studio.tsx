@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { PlatformDisclaimer } from "@/components/PlatformDisclaimer";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/auth-context";
 import { createStudioDraft, type StreamerPost } from "@/lib/mock-platform";
+import { loadStreamerStudioData, publishStreamerPost, saveStreamerStudioPage } from "@/lib/streamer-studio-data";
 import { toast } from "sonner";
 import { Bell, ExternalLink, ImagePlus, LayoutPanelTop, PencilLine, Send, Sparkles } from "lucide-react";
 
@@ -23,6 +24,13 @@ export const Route = createFileRoute("/studio")({
 
 function StreamerStudioPage() {
   const { user, loading } = useAuth();
+  const fallback = user ? createStudioDraft(user.tiktokUsername, user.displayName) : null;
+  const [pageDraft, setPageDraft] = useState(fallback?.draft ?? createStudioDraft("", "стримера").draft);
+  const [posts, setPosts] = useState<StreamerPost[]>(fallback?.streamer?.posts ?? []);
+  const [publicPageId, setPublicPageId] = useState<string | null>(fallback?.streamer?.id ?? null);
+  const [studioLoading, setStudioLoading] = useState(false);
+  const [savingPage, setSavingPage] = useState(false);
+  const [publishingPost, setPublishingPost] = useState(false);
 
   if (loading) {
     return <div className="min-h-screen"><Header /><div className="container mx-auto px-4 py-16 text-center text-muted-foreground">Загрузка…</div></div>;
@@ -45,39 +53,80 @@ function StreamerStudioPage() {
       </div>
     );
   }
-
-  const seeded = createStudioDraft(user.tiktokUsername, user.displayName);
-  const [pageDraft, setPageDraft] = useState(seeded.draft);
-  const [posts, setPosts] = useState<StreamerPost[]>(seeded.streamer?.posts ?? []);
   const [postType, setPostType] = useState<StreamerPost["type"]>("announcement");
   const [postTitle, setPostTitle] = useState("");
   const [postBody, setPostBody] = useState("");
 
+  useEffect(() => {
+    let active = true;
+
+    const syncStudio = async () => {
+      setStudioLoading(true);
+      try {
+        const data = await loadStreamerStudioData(user);
+        if (!active) {
+          return;
+        }
+        setPageDraft(data.pageDraft);
+        setPosts(data.posts);
+        setPublicPageId(data.streamerId);
+      } catch (error) {
+        if (active) {
+          toast.error(error instanceof Error ? error.message : "Не удалось загрузить данные студии");
+        }
+      } finally {
+        if (active) {
+          setStudioLoading(false);
+        }
+      }
+    };
+
+    void syncStudio();
+
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
   const previewTags = pageDraft.tags.split(",").map((tag) => tag.trim()).filter(Boolean);
 
-  const savePage = () => {
-    toast.success("Черновик публичной страницы сохранён. Следующим этапом привяжем это к Supabase.");
+  const savePage = async () => {
+    setSavingPage(true);
+    try {
+      const result = await saveStreamerStudioPage(user, pageDraft);
+      setPublicPageId(result.streamerId);
+      toast.success("Настройки публичной страницы сохранены в Supabase.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось сохранить настройки страницы");
+    } finally {
+      setSavingPage(false);
+    }
   };
 
-  const publishPost = () => {
+  const publishPost = async () => {
     if (!postTitle.trim() || !postBody.trim()) {
       toast.error("Для публикации поста нужны заголовок и текст");
       return;
     }
 
-    const nextPost: StreamerPost = {
-      id: `draft-${Date.now()}`,
-      type: postType,
-      title: postTitle.trim(),
-      body: postBody.trim(),
-      createdAt: "Только что",
-    };
-
-    setPosts((current) => [nextPost, ...current]);
-    setPostTitle("");
-    setPostBody("");
-    setPostType("announcement");
-    toast.success("Пост добавлен в ленту страницы. Следующим этапом сохраним его в базе.");
+    setPublishingPost(true);
+    try {
+      const result = await publishStreamerPost(user, {
+        type: postType,
+        title: postTitle,
+        body: postBody,
+      });
+      setPublicPageId(result.streamerId);
+      setPosts((current) => [result.post, ...current]);
+      setPostTitle("");
+      setPostBody("");
+      setPostType("announcement");
+      toast.success("Пост опубликован и сохранён в Supabase.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось опубликовать пост");
+    } finally {
+      setPublishingPost(false);
+    }
   };
 
   return (
@@ -96,8 +145,8 @@ function StreamerStudioPage() {
           </div>
           <div className="flex flex-wrap gap-3">
             <Link to="/profile"><Button variant="outline">Назад в кабинет</Button></Link>
-            {seeded.streamer && (
-              <Link to="/streamer/$id" params={{ id: seeded.streamer.id }}>
+            {publicPageId && (
+              <Link to="/streamer/$id" params={{ id: publicPageId }}>
                 <Button className="bg-gradient-blast text-blast-foreground font-bold gap-2">
                   <ExternalLink className="h-4 w-4" /> Открыть публичную страницу
                 </Button>
@@ -156,7 +205,7 @@ function StreamerStudioPage() {
             </div>
 
             <div className="mt-6 flex flex-wrap gap-3">
-              <Button onClick={savePage} className="bg-gradient-cosmic font-bold text-foreground">Сохранить настройки страницы</Button>
+              <Button onClick={savePage} disabled={savingPage || studioLoading} className="bg-gradient-cosmic font-bold text-foreground">{savingPage ? "Сохраняю…" : "Сохранить настройки страницы"}</Button>
               <Button variant="outline" className="gap-2"><ImagePlus className="h-4 w-4" /> Загрузить медиа позже</Button>
             </div>
           </section>
@@ -169,6 +218,7 @@ function StreamerStudioPage() {
             <p className="mt-2 text-sm text-muted-foreground">
               Именно здесь публикуются новости, анонсы и короткий контент, который потом виден на публичной странице стримера и может идти в Telegram-контур.
             </p>
+            {studioLoading && <p className="mt-3 text-xs text-muted-foreground">Подтягиваю сохранённые посты и настройки из Supabase…</p>}
 
             <div className="mt-5 flex flex-wrap gap-2">
               {(["announcement", "news", "clip"] as const).map((type) => (
@@ -193,7 +243,7 @@ function StreamerStudioPage() {
             </div>
 
             <div className="mt-5 flex flex-wrap gap-3">
-              <Button onClick={publishPost} className="bg-gradient-blast text-blast-foreground font-bold">Опубликовать пост</Button>
+              <Button onClick={publishPost} disabled={publishingPost || studioLoading} className="bg-gradient-blast text-blast-foreground font-bold">{publishingPost ? "Публикую…" : "Опубликовать пост"}</Button>
               <Button variant="outline" className="gap-2"><Send className="h-4 w-4" /> Отправить в Telegram позже</Button>
             </div>
           </section>
@@ -233,6 +283,11 @@ function StreamerStudioPage() {
           <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
             <h2 className="font-display text-2xl font-bold">Лента постов на публичной странице</h2>
             <div className="mt-5 space-y-3">
+              {posts.length === 0 && (
+                <div className="rounded-2xl border border-dashed border-border/50 bg-background/20 p-4 text-sm text-muted-foreground">
+                  Здесь появятся публикации после первого сохранённого поста.
+                </div>
+              )}
               {posts.map((post) => (
                 <article key={post.id} className="rounded-2xl border border-border/50 bg-background/30 p-4">
                   <div className="flex items-center justify-between gap-3">

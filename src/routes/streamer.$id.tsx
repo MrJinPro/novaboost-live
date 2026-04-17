@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { LiveIndicator } from "@/components/LiveIndicator";
 import { BoostBadge } from "@/components/BoostBadge";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Bell, Eye, ExternalLink, Send, Users, Zap, TrendingUp } from "lucide-react";
 import { formatNumber } from "@/lib/format";
 import { getStreamerById } from "@/lib/mock-platform";
+import { loadPublicStreamerPage } from "@/lib/streamer-studio-data";
 
 export const Route = createFileRoute("/streamer/$id")({
   component: StreamerProfile,
@@ -16,7 +17,40 @@ function StreamerProfile() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const [subscribed, setSubscribed] = useState(false);
-  const streamer = getStreamerById(id);
+  const [streamer, setStreamer] = useState(() => getStreamerById(id));
+  const [pageLoading, setPageLoading] = useState(!getStreamerById(id));
+
+  useEffect(() => {
+    let active = true;
+
+    const syncPage = async () => {
+      setPageLoading(true);
+      try {
+        const page = await loadPublicStreamerPage(id);
+        if (active) {
+          setStreamer(page);
+        }
+      } finally {
+        if (active) {
+          setPageLoading(false);
+        }
+      }
+    };
+
+    void syncPage();
+
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  if (!streamer && pageLoading) {
+    return (
+      <div className="min-h-screen"><Header />
+        <div className="container mx-auto px-4 py-16 text-center text-muted-foreground">Загрузка публичной страницы…</div>
+      </div>
+    );
+  }
 
   if (!streamer) {
     return (

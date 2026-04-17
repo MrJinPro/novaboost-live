@@ -65,12 +65,28 @@ function AuthPage() {
           return;
         }
 
-        await signUp({ role, email, username, displayName, tiktokUsername, password });
+        const result = await signUp({
+          role,
+          email,
+          username,
+          displayName,
+          tiktokUsername,
+          password,
+          referralStreamerId: referralStreamer?.id ?? null,
+        });
         toast.success(
-          role === "streamer"
-            ? "Профиль стримера создан. Дальше подключим автотрекинг и кабинет роста."
-            : `Профиль зрителя создан${referralStreamer ? `, любимый стример: ${referralStreamer.display_name}` : ""}.`
+          result.emailConfirmationRequired
+            ? "Аккаунт создан. Подтверди email, затем выполни вход."
+            : role === "streamer"
+              ? "Профиль стримера создан в Supabase. Можно переходить в кабинет."
+              : `Профиль зрителя создан${referralStreamer ? `, любимый стример: ${referralStreamer.display_name}` : ""}.`
         );
+
+        if (result.emailConfirmationRequired) {
+          setMode("signin");
+          setSubmitting(false);
+          return;
+        }
       } else {
         if (!email || !tiktokUsername || !password) {
           toast.error("Для входа укажи email, TikTok username и пароль");
@@ -222,7 +238,7 @@ function AuthPage() {
 
           {mode === "signin" && (
             <div className="rounded-xl border border-border/50 bg-background/30 p-4 text-sm text-muted-foreground">
-              В текущем mock-режиме вход выполняется по email, роли аккаунта, TikTok username и паролю, которые были указаны при регистрации. Следующим этапом это уйдёт в нормальный backend-auth.
+              Вход уже идёт через Supabase email/password. Роль и TikTok username дополнительно сверяются с профилем, чтобы зритель и стример не смешивались.
             </div>
           )}
 
