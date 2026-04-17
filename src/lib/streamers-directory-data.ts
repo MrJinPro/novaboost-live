@@ -2,8 +2,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { mockStreamers, type StreamerCardData } from "@/lib/mock-platform";
 import { loadActiveBoostTotals } from "@/lib/boost-data";
 
-const db = supabase as any;
-
 type DbStreamerCard = {
   id: string;
   display_name: string;
@@ -38,7 +36,7 @@ function normalizeStreamer(row: DbStreamerCard): StreamerCardData {
 
 export async function loadStreamerDirectory() {
   const [streamersResult, boostTotals] = await Promise.all([
-    db
+    supabase
       .from("streamers")
       .select("id, display_name, tiktok_username, avatar_url, bio, is_live, viewer_count, followers_count, needs_boost, total_boost_amount")
       .order("is_live", { ascending: false })

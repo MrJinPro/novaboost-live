@@ -1,8 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { StreamerCardData } from "@/lib/mock-platform";
 
-const db = supabase as any;
-
 export type HomeActivityItem = {
   id: string;
   tone: "live" | "boost" | "social";
@@ -36,14 +34,14 @@ export async function loadHomeActivityFeed(streamers: StreamerCardData[]) {
   const now = new Date().toISOString();
 
   const [boostsResult, postsResult] = await Promise.all([
-    db
+    supabase
       .from("boosts")
       .select("id, amount, created_at, streamers:streamer_id(display_name, tiktok_username)")
       .eq("status", "active")
       .gt("expires_at", now)
       .order("created_at", { ascending: false })
       .limit(5),
-    db
+    supabase
       .from("streamer_posts")
       .select("id, title, published_at, created_at, streamers:streamer_id(display_name, tiktok_username)")
       .eq("is_published", true)

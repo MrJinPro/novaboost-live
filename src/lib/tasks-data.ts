@@ -1,8 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { AppUser } from "@/lib/mock-platform";
 
-const db = supabase as any;
-
 export type LiveTask = {
   id: string;
   title: string;
@@ -19,7 +17,7 @@ type ProfileStatsRow = {
 };
 
 export async function loadTasksData(userId?: string) {
-  const { data: tasks, error: tasksError } = await db
+  const { data: tasks, error: tasksError } = await supabase
     .from("tasks")
     .select("id, title, description, reward_points, type, code, streamer_id")
     .eq("active", true)
@@ -36,7 +34,7 @@ export async function loadTasksData(userId?: string) {
     };
   }
 
-  const { data: completions, error: completionsError } = await db
+  const { data: completions, error: completionsError } = await supabase
     .from("task_completions")
     .select("task_id")
     .eq("user_id", userId);
@@ -52,7 +50,7 @@ export async function loadTasksData(userId?: string) {
 }
 
 async function getProfileStats(userId: string) {
-  const { data, error } = await db
+  const { data, error } = await supabase
     .from("profiles")
     .select("points, streak_days")
     .eq("id", userId)
@@ -66,7 +64,7 @@ async function getProfileStats(userId: string) {
 }
 
 export async function completeLiveTask(user: AppUser, task: LiveTask) {
-  const { error: completionError } = await db
+  const { error: completionError } = await supabase
     .from("task_completions")
     .insert({
       user_id: user.id,
@@ -81,7 +79,7 @@ export async function completeLiveTask(user: AppUser, task: LiveTask) {
   const nextPoints = (current.points ?? 0) + task.reward_points;
   const nextLevel = Math.floor(nextPoints / 100) + 1;
 
-  const { error: profileError } = await db
+  const { error: profileError } = await supabase
     .from("profiles")
     .update({
       points: nextPoints,

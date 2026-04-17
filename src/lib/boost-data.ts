@@ -1,12 +1,10 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { AppUser } from "@/lib/mock-platform";
 
-const db = supabase as any;
-
 export async function createBoost(user: AppUser, streamerId: string, amount: number) {
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
-  const { error } = await db
+  const { error } = await supabase
     .from("boosts")
     .insert({
       streamer_id: streamerId,
@@ -24,7 +22,7 @@ export async function createBoost(user: AppUser, streamerId: string, amount: num
 
 export async function loadActiveBoostTotals() {
   const now = new Date().toISOString();
-  const { data, error } = await db
+  const { data, error } = await supabase
     .from("boosts")
     .select("streamer_id, amount")
     .eq("status", "active")

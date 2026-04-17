@@ -27,14 +27,6 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-type SupabaseTableClient = {
-  from: (table: string) => {
-    select: (columns: string) => any;
-    insert: (values: Record<string, unknown> | Array<Record<string, unknown>>) => any;
-    upsert: (values: Record<string, unknown> | Array<Record<string, unknown>>, options?: Record<string, unknown>) => any;
-  };
-};
-
 type ProfileRow = {
   id: string;
   username: string;
@@ -49,10 +41,8 @@ type StreamerRow = {
   display_name: string;
 };
 
-const db = supabase as unknown as SupabaseTableClient;
-
 async function getProfile(userId: string) {
-  const { data, error } = await db
+  const { data, error } = await supabase
     .from("profiles")
     .select("id, username, display_name, tiktok_username")
     .eq("id", userId)
@@ -66,7 +56,7 @@ async function getProfile(userId: string) {
 }
 
 async function getStreamer(userId: string) {
-  const { data, error } = await db
+  const { data, error } = await supabase
     .from("streamers")
     .select("id, user_id, tiktok_username, display_name")
     .eq("user_id", userId)
@@ -85,7 +75,7 @@ async function ensureStreamerRecord(userId: string, tiktokUsername: string, fall
     return existing;
   }
 
-  const { data, error } = await db
+  const { data, error } = await supabase
     .from("streamers")
     .insert({
       user_id: userId,
@@ -206,7 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const fallbackName = payload.displayName.trim() || payload.username.trim() || payload.tiktokUsername.trim();
 
     if (data.session) {
-      const { error: profileError } = await db.from("profiles").upsert(
+      const { error: profileError } = await supabase.from("profiles").upsert(
         {
           id: data.user.id,
           username: payload.username,
@@ -225,7 +215,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (payload.role === "viewer" && payload.referralStreamerId) {
-        const { error: referralError } = await db.from("referrals").insert({
+        const { error: referralError } = await supabase.from("referrals").insert({
           viewer_id: data.user.id,
           streamer_id: payload.referralStreamerId,
         });

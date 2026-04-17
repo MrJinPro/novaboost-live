@@ -1,8 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getStreamerById, type AppUser, type StreamerCardData } from "@/lib/mock-platform";
 
-const db = supabase as any;
-
 type ViewerProfileRow = {
   points: number;
   level: number;
@@ -49,7 +47,7 @@ function normalizeStreamer(row: SubscriptionStreamerRow): StreamerCardData {
 }
 
 async function getViewerProfile(userId: string) {
-  const { data, error } = await db
+  const { data, error } = await supabase
     .from("profiles")
     .select("points, level, streak_days")
     .eq("id", userId)
@@ -63,7 +61,7 @@ async function getViewerProfile(userId: string) {
 }
 
 async function getSubscriptions(userId: string) {
-  const { data, error } = await db
+  const { data, error } = await supabase
     .from("streamer_subscriptions")
     .select("streamer_id")
     .eq("user_id", userId);
@@ -78,7 +76,7 @@ async function getSubscriptions(userId: string) {
     return [];
   }
 
-  const { data: streamers, error: streamersError } = await db
+  const { data: streamers, error: streamersError } = await supabase
     .from("streamers")
     .select("id, display_name, tiktok_username, avatar_url, bio, is_live, viewer_count, followers_count, needs_boost, total_boost_amount")
     .in("id", ids);
@@ -93,7 +91,7 @@ async function getSubscriptions(userId: string) {
 }
 
 async function getCount(table: string, column: string, value: string) {
-  const { count, error } = await db
+  const { count, error } = await supabase
     .from(table)
     .select("id", { count: "exact", head: true })
     .eq(column, value);

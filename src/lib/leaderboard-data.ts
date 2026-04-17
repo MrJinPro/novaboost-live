@@ -1,8 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { mockViewerStandings } from "@/lib/mock-platform";
 
-const db = supabase as any;
-
 export type ViewerLeaderboardEntry = {
   id: string;
   username: string;
@@ -12,7 +10,7 @@ export type ViewerLeaderboardEntry = {
 };
 
 export async function loadViewerLeaderboard() {
-  const { data, error } = await db
+  const { data, error } = await supabase
     .from("profiles")
     .select("id, username, display_name, points, level")
     .order("points", { ascending: false })

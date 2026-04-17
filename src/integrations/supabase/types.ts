@@ -87,38 +87,65 @@ export type Database = {
       }
       profiles: {
         Row: {
+          activity_score: number
           avatar_url: string | null
           bio: string | null
           created_at: string
           display_name: string | null
           id: string
+          last_activity_at: string | null
           level: number
+          onboarding_completed: boolean
           points: number
+          preferred_language: string
           referred_streamer_id: string | null
+          streak_days: number
+          telegram_linked_at: string | null
+          telegram_user_id: number | null
+          telegram_username: string | null
+          tiktok_username: string | null
           updated_at: string
           username: string
         }
         Insert: {
+          activity_score?: number
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
           display_name?: string | null
           id: string
+          last_activity_at?: string | null
           level?: number
+          onboarding_completed?: boolean
           points?: number
+          preferred_language?: string
           referred_streamer_id?: string | null
+          streak_days?: number
+          telegram_linked_at?: string | null
+          telegram_user_id?: number | null
+          telegram_username?: string | null
+          tiktok_username?: string | null
           updated_at?: string
           username: string
         }
         Update: {
+          activity_score?: number
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
+          last_activity_at?: string | null
           level?: number
+          onboarding_completed?: boolean
           points?: number
+          preferred_language?: string
           referred_streamer_id?: string | null
+          streak_days?: number
+          telegram_linked_at?: string | null
+          telegram_user_id?: number | null
+          telegram_username?: string | null
+          tiktok_username?: string | null
           updated_at?: string
           username?: string
         }
@@ -156,6 +183,7 @@ export type Database = {
       streamers: {
         Row: {
           avatar_url: string | null
+          banner_url: string | null
           bio: string | null
           created_at: string
           display_name: string
@@ -163,16 +191,28 @@ export type Database = {
           id: string
           is_live: boolean
           last_live_at: string | null
+          last_checked_live_at: string | null
+          logo_url: string | null
           needs_boost: boolean
+          priority_score: number
+          tagline: string | null
+          telegram_channel: string | null
+          telegram_chat_id: number | null
           tiktok_username: string
           total_boost_amount: number
           total_traffic_sent: number
+          tracking_enabled: boolean
+          tracking_source: string | null
           updated_at: string
           user_id: string | null
+          verification_method: string | null
+          verification_status: Database["public"]["Enums"]["streamer_verification_status"]
+          verified_at: string | null
           viewer_count: number
         }
         Insert: {
           avatar_url?: string | null
+          banner_url?: string | null
           bio?: string | null
           created_at?: string
           display_name: string
@@ -180,16 +220,28 @@ export type Database = {
           id?: string
           is_live?: boolean
           last_live_at?: string | null
+          last_checked_live_at?: string | null
+          logo_url?: string | null
           needs_boost?: boolean
+          priority_score?: number
+          tagline?: string | null
+          telegram_channel?: string | null
+          telegram_chat_id?: number | null
           tiktok_username: string
           total_boost_amount?: number
           total_traffic_sent?: number
+          tracking_enabled?: boolean
+          tracking_source?: string | null
           updated_at?: string
           user_id?: string | null
+          verification_method?: string | null
+          verification_status?: Database["public"]["Enums"]["streamer_verification_status"]
+          verified_at?: string | null
           viewer_count?: number
         }
         Update: {
           avatar_url?: string | null
+          banner_url?: string | null
           bio?: string | null
           created_at?: string
           display_name?: string
@@ -197,13 +249,323 @@ export type Database = {
           id?: string
           is_live?: boolean
           last_live_at?: string | null
+          last_checked_live_at?: string | null
+          logo_url?: string | null
           needs_boost?: boolean
+          priority_score?: number
+          tagline?: string | null
+          telegram_channel?: string | null
+          telegram_chat_id?: number | null
           tiktok_username?: string
           total_boost_amount?: number
           total_traffic_sent?: number
+          tracking_enabled?: boolean
+          tracking_source?: string | null
           updated_at?: string
           user_id?: string | null
+          verification_method?: string | null
+          verification_status?: Database["public"]["Enums"]["streamer_verification_status"]
+          verified_at?: string | null
           viewer_count?: number
+        }
+        Relationships: []
+      }
+      streamer_media: {
+        Row: {
+          created_at: string
+          duration_seconds: number | null
+          id: string
+          is_featured: boolean
+          media_type: Database["public"]["Enums"]["media_type"]
+          post_id: string | null
+          sort_order: number
+          streamer_id: string
+          thumbnail_url: string | null
+          title: string | null
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          is_featured?: boolean
+          media_type: Database["public"]["Enums"]["media_type"]
+          post_id?: string | null
+          sort_order?: number
+          streamer_id: string
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          duration_seconds?: number | null
+          id?: string
+          is_featured?: boolean
+          media_type?: Database["public"]["Enums"]["media_type"]
+          post_id?: string | null
+          sort_order?: number
+          streamer_id?: string
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "streamer_media_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "streamer_posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "streamer_media_streamer_id_fkey"
+            columns: ["streamer_id"]
+            isOneToOne: false
+            referencedRelation: "streamers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      streamer_page_settings: {
+        Row: {
+          accent_color: string | null
+          banner_url: string | null
+          created_at: string
+          description: string | null
+          featured_video_url: string | null
+          headline: string | null
+          id: string
+          layout: Json
+          logo_url: string | null
+          streamer_id: string
+          updated_at: string
+        }
+        Insert: {
+          accent_color?: string | null
+          banner_url?: string | null
+          created_at?: string
+          description?: string | null
+          featured_video_url?: string | null
+          headline?: string | null
+          id?: string
+          layout?: Json
+          logo_url?: string | null
+          streamer_id: string
+          updated_at?: string
+        }
+        Update: {
+          accent_color?: string | null
+          banner_url?: string | null
+          created_at?: string
+          description?: string | null
+          featured_video_url?: string | null
+          headline?: string | null
+          id?: string
+          layout?: Json
+          logo_url?: string | null
+          streamer_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "streamer_page_settings_streamer_id_fkey"
+            columns: ["streamer_id"]
+            isOneToOne: true
+            referencedRelation: "streamers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      streamer_posts: {
+        Row: {
+          author_user_id: string | null
+          body: string | null
+          cover_url: string | null
+          created_at: string
+          external_url: string | null
+          id: string
+          is_published: boolean
+          post_type: Database["public"]["Enums"]["content_post_type"]
+          published_at: string | null
+          streamer_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author_user_id?: string | null
+          body?: string | null
+          cover_url?: string | null
+          created_at?: string
+          external_url?: string | null
+          id?: string
+          is_published?: boolean
+          post_type?: Database["public"]["Enums"]["content_post_type"]
+          published_at?: string | null
+          streamer_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author_user_id?: string | null
+          body?: string | null
+          cover_url?: string | null
+          created_at?: string
+          external_url?: string | null
+          id?: string
+          is_published?: boolean
+          post_type?: Database["public"]["Enums"]["content_post_type"]
+          published_at?: string | null
+          streamer_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "streamer_posts_streamer_id_fkey"
+            columns: ["streamer_id"]
+            isOneToOne: false
+            referencedRelation: "streamers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      streamer_subscriptions: {
+        Row: {
+          created_at: string
+          id: string
+          notification_enabled: boolean
+          streamer_id: string
+          telegram_enabled: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notification_enabled?: boolean
+          streamer_id: string
+          telegram_enabled?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notification_enabled?: boolean
+          streamer_id?: string
+          telegram_enabled?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "streamer_subscriptions_streamer_id_fkey"
+            columns: ["streamer_id"]
+            isOneToOne: false
+            referencedRelation: "streamers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stream_sessions: {
+        Row: {
+          created_at: string
+          current_viewer_count: number
+          ended_at: string | null
+          external_stream_id: string | null
+          gift_count: number
+          id: string
+          like_count: number
+          message_count: number
+          peak_viewer_count: number
+          raw_snapshot: Json
+          source: string
+          started_at: string
+          status: Database["public"]["Enums"]["stream_session_status"]
+          streamer_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_viewer_count?: number
+          ended_at?: string | null
+          external_stream_id?: string | null
+          gift_count?: number
+          id?: string
+          like_count?: number
+          message_count?: number
+          peak_viewer_count?: number
+          raw_snapshot?: Json
+          source?: string
+          started_at?: string
+          status?: Database["public"]["Enums"]["stream_session_status"]
+          streamer_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_viewer_count?: number
+          ended_at?: string | null
+          external_stream_id?: string | null
+          gift_count?: number
+          id?: string
+          like_count?: number
+          message_count?: number
+          peak_viewer_count?: number
+          raw_snapshot?: Json
+          source?: string
+          started_at?: string
+          status?: Database["public"]["Enums"]["stream_session_status"]
+          streamer_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stream_sessions_streamer_id_fkey"
+            columns: ["streamer_id"]
+            isOneToOne: false
+            referencedRelation: "streamers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      viewer_points_ledger: {
+        Row: {
+          balance_after: number | null
+          created_at: string
+          delta: number
+          id: string
+          metadata: Json
+          reason: string | null
+          source_id: string | null
+          source_type: string
+          user_id: string
+        }
+        Insert: {
+          balance_after?: number | null
+          created_at?: string
+          delta: number
+          id?: string
+          metadata?: Json
+          reason?: string | null
+          source_id?: string | null
+          source_type: string
+          user_id: string
+        }
+        Update: {
+          balance_after?: number | null
+          created_at?: string
+          delta?: number
+          id?: string
+          metadata?: Json
+          reason?: string | null
+          source_id?: string | null
+          source_type?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -313,11 +675,45 @@ export type Database = {
         }
         Returns: boolean
       }
+      owns_streamer: {
+        Args: {
+          _streamer_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "streamer" | "viewer"
       boost_status: "active" | "expired" | "cancelled"
+      content_post_type: "news" | "announcement" | "video" | "update"
+      delivery_status: "pending" | "sent" | "failed" | "cancelled"
+      media_type: "image" | "video" | "tiktok_clip" | "external_link"
+      notification_channel: "in_app" | "telegram" | "web_push"
+      stream_event_type:
+        | "live_started"
+        | "live_ended"
+        | "viewer_joined"
+        | "viewer_left"
+        | "like_received"
+        | "gift_received"
+        | "chat_message"
+        | "snapshot_updated"
+        | "code_word_submitted"
+        | "boost_started"
+        | "boost_expired"
+        | "raid_requested"
+      stream_session_status: "live" | "ended" | "failed"
+      streamer_verification_status: "pending" | "verified" | "rejected"
       task_type: "visit" | "code" | "boost" | "referral"
+      viewer_action_type:
+        | "stream_visit"
+        | "watch_time"
+        | "code_submission"
+        | "boost_participation"
+        | "like"
+        | "gift"
+        | "chat_message"
+        | "referral_join"
     }
     CompositeTypes: {
       [_ in never]: never
