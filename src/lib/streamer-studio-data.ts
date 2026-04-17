@@ -48,6 +48,19 @@ type DbPost = {
   created_at: string;
 };
 
+type DbMedia = {
+  id: string;
+  title: string | null;
+  url: string;
+  thumbnail_url: string | null;
+  duration_seconds: number | null;
+};
+
+type DbStreamSession = {
+  like_count: number;
+  gift_count: number;
+};
+
 function toUiPostType(postType: string): StreamerPost["type"] {
   if (postType === "announcement" || postType === "news") {
     return postType;
@@ -123,6 +136,43 @@ async function getPosts(streamerId: string) {
   return ((data ?? []) as DbPost[]).map(mapDbPost);
 }
 
+async function getMedia(streamerId: string) {
+  const { data, error } = await db
+    .from("streamer_media")
+    .select("id, title, url, thumbnail_url, duration_seconds")
+    .eq("streamer_id", streamerId)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: false })
+    .limit(6);
+
+  if (error) {
+    throw error;
+  }
+
+  return ((data ?? []) as DbMedia[]).map((row) => ({
+    id: row.id,
+    title: row.title ?? "Тизер стримера",
+    duration: row.duration_seconds ? `${Math.floor(row.duration_seconds / 60)}:${String(row.duration_seconds % 60).padStart(2, "0")}` : "0:30",
+    cover: row.thumbnail_url ?? row.url,
+  }));
+}
+
+async function getLatestSessionStats(streamerId: string) {
+  const { data, error } = await db
+    .from("stream_sessions")
+    .select("like_count, gift_count")
+    .eq("streamer_id", streamerId)
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? { like_count: 0, gift_count: 0 }) as DbStreamSession;
+}
+
 async function getSubscriptionCount(streamerId: string) {
   const { count, error } = await db
     .from("streamer_subscriptions")
@@ -163,11 +213,13 @@ export async function loadStreamerStudioData(user: AppUser) {
     };
   }
 
-  const [settings, posts, subscriptionCount, boostTotals] = await Promise.all([
+  const [settings, posts, subscriptionCount, boostTotals, media, latestSession] = await Promise.all([
     getPageSettings(streamer.id),
     getPosts(streamer.id),
     getSubscriptionCount(streamer.id),
     loadActiveBoostTotals(),
+    getMedia(streamer.id),
+    getLatestSessionStats(streamer.id),
   ]);
 
   return {
@@ -297,16 +349,16 @@ export async function loadPublicStreamerPage(id: string) {
     needs_boost: streamer.needs_boost,
     total_boost_amount: boostTotals.get(streamer.id) ?? streamer.total_boost_amount,
     subscription_count: subscriptionCount,
-    telegram_channel: streamer.telegram_channel ?? fallback?.telegram_channel ?? "@telegram_channel",
-    next_event: fallback?.next_event ?? "Следующий анонс появится после первой публикации в студии.",
-    support_goal: fallback?.support_goal ?? "Цели роста и активности будут показываться здесь.",
-    total_likes: fallback?.total_likes ?? 0,
-    total_gifts: fallback?.total_gifts ?? 0,
-    accent: settings?.accent_color ?? fallback?.accent ?? "from-cosmic/80 via-magenta/30 to-blast/70",
-    tags: Array.isArray(settings?.layout?.tags) && (settings?.layout?.tags?.length ?? 0) > 0 ? settings!.layout!.tags! : fallback?.tags ?? [],
-    perks: fallback?.perks ?? ["ранний доступ к анонсам", "сигналы по эфирам"],
-    posts: posts.length > 0 ? posts : fallback?.posts ?? [],
-    videos: fallback?.videos ?? [],
+    telegram_channel: streamer.telegram_channel ?? "@telegram_channel",
+    next_event: posts[0]?.title ? `Актуальный анонс: ${posts[0].title}` : "Следующий анонс появится после первой публикации в студии.",
+    support_goal: streamer.needs_boost ? "Сейчас стримеру нужен дополнительный буст и трафик из платформы." : "Страница активна, следи за анонсами и новыми постами.",
+    total_likes: latestSession.like_count ?? 0,
+    total_gifts: latestSession.gift_count ?? 0,
+    accent: settings?.accent_color ?? "from-cosmic/80 via-magenta/30 to-blast/70",
+    tags: Array.isArray(settings?.layout?.tags) ? settings?.layout?.tags ?? [] : [],
+    perks: ["ранний доступ к анонсам", "сигналы по эфирам"],
+    posts,
+    videos: media,
   } satisfies StreamerPageData;
 }
 

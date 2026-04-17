@@ -4,8 +4,9 @@ import { Header } from "@/components/Header";
 import { Trophy, Crown, Users } from "lucide-react";
 import { formatNumber } from "@/lib/format";
 import { Link } from "@tanstack/react-router";
-import { mockStreamers, mockViewerStandings, type StreamerCardData } from "@/lib/mock-platform";
+import { mockStreamers, type StreamerCardData } from "@/lib/mock-platform";
 import { loadStreamerDirectory } from "@/lib/streamers-directory-data";
+import { loadViewerLeaderboard, type ViewerLeaderboardEntry } from "@/lib/leaderboard-data";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/leaderboard")({
@@ -20,7 +21,7 @@ export const Route = createFileRoute("/leaderboard")({
 
 function LeaderboardPage() {
   const [streamerList, setStreamerList] = useState<StreamerCardData[]>(mockStreamers);
-  const viewers = mockViewerStandings;
+  const [viewers, setViewers] = useState<ViewerLeaderboardEntry[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -39,6 +40,29 @@ function LeaderboardPage() {
     };
 
     void syncStreamers();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const syncViewers = async () => {
+      try {
+        const data = await loadViewerLeaderboard();
+        if (active) {
+          setViewers(data);
+        }
+      } catch (error) {
+        if (active) {
+          toast.error(error instanceof Error ? error.message : "Не удалось загрузить рейтинг зрителей");
+        }
+      }
+    };
+
+    void syncViewers();
 
     return () => {
       active = false;
