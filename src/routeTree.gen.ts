@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TasksRouteImport } from './routes/tasks'
+import { Route as StudioRouteImport } from './routes/studio'
 import { Route as StreamersRouteImport } from './routes/streamers'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
@@ -21,6 +22,11 @@ import { Route as StreamerIdRouteImport } from './routes/streamer.$id'
 const TasksRoute = TasksRouteImport.update({
   id: '/tasks',
   path: '/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StudioRoute = StudioRouteImport.update({
+  id: '/studio',
+  path: '/studio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StreamersRoute = StreamersRouteImport.update({
@@ -66,6 +72,7 @@ export interface FileRoutesByFullPath {
   '/leaderboard': typeof LeaderboardRoute
   '/profile': typeof ProfileRoute
   '/streamers': typeof StreamersRoute
+  '/studio': typeof StudioRoute
   '/tasks': typeof TasksRoute
   '/streamer/$id': typeof StreamerIdRoute
 }
@@ -76,6 +83,7 @@ export interface FileRoutesByTo {
   '/leaderboard': typeof LeaderboardRoute
   '/profile': typeof ProfileRoute
   '/streamers': typeof StreamersRoute
+  '/studio': typeof StudioRoute
   '/tasks': typeof TasksRoute
   '/streamer/$id': typeof StreamerIdRoute
 }
@@ -87,6 +95,7 @@ export interface FileRoutesById {
   '/leaderboard': typeof LeaderboardRoute
   '/profile': typeof ProfileRoute
   '/streamers': typeof StreamersRoute
+  '/studio': typeof StudioRoute
   '/tasks': typeof TasksRoute
   '/streamer/$id': typeof StreamerIdRoute
 }
@@ -99,6 +108,7 @@ export interface FileRouteTypes {
     | '/leaderboard'
     | '/profile'
     | '/streamers'
+    | '/studio'
     | '/tasks'
     | '/streamer/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -109,6 +119,7 @@ export interface FileRouteTypes {
     | '/leaderboard'
     | '/profile'
     | '/streamers'
+    | '/studio'
     | '/tasks'
     | '/streamer/$id'
   id:
@@ -119,6 +130,7 @@ export interface FileRouteTypes {
     | '/leaderboard'
     | '/profile'
     | '/streamers'
+    | '/studio'
     | '/tasks'
     | '/streamer/$id'
   fileRoutesById: FileRoutesById
@@ -130,6 +142,7 @@ export interface RootRouteChildren {
   LeaderboardRoute: typeof LeaderboardRoute
   ProfileRoute: typeof ProfileRoute
   StreamersRoute: typeof StreamersRoute
+  StudioRoute: typeof StudioRoute
   TasksRoute: typeof TasksRoute
   StreamerIdRoute: typeof StreamerIdRoute
 }
@@ -141,6 +154,13 @@ declare module '@tanstack/react-router' {
       path: '/tasks'
       fullPath: '/tasks'
       preLoaderRoute: typeof TasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/studio': {
+      id: '/studio'
+      path: '/studio'
+      fullPath: '/studio'
+      preLoaderRoute: typeof StudioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/streamers': {
@@ -202,6 +222,7 @@ const rootRouteChildren: RootRouteChildren = {
   LeaderboardRoute: LeaderboardRoute,
   ProfileRoute: ProfileRoute,
   StreamersRoute: StreamersRoute,
+  StudioRoute: StudioRoute,
   TasksRoute: TasksRoute,
   StreamerIdRoute: StreamerIdRoute,
 }

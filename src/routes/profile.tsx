@@ -110,12 +110,18 @@ function ProfilePage() {
               <p>Контентный слой: посты, короткие видео, анонсы и оформление страницы.</p>
               <p>Инструменты роста: бусты, сигналы нужен буст, Telegram-канал и внутренняя аналитика активности.</p>
             </div>
+            <div className="mt-5">
+              <Link to="/studio">
+                <Button className="bg-gradient-cosmic text-foreground font-bold">Настроить публичную страницу</Button>
+              </Link>
+            </div>
           </div>
         )}
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        <div className={`mt-6 grid gap-3 ${isStreamer ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
           <Link to="/tasks"><Button variant="outline" className="w-full gap-2"><Trophy className="h-4 w-4" /> К заданиям</Button></Link>
           <Link to="/boost"><Button className="w-full gap-2 bg-gradient-blast text-blast-foreground font-bold"><Sparkles className="h-4 w-4" /> Запустить буст</Button></Link>
+          {isStreamer && <Link to="/studio"><Button variant="outline" className="w-full gap-2">Студия стримера</Button></Link>}
         </div>
       </div>
     </div>

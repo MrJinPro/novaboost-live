@@ -14,6 +14,9 @@ const NAV = [
 export function Header() {
   const { user, signOut } = useAuth();
   const location = useLocation();
+  const navItems = user?.role === "streamer"
+    ? [...NAV, { to: "/studio" as const, label: "Студия" }]
+    : NAV;
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/40 bg-background/70 backdrop-blur-xl">
@@ -23,7 +26,7 @@ export function Header() {
         </Link>
 
         <nav className="hidden md:flex items-center gap-1">
-          {NAV.map((item) => {
+          {navItems.map((item) => {
             const active = location.pathname === item.to;
             return (
               <Link

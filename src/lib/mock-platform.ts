@@ -37,6 +37,17 @@ export interface StreamerVideo {
   cover: string;
 }
 
+export interface StreamerStudioDraft {
+  bannerUrl: string;
+  logoUrl: string;
+  headline: string;
+  bio: string;
+  telegramChannel: string;
+  accent: string;
+  tags: string;
+  featuredVideoUrl: string;
+}
+
 export interface StreamerPageData extends StreamerCardData {
   banner_url: string;
   accent: string;
@@ -263,4 +274,42 @@ export const mockViewerProfile = {
 
 export function getStreamerById(id: string) {
   return mockStreamerPages.find((streamer) => streamer.id === id) ?? null;
+}
+
+export function getStreamerByTikTokUsername(tiktokUsername: string) {
+  return mockStreamerPages.find((streamer) => streamer.tiktok_username.toLowerCase() === tiktokUsername.toLowerCase()) ?? null;
+}
+
+export function createStudioDraft(tiktokUsername: string, displayName: string) {
+  const streamer = getStreamerByTikTokUsername(tiktokUsername);
+
+  if (streamer) {
+    return {
+      streamer,
+      draft: {
+        bannerUrl: streamer.banner_url,
+        logoUrl: streamer.avatar_url ?? "",
+        headline: streamer.tagline,
+        bio: streamer.bio ?? "",
+        telegramChannel: streamer.telegram_channel,
+        accent: streamer.accent,
+        tags: streamer.tags.join(", "),
+        featuredVideoUrl: streamer.videos[0]?.cover ?? "",
+      } satisfies StreamerStudioDraft,
+    };
+  }
+
+  return {
+    streamer: null,
+    draft: {
+      bannerUrl: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1600&q=80",
+      logoUrl: "",
+      headline: `Публичная страница ${displayName}`,
+      bio: "Расскажи, зачем зрителю подписываться на тебя внутри платформы и что происходит на твоих эфирах.",
+      telegramChannel: "@your_channel",
+      accent: "from-cosmic/80 via-magenta/30 to-blast/70",
+      tags: "live, комьюнити, анонсы",
+      featuredVideoUrl: "",
+    } satisfies StreamerStudioDraft,
+  };
 }

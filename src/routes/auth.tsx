@@ -25,6 +25,8 @@ function AuthPage() {
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [tiktokUsername, setTiktokUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [referralQuery, setReferralQuery] = useState("");
   const [referralStreamer, setReferralStreamer] = useState<(typeof mockStreamers)[number] | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -45,26 +47,38 @@ function AuthPage() {
 
     try {
       if (mode === "signup") {
-        if (!email || !username || !displayName || !tiktokUsername) {
-          toast.error("Заполни email, имя, отображаемое имя и TikTok username");
+        if (!email || !username || !displayName || !tiktokUsername || !password) {
+          toast.error("Заполни email, имя, отображаемое имя, TikTok username и пароль");
           setSubmitting(false);
           return;
         }
 
-        await signUp({ role, email, username, displayName, tiktokUsername });
+        if (password.length < 6) {
+          toast.error("Пароль должен быть не короче 6 символов");
+          setSubmitting(false);
+          return;
+        }
+
+        if (password !== confirmPassword) {
+          toast.error("Пароли не совпадают");
+          setSubmitting(false);
+          return;
+        }
+
+        await signUp({ role, email, username, displayName, tiktokUsername, password });
         toast.success(
           role === "streamer"
             ? "Профиль стримера создан. Дальше подключим автотрекинг и кабинет роста."
             : `Профиль зрителя создан${referralStreamer ? `, любимый стример: ${referralStreamer.display_name}` : ""}.`
         );
       } else {
-        if (!email || !tiktokUsername) {
-          toast.error("Для входа укажи email и TikTok username");
+        if (!email || !tiktokUsername || !password) {
+          toast.error("Для входа укажи email, TikTok username и пароль");
           setSubmitting(false);
           return;
         }
 
-        await signIn({ role, email, tiktokUsername });
+        await signIn({ role, email, tiktokUsername, password });
         toast.success(role === "streamer" ? "Вход в кабинет стримера выполнен" : "Вход выполнен");
       }
       setSubmitting(false);
@@ -147,6 +161,18 @@ function AuthPage() {
             <Input id="tiktokUsername" required value={tiktokUsername} onChange={(e) => setTiktokUsername(e.target.value)} placeholder={mode === "signin" ? "Нужен для входа в существующий профиль" : "Введите вручную, без автоподстановки"} className="mt-1.5 bg-background" />
           </div>
 
+          <div>
+            <Label htmlFor="password">Пароль</Label>
+            <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder={mode === "signin" ? "Введите пароль профиля" : "Минимум 6 символов"} className="mt-1.5 bg-background" />
+          </div>
+
+          {mode === "signup" && (
+            <div>
+              <Label htmlFor="confirmPassword">Повтори пароль</Label>
+              <Input id="confirmPassword" type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Повторите пароль" className="mt-1.5 bg-background" />
+            </div>
+          )}
+
           {mode === "signup" && role === "viewer" && (
             <div>
               <Label>Реферальный стример (необязательно)</Label>
@@ -196,7 +222,7 @@ function AuthPage() {
 
           {mode === "signin" && (
             <div className="rounded-xl border border-border/50 bg-background/30 p-4 text-sm text-muted-foreground">
-              В демо-режиме вход выполняется по email, роли аккаунта и TikTok username, которые были указаны при регистрации.
+              В текущем mock-режиме вход выполняется по email, роли аккаунта, TikTok username и паролю, которые были указаны при регистрации. Следующим этапом это уйдёт в нормальный backend-auth.
             </div>
           )}
 

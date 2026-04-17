@@ -11,17 +11,23 @@ interface AuthContextValue {
     username: string;
     displayName: string;
     tiktokUsername: string;
+    password: string;
   }) => Promise<void>;
   signIn: (payload: {
     role: AppRole;
     email: string;
     tiktokUsername: string;
+    password: string;
   }) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 const STORAGE_KEY = "novaboost-demo-auth";
+
+interface StoredAuthUser extends AppUser {
+  password: string;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
@@ -34,7 +40,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      setUser(JSON.parse(stored) as AppUser);
+      const existing = JSON.parse(stored) as StoredAuthUser;
+      const { password: _password, ...safeUser } = existing;
+      setUser(safeUser);
     }
     setLoading(false);
   }, []);
@@ -45,25 +53,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     username: string;
     displayName: string;
     tiktokUsername: string;
+    password: string;
   }) => {
-    const nextUser: AppUser = {
+    const nextUser: StoredAuthUser = {
       id: `${payload.role}-${payload.username.toLowerCase()}`,
       role: payload.role,
       email: payload.email,
       username: payload.username,
       displayName: payload.displayName,
       tiktokUsername: payload.tiktokUsername,
+      password: payload.password,
     };
     if (typeof window !== "undefined") {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser));
     }
-    setUser(nextUser);
+    const { password: _password, ...safeUser } = nextUser;
+    setUser(safeUser);
   };
 
   const signIn = async (payload: {
     role: AppRole;
     email: string;
     tiktokUsername: string;
+    password: string;
   }) => {
     if (typeof window === "undefined") {
       throw new Error("Вход доступен только в браузере");
@@ -74,16 +86,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Профиль не найден. Сначала зарегистрируйтесь.");
     }
 
-    const existing = JSON.parse(stored) as AppUser;
+    const existing = JSON.parse(stored) as StoredAuthUser;
     if (
       existing.role !== payload.role ||
       existing.email.toLowerCase() !== payload.email.toLowerCase() ||
-      existing.tiktokUsername.toLowerCase() !== payload.tiktokUsername.toLowerCase()
+      existing.tiktokUsername.toLowerCase() !== payload.tiktokUsername.toLowerCase() ||
+      existing.password !== payload.password
     ) {
       throw new Error("Данные входа не совпадают с сохранённым профилем.");
     }
 
-    setUser(existing);
+    const { password: _password, ...safeUser } = existing;
+    setUser(safeUser);
   };
 
   const signOut = async () => {
