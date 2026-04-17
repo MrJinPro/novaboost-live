@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { mockStreamers, type StreamerCardData } from "@/lib/mock-platform";
+import { loadActiveBoostTotals } from "@/lib/boost-data";
 
 const db = supabase as any;
 
@@ -36,18 +37,27 @@ function normalizeStreamer(row: DbStreamerCard): StreamerCardData {
 }
 
 export async function loadStreamerDirectory() {
-  const { data, error } = await db
-    .from("streamers")
-    .select("id, display_name, tiktok_username, avatar_url, bio, is_live, viewer_count, followers_count, needs_boost, total_boost_amount")
-    .order("is_live", { ascending: false })
-    .order("total_boost_amount", { ascending: false })
-    .order("followers_count", { ascending: false });
+  const [streamersResult, boostTotals] = await Promise.all([
+    db
+      .from("streamers")
+      .select("id, display_name, tiktok_username, avatar_url, bio, is_live, viewer_count, followers_count, needs_boost, total_boost_amount")
+      .order("is_live", { ascending: false })
+      .order("followers_count", { ascending: false }),
+    loadActiveBoostTotals(),
+  ]);
+
+  const { data, error } = streamersResult;
 
   if (error) {
     throw error;
   }
 
-  const realStreamers = ((data ?? []) as DbStreamerCard[]).map(normalizeStreamer);
+  const realStreamers = ((data ?? []) as DbStreamerCard[]).map((row) =>
+    normalizeStreamer({
+      ...row,
+      total_boost_amount: boostTotals.get(row.id) ?? row.total_boost_amount ?? 0,
+    })
+  );
   const seen = new Set(realStreamers.map((item) => item.id));
   const fallbackOnly = mockStreamers.filter((item) => !seen.has(item.id));
 

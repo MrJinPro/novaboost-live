@@ -7,6 +7,7 @@ import {
   type StreamerPost,
   type StreamerStudioDraft,
 } from "@/lib/mock-platform";
+import { loadActiveBoostTotals } from "@/lib/boost-data";
 
 const db = supabase as any;
 
@@ -162,10 +163,11 @@ export async function loadStreamerStudioData(user: AppUser) {
     };
   }
 
-  const [settings, posts, subscriptionCount] = await Promise.all([
+  const [settings, posts, subscriptionCount, boostTotals] = await Promise.all([
     getPageSettings(streamer.id),
     getPosts(streamer.id),
     getSubscriptionCount(streamer.id),
+    loadActiveBoostTotals(),
   ]);
 
   return {
@@ -293,7 +295,7 @@ export async function loadPublicStreamerPage(id: string) {
     viewer_count: streamer.viewer_count,
     followers_count: streamer.followers_count,
     needs_boost: streamer.needs_boost,
-    total_boost_amount: streamer.total_boost_amount,
+    total_boost_amount: boostTotals.get(streamer.id) ?? streamer.total_boost_amount,
     subscription_count: subscriptionCount,
     telegram_channel: streamer.telegram_channel ?? fallback?.telegram_channel ?? "@telegram_channel",
     next_event: fallback?.next_event ?? "Следующий анонс появится после первой публикации в студии.",

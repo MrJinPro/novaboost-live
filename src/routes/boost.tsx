@@ -8,6 +8,7 @@ import { ArrowLeft, Crown, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { mockStreamers, type StreamerCardData } from "@/lib/mock-platform";
 import { loadStreamerDirectory } from "@/lib/streamers-directory-data";
+import { createBoost } from "@/lib/boost-data";
 
 const searchSchema = z.object({
   streamerId: z.string().optional(),
@@ -75,9 +76,15 @@ function BoostPage() {
       return;
     }
     setSubmitting(true);
-    toast.success(`Буст ${tier} ⚡ запущен! ${streamer?.display_name} поднимается в топ`);
-    setSubmitting(false);
-    navigate({ to: "/streamer/$id", params: { id: selected } });
+    try {
+      await createBoost(user, selected, tier);
+      toast.success(`Буст ${tier} ⚡ запущен! ${streamer?.display_name} поднимается в топ`);
+      navigate({ to: "/streamer/$id", params: { id: selected } });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось запустить буст");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -158,7 +165,7 @@ function BoostPage() {
             </Button>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            ⚡ — внутренние очки буста. На MVP-этапе оплата эмулируется. Реальные платежи подключим следующим шагом.
+            ⚡ — внутренние очки буста. Запуск уже сохраняется в Supabase, а реальные платежи подключим следующим шагом.
           </p>
         </section>
 

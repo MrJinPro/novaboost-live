@@ -1,12 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CheckCircle2, Lock, Trophy, Zap } from "lucide-react";
 import { toast } from "sonner";
-import { mockTasks } from "@/lib/mock-platform";
+import { completeLiveTask, loadTasksData, type LiveTask } from "@/lib/tasks-data";
 
 export const Route = createFileRoute("/tasks")({
   head: () => ({
@@ -21,11 +21,41 @@ export const Route = createFileRoute("/tasks")({
 function TasksPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [tasks] = useState(mockTasks);
+  const [tasks, setTasks] = useState<LiveTask[]>([]);
   const [completed, setCompleted] = useState<Set<string>>(new Set());
   const [codes, setCodes] = useState<Record<string, string>>({});
+  const [tasksLoading, setTasksLoading] = useState(true);
 
-  const completeTask = async (task: (typeof mockTasks)[number], providedCode?: string) => {
+  useEffect(() => {
+    let active = true;
+
+    const syncTasks = async () => {
+      setTasksLoading(true);
+      try {
+        const data = await loadTasksData(user?.id);
+        if (active) {
+          setTasks(data.tasks);
+          setCompleted(data.completedIds);
+        }
+      } catch (error) {
+        if (active) {
+          toast.error(error instanceof Error ? error.message : "Не удалось загрузить задания");
+        }
+      } finally {
+        if (active) {
+          setTasksLoading(false);
+        }
+      }
+    };
+
+    void syncTasks();
+
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
+
+  const completeTask = async (task: LiveTask, providedCode?: string) => {
     if (!user) {
       toast.error("Войди, чтобы выполнять задания");
       navigate({ to: "/auth" });
@@ -41,8 +71,18 @@ function TasksPage() {
       toast.error("Уже выполнено");
       return;
     }
-    setCompleted((prev) => new Set(prev).add(task.id));
-    toast.success(`+${task.reward_points} очков за «${task.title}»`);
+    try {
+      await completeLiveTask(user, task);
+      setCompleted((prev) => new Set(prev).add(task.id));
+      toast.success(`+${task.reward_points} очков за «${task.title}»`);
+    } catch (error: any) {
+      if (error?.code === "23505") {
+        setCompleted((prev) => new Set(prev).add(task.id));
+        toast.error("Уже выполнено");
+        return;
+      }
+      toast.error(error instanceof Error ? error.message : "Не удалось сохранить выполнение задания");
+    }
   };
 
   return (
@@ -54,6 +94,8 @@ function TasksPage() {
           <h1 className="font-display font-bold text-3xl md:text-4xl">Задания</h1>
         </div>
         <p className="mt-2 text-muted-foreground">Выполняй задания и поднимай уровень. 100 очков = +1 уровень.</p>
+
+        {tasksLoading && <div className="mt-6 text-sm text-muted-foreground">Загружаю реальные задания из Supabase…</div>}
 
         <div className="mt-6 space-y-3">
           {tasks.map((task) => {
