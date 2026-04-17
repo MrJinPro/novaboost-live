@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 import {
   createStudioDraft,
   getStreamerById,
@@ -9,57 +10,47 @@ import {
 } from "@/lib/mock-platform";
 import { loadActiveBoostTotals } from "@/lib/boost-data";
 
-const db = supabase as any;
+type DbStreamer = Pick<
+  Tables<"streamers">,
+  | "id"
+  | "user_id"
+  | "display_name"
+  | "tiktok_username"
+  | "avatar_url"
+  | "bio"
+  | "banner_url"
+  | "logo_url"
+  | "tagline"
+  | "telegram_channel"
+  | "is_live"
+  | "viewer_count"
+  | "followers_count"
+  | "needs_boost"
+  | "total_boost_amount"
+>;
 
-type DbStreamer = {
-  id: string;
-  user_id: string | null;
-  display_name: string;
-  tiktok_username: string;
-  avatar_url: string | null;
-  bio: string | null;
-  banner_url: string | null;
-  logo_url: string | null;
-  tagline: string | null;
-  telegram_channel: string | null;
-  is_live: boolean;
-  viewer_count: number;
-  followers_count: number;
-  needs_boost: boolean;
-  total_boost_amount: number;
-};
+type DbPageSettings = Pick<
+  Tables<"streamer_page_settings">,
+  | "accent_color"
+  | "banner_url"
+  | "logo_url"
+  | "headline"
+  | "description"
+  | "featured_video_url"
+  | "layout"
+>;
 
-type DbPageSettings = {
-  accent_color: string | null;
-  banner_url: string | null;
-  logo_url: string | null;
-  headline: string | null;
-  description: string | null;
-  featured_video_url: string | null;
-  layout: { tags?: string[] } | null;
-};
+type DbPost = Pick<
+  Tables<"streamer_posts">,
+  "id" | "post_type" | "title" | "body" | "published_at" | "created_at"
+>;
 
-type DbPost = {
-  id: string;
-  post_type: string;
-  title: string;
-  body: string | null;
-  published_at: string | null;
-  created_at: string;
-};
+type DbMedia = Pick<
+  Tables<"streamer_media">,
+  "id" | "title" | "url" | "thumbnail_url" | "duration_seconds"
+>;
 
-type DbMedia = {
-  id: string;
-  title: string | null;
-  url: string;
-  thumbnail_url: string | null;
-  duration_seconds: number | null;
-};
-
-type DbStreamSession = {
-  like_count: number;
-  gift_count: number;
-};
+type DbStreamSession = Pick<Tables<"stream_sessions">, "like_count" | "gift_count">;
 
 function toUiPostType(postType: string): StreamerPost["type"] {
   if (postType === "announcement" || postType === "news") {
@@ -93,7 +84,7 @@ function mapDbPost(row: DbPost): StreamerPost {
 }
 
 async function getOwnedStreamer(userId: string) {
-  const { data, error } = await db
+  const { data, error } = await supabase
     .from("streamers")
     .select("id, user_id, display_name, tiktok_username, avatar_url, bio, banner_url, logo_url, tagline, telegram_channel, is_live, viewer_count, followers_count, needs_boost, total_boost_amount")
     .eq("user_id", userId)
@@ -107,7 +98,7 @@ async function getOwnedStreamer(userId: string) {
 }
 
 async function getPageSettings(streamerId: string) {
-  const { data, error } = await db
+  const { data, error } = await supabase
     .from("streamer_page_settings")
     .select("accent_color, banner_url, logo_url, headline, description, featured_video_url, layout")
     .eq("streamer_id", streamerId)
@@ -121,7 +112,7 @@ async function getPageSettings(streamerId: string) {
 }
 
 async function getPosts(streamerId: string) {
-  const { data, error } = await db
+  const { data, error } = await supabase
     .from("streamer_posts")
     .select("id, post_type, title, body, published_at, created_at")
     .eq("streamer_id", streamerId)
@@ -137,7 +128,7 @@ async function getPosts(streamerId: string) {
 }
 
 async function getMedia(streamerId: string) {
-  const { data, error } = await db
+  const { data, error } = await supabase
     .from("streamer_media")
     .select("id, title, url, thumbnail_url, duration_seconds")
     .eq("streamer_id", streamerId)
@@ -158,7 +149,7 @@ async function getMedia(streamerId: string) {
 }
 
 async function getLatestSessionStats(streamerId: string) {
-  const { data, error } = await db
+  const { data, error } = await supabase
     .from("stream_sessions")
     .select("like_count, gift_count")
     .eq("streamer_id", streamerId)
@@ -174,7 +165,7 @@ async function getLatestSessionStats(streamerId: string) {
 }
 
 async function getSubscriptionCount(streamerId: string) {
-  const { count, error } = await db
+  const { count, error } = await supabase
     .from("streamer_subscriptions")
     .select("id", { count: "exact", head: true })
     .eq("streamer_id", streamerId);
@@ -213,13 +204,9 @@ export async function loadStreamerStudioData(user: AppUser) {
     };
   }
 
-  const [settings, posts, subscriptionCount, boostTotals, media, latestSession] = await Promise.all([
+  const [settings, posts] = await Promise.all([
     getPageSettings(streamer.id),
     getPosts(streamer.id),
-    getSubscriptionCount(streamer.id),
-    loadActiveBoostTotals(),
-    getMedia(streamer.id),
-    getLatestSessionStats(streamer.id),
   ]);
 
   return {
@@ -241,7 +228,7 @@ export async function saveStreamerStudioPage(user: AppUser, draft: StreamerStudi
     .map((tag) => tag.trim())
     .filter(Boolean);
 
-  const { error: streamerError } = await db
+  const { error: streamerError } = await supabase
     .from("streamers")
     .update({
       display_name: user.displayName,
@@ -258,7 +245,7 @@ export async function saveStreamerStudioPage(user: AppUser, draft: StreamerStudi
     throw streamerError;
   }
 
-  const { error: settingsError } = await db
+  const { error: settingsError } = await supabase
     .from("streamer_page_settings")
     .upsert(
       {
@@ -288,7 +275,7 @@ export async function publishStreamerPost(user: AppUser, input: Pick<StreamerPos
     throw new Error("Профиль стримера в базе ещё не создан.");
   }
 
-  const { data, error } = await db
+  const { data, error } = await supabase
     .from("streamer_posts")
     .insert({
       streamer_id: streamer.id,
@@ -314,7 +301,7 @@ export async function publishStreamerPost(user: AppUser, input: Pick<StreamerPos
 
 export async function loadPublicStreamerPage(id: string) {
   const fallback = getStreamerById(id);
-  const { data, error } = await db
+  const { data, error } = await supabase
     .from("streamers")
     .select("id, user_id, display_name, tiktok_username, avatar_url, bio, banner_url, logo_url, tagline, telegram_channel, is_live, viewer_count, followers_count, needs_boost, total_boost_amount")
     .eq("id", id)
@@ -330,9 +317,13 @@ export async function loadPublicStreamerPage(id: string) {
     return fallback;
   }
 
-  const [settings, posts] = await Promise.all([
+  const [settings, posts, subscriptionCount, boostTotals, media, latestSession] = await Promise.all([
     getPageSettings(streamer.id),
     getPosts(streamer.id),
+    getSubscriptionCount(streamer.id),
+    loadActiveBoostTotals(),
+    getMedia(streamer.id),
+    getLatestSessionStats(streamer.id),
   ]);
 
   return {
@@ -363,7 +354,7 @@ export async function loadPublicStreamerPage(id: string) {
 }
 
 export async function getStreamerSubscriptionState(streamerId: string, userId: string) {
-  const { data, error } = await db
+  const { data, error } = await supabase
     .from("streamer_subscriptions")
     .select("id")
     .eq("streamer_id", streamerId)
@@ -379,7 +370,7 @@ export async function getStreamerSubscriptionState(streamerId: string, userId: s
 
 export async function toggleStreamerSubscription(streamerId: string, userId: string, subscribed: boolean) {
   if (subscribed) {
-    const { error } = await db
+    const { error } = await supabase
       .from("streamer_subscriptions")
       .delete()
       .eq("streamer_id", streamerId)
@@ -392,7 +383,7 @@ export async function toggleStreamerSubscription(streamerId: string, userId: str
     return false;
   }
 
-  const { error } = await db
+  const { error } = await supabase
     .from("streamer_subscriptions")
     .insert({
       streamer_id: streamerId,
