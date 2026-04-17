@@ -122,6 +122,19 @@ async function getPosts(streamerId: string) {
   return ((data ?? []) as DbPost[]).map(mapDbPost);
 }
 
+async function getSubscriptionCount(streamerId: string) {
+  const { count, error } = await db
+    .from("streamer_subscriptions")
+    .select("id", { count: "exact", head: true })
+    .eq("streamer_id", streamerId);
+
+  if (error) {
+    throw error;
+  }
+
+  return count ?? 0;
+}
+
 function buildDraft(base: StreamerStudioDraft, streamer: DbStreamer, settings: DbPageSettings | null): StreamerStudioDraft {
   const tags = Array.isArray(settings?.layout?.tags) ? settings?.layout?.tags ?? [] : [];
 
@@ -149,9 +162,10 @@ export async function loadStreamerStudioData(user: AppUser) {
     };
   }
 
-  const [settings, posts] = await Promise.all([
+  const [settings, posts, subscriptionCount] = await Promise.all([
     getPageSettings(streamer.id),
     getPosts(streamer.id),
+    getSubscriptionCount(streamer.id),
   ]);
 
   return {
@@ -280,7 +294,7 @@ export async function loadPublicStreamerPage(id: string) {
     followers_count: streamer.followers_count,
     needs_boost: streamer.needs_boost,
     total_boost_amount: streamer.total_boost_amount,
-    subscription_count: fallback?.subscription_count ?? 0,
+    subscription_count: subscriptionCount,
     telegram_channel: streamer.telegram_channel ?? fallback?.telegram_channel ?? "@telegram_channel",
     next_event: fallback?.next_event ?? "Следующий анонс появится после первой публикации в студии.",
     support_goal: fallback?.support_goal ?? "Цели роста и активности будут показываться здесь.",
@@ -292,4 +306,50 @@ export async function loadPublicStreamerPage(id: string) {
     posts: posts.length > 0 ? posts : fallback?.posts ?? [],
     videos: fallback?.videos ?? [],
   } satisfies StreamerPageData;
+}
+
+export async function getStreamerSubscriptionState(streamerId: string, userId: string) {
+  const { data, error } = await db
+    .from("streamer_subscriptions")
+    .select("id")
+    .eq("streamer_id", streamerId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return Boolean(data);
+}
+
+export async function toggleStreamerSubscription(streamerId: string, userId: string, subscribed: boolean) {
+  if (subscribed) {
+    const { error } = await db
+      .from("streamer_subscriptions")
+      .delete()
+      .eq("streamer_id", streamerId)
+      .eq("user_id", userId);
+
+    if (error) {
+      throw error;
+    }
+
+    return false;
+  }
+
+  const { error } = await db
+    .from("streamer_subscriptions")
+    .insert({
+      streamer_id: streamerId,
+      user_id: userId,
+      notification_enabled: true,
+      telegram_enabled: false,
+    });
+
+  if (error && error.code !== "23505") {
+    throw error;
+  }
+
+  return true;
 }

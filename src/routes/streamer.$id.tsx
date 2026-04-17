@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useAuth } from "@/lib/auth-context";
 import { Header } from "@/components/Header";
 import { LiveIndicator } from "@/components/LiveIndicator";
 import { BoostBadge } from "@/components/BoostBadge";
@@ -7,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Bell, Eye, ExternalLink, Send, Users, Zap, TrendingUp } from "lucide-react";
 import { formatNumber } from "@/lib/format";
 import { getStreamerById } from "@/lib/mock-platform";
-import { loadPublicStreamerPage } from "@/lib/streamer-studio-data";
+import { getStreamerSubscriptionState, loadPublicStreamerPage, toggleStreamerSubscription } from "@/lib/streamer-studio-data";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/streamer/$id")({
   component: StreamerProfile,
@@ -16,9 +18,11 @@ export const Route = createFileRoute("/streamer/$id")({
 function StreamerProfile() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [subscribed, setSubscribed] = useState(false);
   const [streamer, setStreamer] = useState(() => getStreamerById(id));
   const [pageLoading, setPageLoading] = useState(!getStreamerById(id));
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -44,6 +48,34 @@ function StreamerProfile() {
     };
   }, [id]);
 
+  useEffect(() => {
+    let active = true;
+
+    if (!user || user.role !== "viewer") {
+      setSubscribed(false);
+      return;
+    }
+
+    const syncSubscription = async () => {
+      try {
+        const nextValue = await getStreamerSubscriptionState(id, user.id);
+        if (active) {
+          setSubscribed(nextValue);
+        }
+      } catch {
+        if (active) {
+          setSubscribed(false);
+        }
+      }
+    };
+
+    void syncSubscription();
+
+    return () => {
+      active = false;
+    };
+  }, [id, user]);
+
   if (!streamer && pageLoading) {
     return (
       <div className="min-h-screen"><Header />
@@ -64,6 +96,34 @@ function StreamerProfile() {
   }
 
   const boosted = streamer.total_boost_amount > 0;
+
+  const handleSubscription = async () => {
+    if (!user) {
+      toast.error("Войди как зритель, чтобы подписываться на стримеров");
+      navigate({ to: "/auth" });
+      return;
+    }
+
+    if (user.role !== "viewer") {
+      toast.error("Подписка доступна из профиля зрителя");
+      return;
+    }
+
+    setSubscriptionLoading(true);
+    try {
+      const nextValue = await toggleStreamerSubscription(streamer.id, user.id, subscribed);
+      setSubscribed(nextValue);
+      setStreamer((current) => current ? {
+        ...current,
+        subscription_count: Math.max(0, current.subscription_count + (nextValue ? 1 : -1)),
+      } : current);
+      toast.success(nextValue ? "Подписка оформлена" : "Подписка отменена");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось обновить подписку");
+    } finally {
+      setSubscriptionLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen">
@@ -120,8 +180,8 @@ function StreamerProfile() {
                     <ExternalLink className="h-4 w-4" /> Перейти на стрим
                   </Button>
                 </a>
-                <Button size="lg" variant={subscribed ? "secondary" : "outline"} className="gap-2 w-full" onClick={() => setSubscribed((value) => !value)}>
-                  <Bell className="h-4 w-4" /> {subscribed ? "Подписка активна" : "Подписаться"}
+                <Button size="lg" variant={subscribed ? "secondary" : "outline"} className="gap-2 w-full" onClick={handleSubscription} disabled={subscriptionLoading}>
+                  <Bell className="h-4 w-4" /> {subscriptionLoading ? "Обновляю…" : subscribed ? "Подписка активна" : "Подписаться"}
                 </Button>
                 <Link to="/boost" search={{ streamerId: streamer.id }}>
                   <Button size="lg" variant="outline" className="gap-2 w-full border-cosmic/40 hover:bg-cosmic/10">

@@ -1,10 +1,12 @@
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Award, Crown, LogOut, Sparkles, Trophy } from "lucide-react";
 import { formatNumber } from "@/lib/format";
-import { getStreamerById, mockViewerProfile } from "@/lib/mock-platform";
+import { loadViewerProfileData, type ViewerProfileData } from "@/lib/user-profile-data";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/profile")({
   beforeLoad: () => {
@@ -19,6 +21,41 @@ export const Route = createFileRoute("/profile")({
 
 function ProfilePage() {
   const { user, loading, signOut } = useAuth();
+  const [viewerProfile, setViewerProfile] = useState<ViewerProfileData | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    if (!user || user.role !== "viewer") {
+      setViewerProfile(null);
+      return;
+    }
+
+    const syncProfile = async () => {
+      setProfileLoading(true);
+      try {
+        const data = await loadViewerProfileData(user);
+        if (active) {
+          setViewerProfile(data);
+        }
+      } catch (error) {
+        if (active) {
+          toast.error(error instanceof Error ? error.message : "Не удалось загрузить профиль зрителя");
+        }
+      } finally {
+        if (active) {
+          setProfileLoading(false);
+        }
+      }
+    };
+
+    void syncProfile();
+
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   if (loading) {
     return <div className="min-h-screen"><Header /><div className="container mx-auto px-4 py-16 text-center text-muted-foreground">Загрузка…</div></div>;
@@ -36,10 +73,10 @@ function ProfilePage() {
     );
   }
 
-  const points = mockViewerProfile.points;
-  const level = mockViewerProfile.level;
+  const points = viewerProfile?.points ?? 0;
+  const level = viewerProfile?.level ?? 1;
   const progress = points % 100;
-  const favoriteStreamers = mockViewerProfile.subscriptions.map((id) => getStreamerById(id)).filter(Boolean);
+  const favoriteStreamers = viewerProfile?.subscriptions ?? [];
   const isStreamer = user.role === "streamer";
 
   return (
@@ -60,7 +97,7 @@ function ProfilePage() {
                 </div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/40 px-3 py-1 text-sm text-muted-foreground">
                   {isStreamer ? <Crown className="h-4 w-4 text-crown" /> : <Award className="h-4 w-4 text-blast" />}
-                  {isStreamer ? "Автотрекинг: запланирован" : `Серия активности: ${mockViewerProfile.streakDays} дней`}
+                  {isStreamer ? "Автотрекинг: запланирован" : `Серия активности: ${viewerProfile?.streakDays ?? 0} дней`}
                 </div>
               </div>
             </div>
@@ -84,8 +121,8 @@ function ProfilePage() {
 
         <div className="mt-4 grid gap-4 sm:grid-cols-3">
           <StatBox icon={<Trophy className="h-5 w-5" />} label={isStreamer ? "Подписчиков" : "Очков"} value={formatNumber(isStreamer ? 1240 : points)} accent="blast" />
-          <StatBox icon={<Award className="h-5 w-5" />} label={isStreamer ? "Эфиров в трекинге" : "Заданий"} value={String(isStreamer ? 8 : mockViewerProfile.completedTasks)} />
-          <StatBox icon={<Sparkles className="h-5 w-5" />} label={isStreamer ? "Telegram-связки" : "Бустов"} value={String(isStreamer ? 1 : mockViewerProfile.boostsJoined)} accent="cosmic" />
+          <StatBox icon={<Award className="h-5 w-5" />} label={isStreamer ? "Эфиров в трекинге" : "Заданий"} value={String(isStreamer ? 8 : viewerProfile?.completedTasks ?? 0)} />
+          <StatBox icon={<Sparkles className="h-5 w-5" />} label={isStreamer ? "Telegram-связки" : "Бустов"} value={String(isStreamer ? 1 : viewerProfile?.boostsJoined ?? 0)} accent="cosmic" />
         </div>
 
         {!isStreamer && favoriteStreamers.length > 0 && (
@@ -99,6 +136,12 @@ function ProfilePage() {
                 </Link>
               ))}
             </div>
+          </div>
+        )}
+
+        {!isStreamer && !profileLoading && favoriteStreamers.length === 0 && (
+          <div className="mt-6 rounded-3xl border border-border/50 bg-surface/60 p-6 text-sm text-muted-foreground">
+            У тебя пока нет подписок внутри платформы. Открой каталог стримеров и подпишись на интересных тебе авторов.
           </div>
         )}
 
