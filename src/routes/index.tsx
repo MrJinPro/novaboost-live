@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { PlatformDisclaimer } from "@/components/PlatformDisclaimer";
 import { StreamerCard } from "@/components/StreamerCard";
@@ -8,7 +9,9 @@ import { BoostBadge } from "@/components/BoostBadge";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Crown, Eye, Flame, Send, Sparkles, Trophy, Zap } from "lucide-react";
 import { formatNumber } from "@/lib/format";
-import { mockActivityFeed, mockStreamers } from "@/lib/mock-platform";
+import { mockActivityFeed, mockStreamers, type StreamerCardData } from "@/lib/mock-platform";
+import { loadStreamerDirectory } from "@/lib/streamers-directory-data";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -21,7 +24,31 @@ export const Route = createFileRoute("/")({
 });
 
 function HomePage() {
-  const streamers = mockStreamers;
+  const [streamers, setStreamers] = useState<StreamerCardData[]>(mockStreamers);
+
+  useEffect(() => {
+    let active = true;
+
+    const syncStreamers = async () => {
+      try {
+        const data = await loadStreamerDirectory();
+        if (active) {
+          setStreamers(data);
+        }
+      } catch (error) {
+        if (active) {
+          toast.error(error instanceof Error ? error.message : "Не удалось обновить главную витрину стримеров");
+        }
+      }
+    };
+
+    void syncStreamers();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const live = streamers.filter((s) => s.is_live);
   const boosted = streamers.filter((s) => s.total_boost_amount > 0);
   const needsBoost = streamers.filter((s) => s.needs_boost && s.is_live).slice(0, 4);

@@ -1,9 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { Trophy, Crown, Users } from "lucide-react";
 import { formatNumber } from "@/lib/format";
 import { Link } from "@tanstack/react-router";
-import { mockStreamers, mockViewerStandings } from "@/lib/mock-platform";
+import { mockStreamers, mockViewerStandings, type StreamerCardData } from "@/lib/mock-platform";
+import { loadStreamerDirectory } from "@/lib/streamers-directory-data";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/leaderboard")({
   head: () => ({
@@ -16,8 +19,33 @@ export const Route = createFileRoute("/leaderboard")({
 });
 
 function LeaderboardPage() {
-  const streamers = [...mockStreamers].sort((a, b) => b.total_boost_amount - a.total_boost_amount).slice(0, 10);
+  const [streamerList, setStreamerList] = useState<StreamerCardData[]>(mockStreamers);
   const viewers = mockViewerStandings;
+
+  useEffect(() => {
+    let active = true;
+
+    const syncStreamers = async () => {
+      try {
+        const data = await loadStreamerDirectory();
+        if (active) {
+          setStreamerList(data);
+        }
+      } catch (error) {
+        if (active) {
+          toast.error(error instanceof Error ? error.message : "Не удалось загрузить рейтинг стримеров");
+        }
+      }
+    };
+
+    void syncStreamers();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const streamers = [...streamerList].sort((a, b) => b.total_boost_amount - a.total_boost_amount).slice(0, 10);
 
   return (
     <div className="min-h-screen">

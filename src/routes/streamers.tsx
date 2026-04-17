@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { StreamerCard } from "@/components/StreamerCard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
-import { mockStreamers } from "@/lib/mock-platform";
+import { mockStreamers, type StreamerCardData } from "@/lib/mock-platform";
+import { loadStreamerDirectory } from "@/lib/streamers-directory-data";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/streamers")({
   head: () => ({
@@ -22,7 +24,30 @@ type Filter = "all" | "live" | "boosted" | "needs_boost";
 function StreamersPage() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
-  const streamers = mockStreamers;
+  const [streamers, setStreamers] = useState<StreamerCardData[]>(mockStreamers);
+
+  useEffect(() => {
+    let active = true;
+
+    const syncStreamers = async () => {
+      try {
+        const data = await loadStreamerDirectory();
+        if (active) {
+          setStreamers(data);
+        }
+      } catch (error) {
+        if (active) {
+          toast.error(error instanceof Error ? error.message : "Не удалось загрузить каталог стримеров");
+        }
+      }
+    };
+
+    void syncStreamers();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const filtered = streamers.filter((s) => {
     if (query && !`${s.display_name} ${s.tiktok_username}`.toLowerCase().includes(query.toLowerCase())) return false;

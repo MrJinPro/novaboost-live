@@ -1,12 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 import { useAuth } from "@/lib/auth-context";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Crown, Zap } from "lucide-react";
 import { toast } from "sonner";
-import { mockStreamers } from "@/lib/mock-platform";
+import { mockStreamers, type StreamerCardData } from "@/lib/mock-platform";
+import { loadStreamerDirectory } from "@/lib/streamers-directory-data";
 
 const searchSchema = z.object({
   streamerId: z.string().optional(),
@@ -33,10 +34,33 @@ function BoostPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const search = Route.useSearch();
-  const streamers = useMemo(() => mockStreamers, []);
+  const [streamers, setStreamers] = useState<StreamerCardData[]>(mockStreamers);
   const [selected, setSelected] = useState<string>(search.streamerId ?? "");
   const [tier, setTier] = useState<number>(1500);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    const syncStreamers = async () => {
+      try {
+        const data = await loadStreamerDirectory();
+        if (active) {
+          setStreamers(data);
+        }
+      } catch (error) {
+        if (active) {
+          toast.error(error instanceof Error ? error.message : "Не удалось загрузить список стримеров");
+        }
+      }
+    };
+
+    void syncStreamers();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const streamer = streamers.find((s) => s.id === selected);
 

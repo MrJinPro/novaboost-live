@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Crown, Search, Users } from "lucide-react";
 import { toast } from "sonner";
-import { mockStreamers } from "@/lib/mock-platform";
+import { mockStreamers, type StreamerCardData } from "@/lib/mock-platform";
+import { loadStreamerDirectory } from "@/lib/streamers-directory-data";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [{ title: "Вход и регистрация — NovaBoost Live" }] }),
@@ -28,15 +29,37 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [referralQuery, setReferralQuery] = useState("");
-  const [referralStreamer, setReferralStreamer] = useState<(typeof mockStreamers)[number] | null>(null);
+  const [directoryStreamers, setDirectoryStreamers] = useState<StreamerCardData[]>(mockStreamers);
+  const [referralStreamer, setReferralStreamer] = useState<StreamerCardData | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (user) navigate({ to: "/profile" });
   }, [user, navigate]);
 
+  useEffect(() => {
+    let active = true;
+
+    const syncDirectory = async () => {
+      try {
+        const data = await loadStreamerDirectory();
+        if (active) {
+          setDirectoryStreamers(data);
+        }
+      } catch {
+        // fallback remains mock-only on auth screen
+      }
+    };
+
+    void syncDirectory();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const referralMatches = referralQuery
-    ? mockStreamers.filter((s) =>
+    ? directoryStreamers.filter((s) =>
         `${s.display_name} ${s.tiktok_username}`.toLowerCase().includes(referralQuery.toLowerCase())
       ).slice(0, 5)
     : [];
