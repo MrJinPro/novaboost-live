@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { Header } from "@/components/Header";
-import { StreamerCard, type StreamerCardData } from "@/components/StreamerCard";
+import { StreamerCard } from "@/components/StreamerCard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
+import { mockStreamers } from "@/lib/mock-platform";
 
 export const Route = createFileRoute("/streamers")({
   head: () => ({
@@ -20,17 +20,9 @@ export const Route = createFileRoute("/streamers")({
 type Filter = "all" | "live" | "boosted" | "needs_boost";
 
 function StreamersPage() {
-  const [streamers, setStreamers] = useState<StreamerCardData[]>([]);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
-
-  useEffect(() => {
-    supabase
-      .from("streamers")
-      .select("*")
-      .order("total_boost_amount", { ascending: false })
-      .then(({ data }) => data && setStreamers(data as StreamerCardData[]));
-  }, []);
+  const streamers = mockStreamers;
 
   const filtered = streamers.filter((s) => {
     if (query && !`${s.display_name} ${s.tiktok_username}`.toLowerCase().includes(query.toLowerCase())) return false;
@@ -52,7 +44,7 @@ function StreamersPage() {
       <Header />
       <div className="container mx-auto px-4 py-8">
         <h1 className="font-display font-bold text-3xl md:text-4xl">Каталог стримеров</h1>
-        <p className="mt-2 text-muted-foreground">Найди стримера и помоги ему вырасти</p>
+        <p className="mt-2 text-muted-foreground">Выбирай, кому дать внимание прямо сейчас, и на кого подписаться между эфирами</p>
 
         <div className="mt-6 flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">

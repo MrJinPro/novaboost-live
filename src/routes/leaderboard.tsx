@@ -1,11 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
 import { Trophy, Crown, Users } from "lucide-react";
 import { formatNumber } from "@/lib/format";
-import type { StreamerCardData } from "@/components/StreamerCard";
 import { Link } from "@tanstack/react-router";
+import { mockStreamers, mockViewerStandings } from "@/lib/mock-platform";
 
 export const Route = createFileRoute("/leaderboard")({
   head: () => ({
@@ -17,22 +15,9 @@ export const Route = createFileRoute("/leaderboard")({
   component: LeaderboardPage,
 });
 
-interface ViewerRow {
-  id: string;
-  username: string;
-  display_name: string | null;
-  points: number;
-  level: number;
-}
-
 function LeaderboardPage() {
-  const [streamers, setStreamers] = useState<StreamerCardData[]>([]);
-  const [viewers, setViewers] = useState<ViewerRow[]>([]);
-
-  useEffect(() => {
-    supabase.from("streamers").select("*").order("total_boost_amount", { ascending: false }).limit(10).then(({ data }) => data && setStreamers(data as StreamerCardData[]));
-    supabase.from("profiles").select("id, username, display_name, points, level").order("points", { ascending: false }).limit(10).then(({ data }) => data && setViewers(data as ViewerRow[]));
-  }, []);
+  const streamers = [...mockStreamers].sort((a, b) => b.total_boost_amount - a.total_boost_amount).slice(0, 10);
+  const viewers = mockViewerStandings;
 
   return (
     <div className="min-h-screen">
@@ -48,7 +33,7 @@ function LeaderboardPage() {
           {/* Стримеры */}
           <section className="rounded-2xl border border-border/50 bg-surface/60 p-5">
             <div className="flex items-center gap-2 mb-4">
-              <Crown className="h-5 w-5 text-[var(--crown)]" />
+              <Crown className="h-5 w-5 text-crown" />
               <h2 className="font-display font-bold text-xl">Топ стримеров</h2>
             </div>
             <div className="space-y-2">

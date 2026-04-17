@@ -1,13 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { z } from "zod";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Crown, Zap } from "lucide-react";
 import { toast } from "sonner";
-import type { StreamerCardData } from "@/components/StreamerCard";
+import { mockStreamers } from "@/lib/mock-platform";
 
 const searchSchema = z.object({
   streamerId: z.string().optional(),
@@ -34,16 +33,10 @@ function BoostPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const search = Route.useSearch();
-  const [streamers, setStreamers] = useState<StreamerCardData[]>([]);
+  const streamers = useMemo(() => mockStreamers, []);
   const [selected, setSelected] = useState<string>(search.streamerId ?? "");
   const [tier, setTier] = useState<number>(1500);
   const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    supabase.from("streamers").select("*").order("display_name").then(({ data }) => {
-      if (data) setStreamers(data as StreamerCardData[]);
-    });
-  }, []);
 
   const streamer = streamers.find((s) => s.id === selected);
 
@@ -58,28 +51,6 @@ function BoostPage() {
       return;
     }
     setSubmitting(true);
-    const { error } = await supabase.from("boosts").insert({
-      streamer_id: selected,
-      user_id: user.id,
-      amount: tier,
-      priority_score: tier,
-    });
-
-    if (error) {
-      toast.error("Не удалось запустить буст: " + error.message);
-      setSubmitting(false);
-      return;
-    }
-
-    // Поднимаем total_boost_amount у стримера
-    const current = streamers.find((s) => s.id === selected);
-    if (current) {
-      await supabase
-        .from("streamers")
-        .update({ total_boost_amount: current.total_boost_amount + tier })
-        .eq("id", selected);
-    }
-
     toast.success(`Буст ${tier} ⚡ запущен! ${streamer?.display_name} поднимается в топ`);
     setSubmitting(false);
     navigate({ to: "/streamer/$id", params: { id: selected } });

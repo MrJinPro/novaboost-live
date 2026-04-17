@@ -1,14 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
-import { StreamerCard, type StreamerCardData } from "@/components/StreamerCard";
+import { PlatformDisclaimer } from "@/components/PlatformDisclaimer";
+import { StreamerCard } from "@/components/StreamerCard";
 import { Logo } from "@/components/Logo";
 import { LiveIndicator } from "@/components/LiveIndicator";
 import { BoostBadge } from "@/components/BoostBadge";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Crown, Eye, Flame, Sparkles, Trophy, Zap } from "lucide-react";
+import { ArrowRight, Crown, Eye, Flame, Send, Sparkles, Trophy, Zap } from "lucide-react";
 import { formatNumber } from "@/lib/format";
+import { mockActivityFeed, mockStreamers } from "@/lib/mock-platform";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -21,35 +21,7 @@ export const Route = createFileRoute("/")({
 });
 
 function HomePage() {
-  const [streamers, setStreamers] = useState<StreamerCardData[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-    const load = async () => {
-      const { data } = await supabase
-        .from("streamers")
-        .select("*")
-        .order("total_boost_amount", { ascending: false });
-      if (active && data) {
-        setStreamers(data as StreamerCardData[]);
-        setLoading(false);
-      }
-    };
-    load();
-
-    const channel = supabase
-      .channel("streamers-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "streamers" }, load)
-      .on("postgres_changes", { event: "*", schema: "public", table: "boosts" }, load)
-      .subscribe();
-
-    return () => {
-      active = false;
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
+  const streamers = mockStreamers;
   const live = streamers.filter((s) => s.is_live);
   const boosted = streamers.filter((s) => s.total_boost_amount > 0);
   const needsBoost = streamers.filter((s) => s.needs_boost && s.is_live).slice(0, 4);
@@ -68,15 +40,18 @@ function HomePage() {
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-surface/60 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur">
                 <Sparkles className="h-3 w-3 text-blast" />
-                Реальное время · TikTok Live
+                Реальное время · Платформа для TikTok LIVE-стримеров
               </div>
               <h1 className="mt-5 font-display font-bold text-4xl md:text-6xl leading-[1.05] tracking-tight">
-                Двигатель трафика для{" "}
-                <span className="text-gradient-nova">live-эфиров</span>
+                Платформа роста для{" "}
+                <span className="text-gradient-nova">TikTok LIVE-стримеров</span>
               </h1>
               <p className="mt-5 text-lg text-muted-foreground max-w-xl">
-                NovaBoost Live распределяет внимание зрителей между стримерами в момент выхода в эфир. Стримеры получают рост, зрители — очки и уровни.
+                NovaBoost Live - сторонний сервис для TikTok-стримеров и их аудитории: отслеживание эфиров, рост через бусты и сигналы, удержание через контент, Telegram и геймификацию.
               </p>
+              <div className="mt-5 max-w-2xl">
+                <PlatformDisclaimer compact />
+              </div>
               <div className="mt-7 flex flex-wrap gap-3">
                 <Link to="/streamers">
                   <Button size="lg" className="bg-gradient-blast text-blast-foreground hover:opacity-90 shadow-glow font-bold gap-2">
@@ -88,6 +63,12 @@ function HomePage() {
                   <Button size="lg" variant="outline" className="border-cosmic/40 hover:bg-cosmic/10 gap-2">
                     <Zap className="h-4 w-4 text-cosmic" />
                     Запустить буст
+                  </Button>
+                </Link>
+                <Link to="/auth">
+                  <Button size="lg" variant="outline" className="border-border/60 hover:bg-surface gap-2">
+                    <Crown className="h-4 w-4 text-crown" />
+                    Я стример
                   </Button>
                 </Link>
               </div>
@@ -107,14 +88,7 @@ function HomePage() {
 
       {/* BENTO GRID */}
       <section className="container mx-auto px-4 py-10">
-        {loading ? (
-          <div className="grid gap-4 md:grid-cols-12 md:auto-rows-[180px]">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="rounded-2xl bg-surface/50 animate-shimmer md:col-span-6 lg:col-span-4 row-span-2" />
-            ))}
-          </div>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-12">
+        <div className="grid gap-4 md:grid-cols-12">
             {/* 🔴 СЕЙЧАС В ЭФИРЕ — самый крупный блок */}
             <BentoBlock className="md:col-span-8 md:row-span-2">
               <div className="flex items-center justify-between mb-5">
@@ -140,7 +114,7 @@ function HomePage() {
 
             {/* 👑 ПРОДВИГАЕМЫЕ */}
             <BentoBlock className="md:col-span-4" accent="blast">
-              <BlockHeader icon={<Crown className="h-5 w-5 text-[var(--crown)]" />} title="Продвигаемые" subtitle="Стримеры с активным бустом" />
+              <BlockHeader icon={<Crown className="h-5 w-5 text-crown" />} title="Продвигаемые" subtitle="Стримеры с активным бустом" />
               <div className="space-y-2 mt-4">
                 {boosted.slice(0, 4).map((s) => (
                   <StreamerCard key={s.id} streamer={s} variant="compact" />
@@ -199,7 +173,7 @@ function HomePage() {
                 </div>
                 <h3 className="mt-3 font-display font-bold text-lg">Ты стример?</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Подключи аккаунт, выходи в эфир — и получай распределённый трафик автоматически.
+                  Зарегистрируй TikTok username один раз, а дальше система сама начнёт отслеживать твои эфиры и собирать сигналы роста.
                 </p>
                 <Link to="/auth">
                   <Button size="sm" className="mt-4 bg-gradient-cosmic text-foreground hover:opacity-90 font-bold gap-2 shadow-glow-cosmic">
@@ -214,34 +188,41 @@ function HomePage() {
             <BentoBlock className="md:col-span-8">
               <BlockHeader icon={<Sparkles className="h-5 w-5 text-blast" />} title="Лента активности" subtitle="Что происходит в реальном времени" />
               <div className="mt-4 space-y-2">
-                {boosted.slice(0, 4).map((s) => (
-                  <div key={s.id} className="flex items-center gap-3 rounded-lg border border-border/40 bg-surface/40 px-3 py-2.5 text-sm">
-                    <BoostBadge amount={s.total_boost_amount} variant="compact" />
-                    <span className="flex-1 truncate">
-                      <span className="font-semibold">{s.display_name}</span>
-                      <span className="text-muted-foreground"> запустил буст и поднялся в топ</span>
-                    </span>
-                  </div>
-                ))}
-                {live.slice(0, 2).map((s) => (
-                  <div key={`live-${s.id}`} className="flex items-center gap-3 rounded-lg border border-border/40 bg-surface/40 px-3 py-2.5 text-sm">
-                    <LiveIndicator />
-                    <span className="flex-1 truncate">
-                      <span className="font-semibold">{s.display_name}</span>
-                      <span className="text-muted-foreground"> вышел в эфир — {formatNumber(s.viewer_count)} зрителей</span>
+                {mockActivityFeed.map((item) => (
+                  <div key={item.id} className="flex items-center gap-3 rounded-lg border border-border/40 bg-surface/40 px-3 py-2.5 text-sm">
+                    {item.tone === "boost" ? <BoostBadge amount={1500} variant="compact" /> : item.tone === "live" ? <LiveIndicator /> : <Send className="h-4 w-4 text-cosmic" />}
+                    <span className="flex-1">
+                      <span className="font-semibold">{item.title}</span>
+                      <span className="text-muted-foreground"> · {item.body}</span>
                     </span>
                   </div>
                 ))}
               </div>
             </BentoBlock>
+
+            <BentoBlock className="md:col-span-6" accent="cosmic">
+              <BlockHeader icon={<Send className="h-5 w-5 text-cosmic" />} title="Telegram-контур" subtitle="Второй интерфейс платформы" />
+              <div className="mt-4 space-y-3 text-sm text-muted-foreground">
+                <p>Сигналы о старте эфира, кодовые слова, быстрые заходы в рейд и анонсы контента должны жить не только в web.</p>
+                <p>Frontend уже проектируется так, чтобы Telegram был частью продукта, а не дополнительной кнопкой потом.</p>
+              </div>
+            </BentoBlock>
+
+            <BentoBlock className="md:col-span-6" accent="magenta">
+              <BlockHeader icon={<Sparkles className="h-5 w-5 text-magenta" />} title="Между эфирами тоже жизнь" subtitle="Контентный слой стримера" />
+              <div className="mt-4 space-y-2 text-sm text-muted-foreground">
+                <p>У стримера внутри платформы будут посты, короткие видео, анонсы и кастомное оформление страницы.</p>
+                <p>Это удерживает аудиторию между эфирами и делает NovaBoost Live мини-соцсетью вокруг стримов.</p>
+              </div>
+            </BentoBlock>
           </div>
-        )}
       </section>
 
       <footer className="border-t border-border/40 mt-12">
         <div className="container mx-auto px-4 py-6 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
           <Logo size="sm" showText />
-          <div>© 2025 NovaBoost Live · Движок распределения внимания</div>
+          <div>© 2025 NovaBoost Live · Независимый сервис для TikTok LIVE-стримеров</div>
+          <div className="max-w-md text-right">Не связан с TikTok и не представляет TikTok. Используется как сторонняя платформа вокруг live-эфиров.</div>
         </div>
       </footer>
     </div>

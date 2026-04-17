@@ -47,7 +47,7 @@ export function Header() {
               <Link to="/profile">
                 <Button variant="ghost" size="sm" className="gap-2">
                   <UserIcon className="h-4 w-4" />
-                  <span className="hidden sm:inline">Профиль</span>
+                  <span className="hidden sm:inline">{user.role === "streamer" ? "Кабинет" : "Профиль"}</span>
                 </Button>
               </Link>
               <Button variant="ghost" size="sm" onClick={signOut} aria-label="Выйти">
@@ -55,11 +55,18 @@ export function Header() {
               </Button>
             </>
           ) : (
-            <Link to="/auth">
-              <Button size="sm" className="bg-gradient-blast text-blast-foreground hover:opacity-90 shadow-glow font-bold">
-                Войти
-              </Button>
-            </Link>
+            <>
+              <Link to="/auth">
+                <Button variant="outline" size="sm" className="border-cosmic/40 hover:bg-cosmic/10">
+                  Ты стример?
+                </Button>
+              </Link>
+              <Link to="/auth">
+                <Button size="sm" className="bg-gradient-blast text-blast-foreground hover:opacity-90 shadow-glow font-bold">
+                  Войти
+                </Button>
+              </Link>
+            </>
           )}
         </div>
       </div>

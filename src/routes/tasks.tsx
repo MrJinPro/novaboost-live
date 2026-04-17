@@ -1,21 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CheckCircle2, Lock, Trophy, Zap } from "lucide-react";
 import { toast } from "sonner";
-
-interface Task {
-  id: string;
-  title: string;
-  description: string | null;
-  reward_points: number;
-  type: "visit" | "code" | "boost" | "referral";
-  code: string | null;
-}
+import { mockTasks } from "@/lib/mock-platform";
 
 export const Route = createFileRoute("/tasks")({
   head: () => ({
@@ -30,22 +21,11 @@ export const Route = createFileRoute("/tasks")({
 function TasksPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks] = useState(mockTasks);
   const [completed, setCompleted] = useState<Set<string>>(new Set());
   const [codes, setCodes] = useState<Record<string, string>>({});
 
-  const load = async () => {
-    const { data: t } = await supabase.from("tasks").select("*").eq("active", true);
-    if (t) setTasks(t as Task[]);
-    if (user) {
-      const { data: c } = await supabase.from("task_completions").select("task_id").eq("user_id", user.id);
-      if (c) setCompleted(new Set(c.map((r) => r.task_id)));
-    }
-  };
-
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [user]);
-
-  const completeTask = async (task: Task, providedCode?: string) => {
+  const completeTask = async (task: (typeof mockTasks)[number], providedCode?: string) => {
     if (!user) {
       toast.error("Войди, чтобы выполнять задания");
       navigate({ to: "/auth" });
@@ -57,21 +37,12 @@ function TasksPage() {
         return;
       }
     }
-    const { error } = await supabase.from("task_completions").insert({ user_id: user.id, task_id: task.id });
-    if (error) {
-      toast.error(error.code === "23505" ? "Уже выполнено" : "Ошибка: " + error.message);
+    if (completed.has(task.id)) {
+      toast.error("Уже выполнено");
       return;
     }
-    // начисляем очки в profiles
-    const { data: p } = await supabase.from("profiles").select("points").eq("id", user.id).single();
-    const newPoints = (p?.points ?? 0) + task.reward_points;
-    await supabase.from("profiles").update({
-      points: newPoints,
-      level: Math.floor(newPoints / 100) + 1,
-    }).eq("id", user.id);
-
+    setCompleted((prev) => new Set(prev).add(task.id));
     toast.success(`+${task.reward_points} очков за «${task.title}»`);
-    load();
   };
 
   return (

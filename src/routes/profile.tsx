@@ -1,11 +1,10 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
-import { Award, LogOut, Sparkles, Trophy } from "lucide-react";
+import { Award, Crown, LogOut, Sparkles, Trophy } from "lucide-react";
 import { formatNumber } from "@/lib/format";
+import { getStreamerById, mockViewerProfile } from "@/lib/mock-platform";
 
 export const Route = createFileRoute("/profile")({
   beforeLoad: () => {
@@ -18,27 +17,8 @@ export const Route = createFileRoute("/profile")({
   component: ProfilePage,
 });
 
-interface Profile {
-  id: string;
-  username: string;
-  display_name: string | null;
-  avatar_url: string | null;
-  points: number;
-  level: number;
-}
-
 function ProfilePage() {
   const { user, loading, signOut } = useAuth();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [completedCount, setCompletedCount] = useState(0);
-  const [boostsCount, setBoostsCount] = useState(0);
-
-  useEffect(() => {
-    if (!user) return;
-    supabase.from("profiles").select("*").eq("id", user.id).maybeSingle().then(({ data }) => setProfile(data as Profile | null));
-    supabase.from("task_completions").select("id", { count: "exact", head: true }).eq("user_id", user.id).then(({ count }) => setCompletedCount(count ?? 0));
-    supabase.from("boosts").select("id", { count: "exact", head: true }).eq("user_id", user.id).then(({ count }) => setBoostsCount(count ?? 0));
-  }, [user]);
 
   if (loading) {
     return <div className="min-h-screen"><Header /><div className="container mx-auto px-4 py-16 text-center text-muted-foreground">Загрузка…</div></div>;
@@ -56,9 +36,11 @@ function ProfilePage() {
     );
   }
 
-  const points = profile?.points ?? 0;
-  const level = profile?.level ?? 1;
+  const points = mockViewerProfile.points;
+  const level = mockViewerProfile.level;
   const progress = points % 100;
+  const favoriteStreamers = mockViewerProfile.subscriptions.map((id) => getStreamerById(id)).filter(Boolean);
+  const isStreamer = user.role === "streamer";
 
   return (
     <div className="min-h-screen">
@@ -67,13 +49,19 @@ function ProfilePage() {
         <div className="rounded-3xl border border-border/50 bg-surface/60 p-6 md:p-8">
           <div className="flex flex-col sm:flex-row gap-5 items-start">
             <div className="h-20 w-20 rounded-full bg-gradient-cosmic shrink-0 flex items-center justify-center text-2xl font-display font-bold shadow-glow-cosmic">
-              {(profile?.display_name ?? profile?.username ?? "?").charAt(0).toUpperCase()}
+              {(user.displayName ?? user.username ?? "?").charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <h1 className="font-display font-bold text-2xl md:text-3xl">{profile?.display_name ?? profile?.username}</h1>
-              <div className="text-muted-foreground text-sm">@{profile?.username}</div>
-              <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-gradient-cosmic px-3 py-1 text-sm font-bold shadow-glow-cosmic">
-                <Sparkles className="h-4 w-4" /> Уровень {level}
+              <h1 className="font-display font-bold text-2xl md:text-3xl">{user.displayName}</h1>
+              <div className="text-muted-foreground text-sm">@{user.username} · TikTok: @{user.tiktokUsername}</div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <div className="inline-flex items-center gap-2 rounded-full bg-gradient-cosmic px-3 py-1 text-sm font-bold shadow-glow-cosmic">
+                  <Sparkles className="h-4 w-4" /> {isStreamer ? "Стримерский кабинет" : `Уровень ${level}`}
+                </div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/40 px-3 py-1 text-sm text-muted-foreground">
+                  {isStreamer ? <Crown className="h-4 w-4 text-crown" /> : <Award className="h-4 w-4 text-blast" />}
+                  {isStreamer ? "Автотрекинг: запланирован" : `Серия активности: ${mockViewerProfile.streakDays} дней`}
+                </div>
               </div>
             </div>
             <Button variant="outline" size="sm" onClick={signOut} className="gap-2">
@@ -81,22 +69,49 @@ function ProfilePage() {
             </Button>
           </div>
 
-          <div className="mt-6">
-            <div className="flex items-center justify-between text-sm mb-2">
-              <span className="text-muted-foreground">До уровня {level + 1}</span>
-              <span className="font-bold">{progress}/100</span>
+          {!isStreamer && (
+            <div className="mt-6">
+              <div className="flex items-center justify-between text-sm mb-2">
+                <span className="text-muted-foreground">До уровня {level + 1}</span>
+                <span className="font-bold">{progress}/100</span>
+              </div>
+              <div className="h-3 rounded-full bg-surface-2 overflow-hidden">
+                <div className="h-full bg-gradient-blast transition-all" style={{ width: `${progress}%` }} />
+              </div>
             </div>
-            <div className="h-3 rounded-full bg-surface-2 overflow-hidden">
-              <div className="h-full bg-gradient-blast transition-all" style={{ width: `${progress}%` }} />
-            </div>
-          </div>
+          )}
         </div>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-3">
-          <StatBox icon={<Trophy className="h-5 w-5" />} label="Очков" value={formatNumber(points)} accent="blast" />
-          <StatBox icon={<Award className="h-5 w-5" />} label="Заданий" value={String(completedCount)} />
-          <StatBox icon={<Sparkles className="h-5 w-5" />} label="Бустов" value={String(boostsCount)} accent="cosmic" />
+          <StatBox icon={<Trophy className="h-5 w-5" />} label={isStreamer ? "Подписчиков" : "Очков"} value={formatNumber(isStreamer ? 1240 : points)} accent="blast" />
+          <StatBox icon={<Award className="h-5 w-5" />} label={isStreamer ? "Эфиров в трекинге" : "Заданий"} value={String(isStreamer ? 8 : mockViewerProfile.completedTasks)} />
+          <StatBox icon={<Sparkles className="h-5 w-5" />} label={isStreamer ? "Telegram-связки" : "Бустов"} value={String(isStreamer ? 1 : mockViewerProfile.boostsJoined)} accent="cosmic" />
         </div>
+
+        {!isStreamer && favoriteStreamers.length > 0 && (
+          <div className="mt-6 rounded-3xl border border-border/50 bg-surface/60 p-6">
+            <h2 className="font-display font-bold text-xl">Подписки на стримеров</h2>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {favoriteStreamers.map((streamer) => (
+                <Link key={streamer!.id} to="/streamer/$id" params={{ id: streamer!.id }} className="rounded-2xl border border-border/50 bg-background/30 p-4 hover:border-blast/40 transition-colors">
+                  <div className="font-semibold">{streamer!.display_name}</div>
+                  <div className="mt-1 text-sm text-muted-foreground">@{streamer!.tiktok_username}</div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {isStreamer && (
+          <div className="mt-6 rounded-3xl border border-border/50 bg-surface/60 p-6">
+            <h2 className="font-display font-bold text-xl">Что будет в кабинете стримера</h2>
+            <div className="mt-4 space-y-2 text-sm text-muted-foreground">
+              <p>Отслеживание live-статуса и запуск stream-worker без ручного подключения к каждому эфиру.</p>
+              <p>Контентный слой: посты, короткие видео, анонсы и оформление страницы.</p>
+              <p>Инструменты роста: бусты, сигналы нужен буст, Telegram-канал и внутренняя аналитика активности.</p>
+            </div>
+          </div>
+        )}
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
           <Link to="/tasks"><Button variant="outline" className="w-full gap-2"><Trophy className="h-4 w-4" /> К заданиям</Button></Link>

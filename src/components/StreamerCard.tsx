@@ -3,19 +3,7 @@ import { Eye, Users } from "lucide-react";
 import { LiveIndicator } from "./LiveIndicator";
 import { BoostBadge, NeedsBoostBadge } from "./BoostBadge";
 import { formatNumber } from "@/lib/format";
-
-export interface StreamerCardData {
-  id: string;
-  display_name: string;
-  tiktok_username: string;
-  avatar_url: string | null;
-  bio: string | null;
-  is_live: boolean;
-  viewer_count: number;
-  followers_count: number;
-  needs_boost: boolean;
-  total_boost_amount: number;
-}
+import type { StreamerCardData } from "@/lib/mock-platform";
 
 interface StreamerCardProps {
   streamer: StreamerCardData;
@@ -39,13 +27,13 @@ export function StreamerCard({ streamer, variant = "default" }: StreamerCardProp
             className="h-12 w-12 rounded-full bg-surface-2 object-cover ring-2 ring-border"
           />
           {streamer.is_live && (
-            <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-[var(--live)] ring-2 ring-background" />
+            <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-live ring-2 ring-background" />
           )}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="truncate font-semibold text-sm">{streamer.display_name}</span>
-            {boosted && <span className="text-[var(--crown)]">👑</span>}
+            {boosted && <span className="text-crown">👑</span>}
           </div>
           <div className="text-xs text-muted-foreground truncate">@{streamer.tiktok_username}</div>
         </div>
@@ -76,10 +64,10 @@ export function StreamerCard({ streamer, variant = "default" }: StreamerCardProp
         boosted
           ? "border-blast/50 shadow-glow animate-glow-breathe"
           : "border-border/50 hover:border-cosmic/40"
-      } ${featured ? "min-h-[280px]" : ""}`}
+      } ${featured ? "min-h-70" : ""}`}
     >
       {boosted && (
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[oklch(0.72_0.20_45/0.08)] via-transparent to-[oklch(0.66_0.24_5/0.08)]" />
+        <div className="pointer-events-none absolute inset-0 bg-linear-to-br from-[oklch(0.72_0.20_45/0.08)] via-transparent to-[oklch(0.66_0.24_5/0.08)]" />
       )}
 
       <div className="relative flex items-start justify-between gap-3">
@@ -93,13 +81,13 @@ export function StreamerCard({ streamer, variant = "default" }: StreamerCardProp
               } ${featured ? "h-16 w-16" : "h-14 w-14"}`}
             />
             {streamer.is_live && (
-              <span className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-[var(--live)] ring-2 ring-background animate-pulse-live" />
+              <span className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-live ring-2 ring-background animate-pulse-live" />
             )}
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <h3 className="font-display font-bold truncate">{streamer.display_name}</h3>
-              {boosted && <span className="text-[var(--crown)] text-lg">👑</span>}
+              {boosted && <span className="text-crown text-lg">👑</span>}
             </div>
             <div className="text-xs text-muted-foreground">@{streamer.tiktok_username}</div>
           </div>

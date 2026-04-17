@@ -27,7 +27,7 @@ export function Logo({ size = "md", showText = true }: LogoProps) {
             <span className="text-gradient-blast">Boost</span>
           </div>
           <div className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground mt-0.5">
-            Live traffic engine
+            Платформа живых эфиров
           </div>
         </div>
       )}
