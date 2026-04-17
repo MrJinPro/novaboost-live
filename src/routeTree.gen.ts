@@ -9,38 +9,175 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TasksRouteImport } from './routes/tasks'
+import { Route as StreamersRouteImport } from './routes/streamers'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as LeaderboardRouteImport } from './routes/leaderboard'
+import { Route as BoostRouteImport } from './routes/boost'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as StreamerIdRouteImport } from './routes/streamer.$id'
 
+const TasksRoute = TasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StreamersRoute = StreamersRouteImport.update({
+  id: '/streamers',
+  path: '/streamers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeaderboardRoute = LeaderboardRouteImport.update({
+  id: '/leaderboard',
+  path: '/leaderboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BoostRoute = BoostRouteImport.update({
+  id: '/boost',
+  path: '/boost',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StreamerIdRoute = StreamerIdRouteImport.update({
+  id: '/streamer/$id',
+  path: '/streamer/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/boost': typeof BoostRoute
+  '/leaderboard': typeof LeaderboardRoute
+  '/profile': typeof ProfileRoute
+  '/streamers': typeof StreamersRoute
+  '/tasks': typeof TasksRoute
+  '/streamer/$id': typeof StreamerIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/boost': typeof BoostRoute
+  '/leaderboard': typeof LeaderboardRoute
+  '/profile': typeof ProfileRoute
+  '/streamers': typeof StreamersRoute
+  '/tasks': typeof TasksRoute
+  '/streamer/$id': typeof StreamerIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/boost': typeof BoostRoute
+  '/leaderboard': typeof LeaderboardRoute
+  '/profile': typeof ProfileRoute
+  '/streamers': typeof StreamersRoute
+  '/tasks': typeof TasksRoute
+  '/streamer/$id': typeof StreamerIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/boost'
+    | '/leaderboard'
+    | '/profile'
+    | '/streamers'
+    | '/tasks'
+    | '/streamer/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/boost'
+    | '/leaderboard'
+    | '/profile'
+    | '/streamers'
+    | '/tasks'
+    | '/streamer/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/auth'
+    | '/boost'
+    | '/leaderboard'
+    | '/profile'
+    | '/streamers'
+    | '/tasks'
+    | '/streamer/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthRoute: typeof AuthRoute
+  BoostRoute: typeof BoostRoute
+  LeaderboardRoute: typeof LeaderboardRoute
+  ProfileRoute: typeof ProfileRoute
+  StreamersRoute: typeof StreamersRoute
+  TasksRoute: typeof TasksRoute
+  StreamerIdRoute: typeof StreamerIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/tasks': {
+      id: '/tasks'
+      path: '/tasks'
+      fullPath: '/tasks'
+      preLoaderRoute: typeof TasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/streamers': {
+      id: '/streamers'
+      path: '/streamers'
+      fullPath: '/streamers'
+      preLoaderRoute: typeof StreamersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/leaderboard': {
+      id: '/leaderboard'
+      path: '/leaderboard'
+      fullPath: '/leaderboard'
+      preLoaderRoute: typeof LeaderboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/boost': {
+      id: '/boost'
+      path: '/boost'
+      fullPath: '/boost'
+      preLoaderRoute: typeof BoostRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +185,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/streamer/$id': {
+      id: '/streamer/$id'
+      path: '/streamer/$id'
+      fullPath: '/streamer/$id'
+      preLoaderRoute: typeof StreamerIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthRoute: AuthRoute,
+  BoostRoute: BoostRoute,
+  LeaderboardRoute: LeaderboardRoute,
+  ProfileRoute: ProfileRoute,
+  StreamersRoute: StreamersRoute,
+  TasksRoute: TasksRoute,
+  StreamerIdRoute: StreamerIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
