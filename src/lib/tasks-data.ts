@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { AppUser } from "@/lib/mock-platform";
+import { getViewerProfileStatsCompat, updateViewerProfileProgressCompat } from "@/lib/profile-schema-compat";
 
 export type LiveTask = {
   id: string;
@@ -9,11 +10,6 @@ export type LiveTask = {
   type: "visit" | "code" | "boost" | "referral";
   code: string | null;
   streamer_id: string | null;
-};
-
-type ProfileStatsRow = {
-  points: number;
-  streak_days: number;
 };
 
 export async function loadTasksData(userId?: string) {
@@ -50,17 +46,7 @@ export async function loadTasksData(userId?: string) {
 }
 
 async function getProfileStats(userId: string) {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("points, streak_days")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (error) {
-    throw error;
-  }
-
-  return (data ?? { points: 0, streak_days: 0 }) as ProfileStatsRow;
+  return getViewerProfileStatsCompat(userId);
 }
 
 export async function completeLiveTask(user: AppUser, task: LiveTask) {
@@ -79,20 +65,12 @@ export async function completeLiveTask(user: AppUser, task: LiveTask) {
   const nextPoints = (current.points ?? 0) + task.reward_points;
   const nextLevel = Math.floor(nextPoints / 100) + 1;
 
-  const { error: profileError } = await supabase
-    .from("profiles")
-    .update({
-      points: nextPoints,
-      level: nextLevel,
-      streak_days: Math.max(1, current.streak_days ?? 0),
-      activity_score: nextPoints,
-      last_activity_at: new Date().toISOString(),
-    })
-    .eq("id", user.id);
-
-  if (profileError) {
-    throw profileError;
-  }
+  await updateViewerProfileProgressCompat({
+    userId: user.id,
+    points: nextPoints,
+    level: nextLevel,
+    streak_days: Math.max(1, current.streak_days ?? 0),
+  });
 
   return {
     nextPoints,

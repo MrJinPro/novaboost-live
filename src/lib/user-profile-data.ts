@@ -1,11 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getStreamerById, type AppUser, type StreamerCardData } from "@/lib/mock-platform";
-
-type ViewerProfileRow = {
-  points: number;
-  level: number;
-  streak_days: number;
-};
+import { getViewerProfileStatsCompat } from "@/lib/profile-schema-compat";
 
 type SubscriptionStreamerRow = {
   id: string;
@@ -47,17 +42,7 @@ function normalizeStreamer(row: SubscriptionStreamerRow): StreamerCardData {
 }
 
 async function getViewerProfile(userId: string) {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("points, level, streak_days")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (error) {
-    throw error;
-  }
-
-  return (data ?? null) as ViewerProfileRow | null;
+  return getViewerProfileStatsCompat(userId);
 }
 
 async function getSubscriptions(userId: string) {

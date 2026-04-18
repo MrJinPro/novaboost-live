@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { AppRole, AppUser } from "@/lib/mock-platform";
+import { getAuthProfileCompat, upsertAuthProfileCompat } from "@/lib/profile-schema-compat";
 
 interface AuthContextValue {
   user: AppUser | null;
@@ -27,13 +28,6 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-type ProfileRow = {
-  id: string;
-  username: string;
-  display_name: string | null;
-  tiktok_username: string | null;
-};
-
 type StreamerRow = {
   id: string;
   user_id: string | null;
@@ -42,17 +36,7 @@ type StreamerRow = {
 };
 
 async function getProfile(userId: string) {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, username, display_name, tiktok_username")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (error) {
-    throw error;
-  }
-
-  return (data ?? null) as ProfileRow | null;
+  return getAuthProfileCompat(userId);
 }
 
 async function getStreamer(userId: string) {
@@ -196,19 +180,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const fallbackName = payload.displayName.trim() || payload.username.trim() || payload.tiktokUsername.trim();
 
     if (data.session) {
-      const { error: profileError } = await supabase.from("profiles").upsert(
-        {
-          id: data.user.id,
-          username: payload.username,
-          display_name: payload.displayName,
-          tiktok_username: payload.tiktokUsername,
-        },
-        { onConflict: "id" }
-      );
-
-      if (profileError) {
-        throw profileError;
-      }
+      await upsertAuthProfileCompat({
+        id: data.user.id,
+        username: payload.username,
+        display_name: payload.displayName,
+        tiktok_username: payload.tiktokUsername,
+      });
 
       if (payload.role === "streamer") {
         await ensureStreamerRecord(data.user.id, payload.tiktokUsername, fallbackName);
