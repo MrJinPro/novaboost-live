@@ -128,6 +128,7 @@ const streamerPages: StreamerPageData[] = [
     perks: ["ранний доступ к анонсам", "закрытые коды", "рейды по сигналу"],
     posts: [
       {
+        ...POST_DEFAULTS,
         id: "post-luna-1",
         type: "announcement",
         title: "Через час стартуем эфир",
@@ -135,6 +136,7 @@ const streamerPages: StreamerPageData[] = [
         createdAt: "18 апреля, 21:20",
       },
       {
+        ...POST_DEFAULTS,
         id: "post-luna-2",
         type: "news",
         title: "Запускаю серию коротких музыкальных баттлов",
@@ -171,6 +173,7 @@ const streamerPages: StreamerPageData[] = [
     perks: ["ранний заход на рейд", "таблица лучших зрителей", "личные сигналы"],
     posts: [
       {
+        ...POST_DEFAULTS,
         id: "post-max-1",
         type: "news",
         title: "Открываю набор на командный буст",
@@ -178,6 +181,7 @@ const streamerPages: StreamerPageData[] = [
         createdAt: "18 апреля, 18:10",
       },
       {
+        ...POST_DEFAULTS,
         id: "post-max-2",
         type: "clip",
         title: "Короткий фрагмент вчерашнего клатча",
@@ -214,6 +218,7 @@ const streamerPages: StreamerPageData[] = [
     perks: ["ранние скетчи", "закрытые референсы", "анонсы заранее"],
     posts: [
       {
+        ...POST_DEFAULTS,
         id: "post-mira-1",
         type: "announcement",
         title: "Через час выложу тему следующего арт-челленджа",
@@ -249,6 +254,7 @@ const streamerPages: StreamerPageData[] = [
     perks: ["приватные анонсы", "городские маршруты", "внутренние активности"],
     posts: [
       {
+        ...POST_DEFAULTS,
         id: "post-den-1",
         type: "news",
         title: "Тестирую формат коротких включений между большими эфирами",
