@@ -19,6 +19,7 @@ export type TrackingSnapshot = {
   tiktokUsername: string;
   isLive: boolean;
   viewerCount: number;
+  likeCount?: number;
   followersCount: number;
   checkedAt: string;
   source: string;

@@ -156,6 +156,13 @@ export class TrackingService {
         if (snapshot.isLive && !liveSession) {
           const session = await this.trackingRepository.startLiveSession(snapshot);
           sessionId = session.id;
+          if ((snapshot.likeCount ?? 0) > 0) {
+            await this.trackingRepository.updateSessionEngagement(sessionId, {
+              likeDelta: snapshot.likeCount,
+              currentViewerCount: snapshot.viewerCount,
+              rawSnapshot: snapshot.rawSnapshot,
+            });
+          }
           await this.trackingRepository.insertStreamEvent({
             streamerId: streamer.id,
             streamSessionId: sessionId,
@@ -164,6 +171,7 @@ export class TrackingService {
             eventTimestamp: snapshot.checkedAt,
             normalizedPayload: {
               viewer_count: snapshot.viewerCount,
+              like_count: snapshot.likeCount ?? 0,
               followers_count: snapshot.followersCount,
             },
             rawPayload: snapshot.rawSnapshot,
@@ -184,6 +192,14 @@ export class TrackingService {
           });
         } else if (snapshot.isLive && liveSession) {
           await this.trackingRepository.updateLiveSession(liveSession.id, snapshot, liveSession.peak_viewer_count);
+          const likeDelta = Math.max(0, (snapshot.likeCount ?? 0) - (liveSession.like_count ?? 0));
+          if (likeDelta > 0 || snapshot.viewerCount !== liveSession.current_viewer_count) {
+            await this.trackingRepository.updateSessionEngagement(liveSession.id, {
+              likeDelta,
+              currentViewerCount: snapshot.viewerCount,
+              rawSnapshot: snapshot.rawSnapshot,
+            });
+          }
           await this.trackingRepository.insertStreamEvent({
             streamerId: streamer.id,
             streamSessionId: liveSession.id,
@@ -192,6 +208,7 @@ export class TrackingService {
             eventTimestamp: snapshot.checkedAt,
             normalizedPayload: {
               viewer_count: snapshot.viewerCount,
+              like_count: snapshot.likeCount ?? liveSession.like_count,
               followers_count: snapshot.followersCount,
             },
             rawPayload: snapshot.rawSnapshot,
