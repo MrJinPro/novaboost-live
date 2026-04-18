@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { AppUser, type StreamerCardData } from "@/lib/mock-platform";
+import type { AppUser, StreamerCardData } from "@/lib/mock-platform";
 import { getViewerProfileStatsCompat } from "./profile-schema-compat";
 
 type SubscriptionStreamerRow = {
@@ -73,7 +73,7 @@ async function getSubscriptions(userId: string) {
   return ids.map((id) => byId.get(id)).filter(Boolean) as StreamerCardData[];
 }
 
-async function getCount(table: string, column: string, value: string) {
+async function getCount(table: "task_completions" | "boosts", column: string, value: string) {
   const { count, error } = await supabase
     .from(table)
     .select("id", { count: "exact", head: true })
