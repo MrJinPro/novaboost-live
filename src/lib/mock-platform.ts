@@ -19,6 +19,10 @@ export interface StreamerCardData {
   bio: string | null;
   is_live: boolean;
   viewer_count: number;
+  like_count?: number;
+  gift_count?: number;
+  message_count?: number;
+  peak_viewer_count?: number;
   followers_count: number;
   needs_boost: boolean;
   total_boost_amount: number;

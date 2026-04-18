@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Eye, Users } from "lucide-react";
+import { Eye, Gift, MessageCircle, Heart, Users } from "lucide-react";
 import { LiveIndicator } from "./LiveIndicator";
 import { BoostBadge, NeedsBoostBadge } from "./BoostBadge";
 import { formatNumber } from "@/lib/format";
@@ -12,6 +12,12 @@ interface StreamerCardProps {
 
 export function StreamerCard({ streamer, variant = "default" }: StreamerCardProps) {
   const boosted = streamer.total_boost_amount > 0;
+  const liveMetrics = [
+    { key: "viewers", icon: Eye, value: streamer.viewer_count },
+    { key: "likes", icon: Heart, value: streamer.like_count ?? 0 },
+    { key: "gifts", icon: Gift, value: streamer.gift_count ?? 0 },
+    { key: "messages", icon: MessageCircle, value: streamer.message_count ?? 0 },
+  ];
 
   if (variant === "compact") {
     return (
@@ -36,6 +42,16 @@ export function StreamerCard({ streamer, variant = "default" }: StreamerCardProp
             {boosted && <span className="text-crown">👑</span>}
           </div>
           <div className="text-xs text-muted-foreground truncate">@{streamer.tiktok_username}</div>
+          {streamer.is_live && (
+            <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
+              {liveMetrics.map(({ key, icon: Icon, value }) => (
+                <span key={key} className="inline-flex items-center gap-1">
+                  <Icon className="h-3 w-3" />
+                  {formatNumber(value)}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         <div className="text-right text-xs text-muted-foreground">
           {streamer.is_live ? (
@@ -122,6 +138,19 @@ export function StreamerCard({ streamer, variant = "default" }: StreamerCardProp
           {streamer.needs_boost && !boosted && <NeedsBoostBadge />}
         </div>
       </div>
+
+      {streamer.is_live && (
+        <div className="relative mt-4 grid grid-cols-2 gap-2 text-[11px] text-muted-foreground sm:grid-cols-4">
+          {liveMetrics.map(({ key, icon: Icon, value }) => (
+            <div key={key} className="rounded-lg border border-border/40 bg-background/30 px-2.5 py-2">
+              <div className="inline-flex items-center gap-1">
+                <Icon className="h-3.5 w-3.5" />
+                <span>{formatNumber(value)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </Link>
   );
 }
