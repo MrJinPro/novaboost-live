@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { getStreamerById, type AppUser, type StreamerCardData } from "@/lib/mock-platform";
+import type { AppUser, type StreamerCardData } from "@/lib/mock-platform";
 import { getViewerProfileStatsCompat } from "./profile-schema-compat";
 
 type SubscriptionStreamerRow = {
@@ -25,17 +25,15 @@ export type ViewerProfileData = {
 };
 
 function normalizeStreamer(row: SubscriptionStreamerRow): StreamerCardData {
-  const fallback = getStreamerById(row.id);
-
   return {
     id: row.id,
-    display_name: row.display_name || fallback?.display_name || row.tiktok_username,
+    display_name: row.display_name || row.tiktok_username,
     tiktok_username: row.tiktok_username,
-    avatar_url: row.avatar_url ?? fallback?.avatar_url ?? null,
-    bio: row.bio ?? fallback?.bio ?? null,
+    avatar_url: row.avatar_url ?? null,
+    bio: row.bio ?? null,
     is_live: row.is_live,
     viewer_count: row.viewer_count ?? 0,
-    followers_count: row.followers_count ?? fallback?.followers_count ?? 0,
+    followers_count: row.followers_count ?? 0,
     needs_boost: row.needs_boost,
     total_boost_amount: row.total_boost_amount ?? 0,
   };

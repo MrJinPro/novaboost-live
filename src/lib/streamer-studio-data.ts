@@ -1,8 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import {
-  createStudioDraft,
-  getStreamerById,
   type AppUser,
   type StreamerPageData,
   type StreamerPost,
@@ -51,6 +49,21 @@ type DbMedia = Pick<
 >;
 
 type DbStreamSession = Pick<Tables<"stream_sessions">, "like_count" | "gift_count">;
+
+function createEmptyStudioDraft(tiktokUsername: string, displayName: string): StreamerStudioDraft {
+  return {
+    bannerUrl: "",
+    logoUrl: "",
+    headline: displayName ? `Публичная страница ${displayName}` : "Публичная страница стримера",
+    bio: tiktokUsername
+      ? `Подписывайся на @${tiktokUsername}, чтобы следить за анонсами и активностью между эфирами.`
+      : "Расскажи, зачем зрителю подписываться на тебя внутри платформы и что происходит на твоих эфирах.",
+    telegramChannel: "",
+    accent: "from-cosmic/80 via-magenta/30 to-blast/70",
+    tags: "",
+    featuredVideoUrl: "",
+  };
+}
 
 function toUiPostType(postType: string): StreamerPost["type"] {
   if (postType === "announcement" || postType === "news") {
@@ -193,14 +206,14 @@ function buildDraft(base: StreamerStudioDraft, streamer: DbStreamer, settings: D
 }
 
 export async function loadStreamerStudioData(user: AppUser) {
-  const fallback = createStudioDraft(user.tiktokUsername, user.displayName);
+  const fallbackDraft = createEmptyStudioDraft(user.tiktokUsername, user.displayName);
   const streamer = await getOwnedStreamer(user.id);
 
   if (!streamer) {
     return {
-      streamerId: fallback.streamer?.id ?? null,
-      pageDraft: fallback.draft,
-      posts: fallback.streamer?.posts ?? [],
+      streamerId: null,
+      pageDraft: fallbackDraft,
+      posts: [],
     };
   }
 
@@ -211,8 +224,8 @@ export async function loadStreamerStudioData(user: AppUser) {
 
   return {
     streamerId: streamer.id,
-    pageDraft: buildDraft(fallback.draft, streamer, settings),
-    posts: posts.length > 0 ? posts : fallback.streamer?.posts ?? [],
+    pageDraft: buildDraft(fallbackDraft, streamer, settings),
+    posts,
   };
 }
 
@@ -300,7 +313,6 @@ export async function publishStreamerPost(user: AppUser, input: Pick<StreamerPos
 }
 
 export async function loadPublicStreamerPage(id: string) {
-  const fallback = getStreamerById(id);
   const { data, error } = await supabase
     .from("streamers")
     .select("id, user_id, display_name, tiktok_username, avatar_url, bio, banner_url, logo_url, tagline, telegram_channel, is_live, viewer_count, followers_count, needs_boost, total_boost_amount")
@@ -314,7 +326,7 @@ export async function loadPublicStreamerPage(id: string) {
   const streamer = (data ?? null) as DbStreamer | null;
 
   if (!streamer) {
-    return fallback;
+    return null;
   }
 
   const [settings, posts, subscriptionCount, boostTotals, media, latestSession] = await Promise.all([
@@ -331,9 +343,9 @@ export async function loadPublicStreamerPage(id: string) {
     display_name: streamer.display_name,
     tiktok_username: streamer.tiktok_username,
     avatar_url: settings?.logo_url ?? streamer.logo_url ?? streamer.avatar_url,
-    banner_url: settings?.banner_url ?? streamer.banner_url ?? fallback?.banner_url ?? "",
-    bio: settings?.description ?? streamer.bio ?? fallback?.bio ?? "",
-    tagline: settings?.headline ?? streamer.tagline ?? fallback?.tagline ?? "Публичная страница стримера внутри NovaBoost Live.",
+    banner_url: settings?.banner_url ?? streamer.banner_url ?? "",
+    bio: settings?.description ?? streamer.bio ?? "",
+    tagline: settings?.headline ?? streamer.tagline ?? "Публичная страница стримера внутри NovaBoost Live.",
     is_live: streamer.is_live,
     viewer_count: streamer.viewer_count,
     followers_count: streamer.followers_count,

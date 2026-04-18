@@ -7,7 +7,7 @@ import { BoostBadge } from "@/components/BoostBadge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Bell, Eye, ExternalLink, Send, Users, Zap, TrendingUp } from "lucide-react";
 import { formatNumber } from "@/lib/format";
-import { getStreamerById } from "@/lib/mock-platform";
+import type { StreamerPageData } from "@/lib/mock-platform";
 import { getStreamerSubscriptionState, loadPublicStreamerPage, toggleStreamerSubscription } from "@/lib/streamer-studio-data";
 import { toast } from "sonner";
 
@@ -20,8 +20,8 @@ function StreamerProfile() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [subscribed, setSubscribed] = useState(false);
-  const [streamer, setStreamer] = useState(() => getStreamerById(id));
-  const [pageLoading, setPageLoading] = useState(!getStreamerById(id));
+  const [streamer, setStreamer] = useState<StreamerPageData | null>(null);
+  const [pageLoading, setPageLoading] = useState(true);
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
 
   useEffect(() => {
@@ -33,6 +33,11 @@ function StreamerProfile() {
         const page = await loadPublicStreamerPage(id);
         if (active) {
           setStreamer(page);
+        }
+      } catch (error) {
+        if (active) {
+          setStreamer(null);
+          toast.error(error instanceof Error ? error.message : "Не удалось загрузить публичную страницу стримера");
         }
       } finally {
         if (active) {

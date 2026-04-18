@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/auth-context";
-import { createStudioDraft, type StreamerPost } from "@/lib/mock-platform";
+import type { StreamerPost } from "@/lib/mock-platform";
 import { loadStreamerStudioData, publishStreamerPost, saveStreamerStudioPage } from "@/lib/streamer-studio-data";
 import { toast } from "sonner";
 import { Bell, ExternalLink, ImagePlus, LayoutPanelTop, PencilLine, Send, Sparkles } from "lucide-react";
@@ -22,15 +22,30 @@ export const Route = createFileRoute("/studio")({
   component: StreamerStudioPage,
 });
 
+function createInitialStudioDraft() {
+  return {
+    bannerUrl: "",
+    logoUrl: "",
+    headline: "Публичная страница стримера",
+    bio: "Расскажи, зачем зрителю подписываться на тебя внутри платформы и что происходит на твоих эфирах.",
+    telegramChannel: "",
+    accent: "from-cosmic/80 via-magenta/30 to-blast/70",
+    tags: "",
+    featuredVideoUrl: "",
+  };
+}
+
 function StreamerStudioPage() {
   const { user, loading } = useAuth();
-  const fallback = user ? createStudioDraft(user.tiktokUsername, user.displayName) : null;
-  const [pageDraft, setPageDraft] = useState(fallback?.draft ?? createStudioDraft("", "стримера").draft);
-  const [posts, setPosts] = useState<StreamerPost[]>(fallback?.streamer?.posts ?? []);
-  const [publicPageId, setPublicPageId] = useState<string | null>(fallback?.streamer?.id ?? null);
+  const [pageDraft, setPageDraft] = useState(createInitialStudioDraft);
+  const [posts, setPosts] = useState<StreamerPost[]>([]);
+  const [publicPageId, setPublicPageId] = useState<string | null>(null);
   const [studioLoading, setStudioLoading] = useState(false);
   const [savingPage, setSavingPage] = useState(false);
   const [publishingPost, setPublishingPost] = useState(false);
+  const [postType, setPostType] = useState<StreamerPost["type"]>("announcement");
+  const [postTitle, setPostTitle] = useState("");
+  const [postBody, setPostBody] = useState("");
 
   if (loading) {
     return <div className="min-h-screen"><Header /><div className="container mx-auto px-4 py-16 text-center text-muted-foreground">Загрузка…</div></div>;
@@ -53,9 +68,6 @@ function StreamerStudioPage() {
       </div>
     );
   }
-  const [postType, setPostType] = useState<StreamerPost["type"]>("announcement");
-  const [postTitle, setPostTitle] = useState("");
-  const [postBody, setPostBody] = useState("");
 
   useEffect(() => {
     let active = true;
