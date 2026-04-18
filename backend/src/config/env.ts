@@ -3,6 +3,8 @@ import { z } from "zod";
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   BACKEND_PORT: z.coerce.number().int().positive().default(4310),
+  TRACKING_ENABLED: z.coerce.boolean().default(true),
+  TRACKING_POLL_INTERVAL_MS: z.coerce.number().int().min(15_000).max(30_000).default(15_000),
   SUPABASE_URL: z.string().url().optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
   REDIS_URL: z.string().url().optional(),

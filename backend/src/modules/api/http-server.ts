@@ -5,6 +5,7 @@ import { NotificationService } from "../notifications/notification-service.js";
 import { ScoringService } from "../scoring/scoring-service.js";
 import { TelegramService } from "../telegram/telegram-service.js";
 import { TrackingService } from "../tracking/tracking-service.js";
+import { TrackingSocketHub } from "../tracking/tracking-socket-hub.js";
 
 type ServiceBundle = {
   tracking: TrackingService;
@@ -41,14 +42,22 @@ export function startHttpServer(env: BackendEnv, logger: Logger, services: Servi
     if (url.pathname === "/manifest") {
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify({
-        api: ["/health", "/manifest"],
+        api: ["/health", "/manifest", "/tracking/status", "/notifications/stream/:streamerId/preview?trigger=..."],
+        ws: ["/ws/tracking"],
         capabilities: [
           "tracking scheduler foundation",
+          "tracking websocket updates",
           "priority scoring foundation",
           "telegram routing foundation",
           "notification fan-out foundation",
         ],
       }));
+      return;
+    }
+
+    if (url.pathname === "/tracking/status") {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ tracking: services.tracking.getHealth() }));
       return;
     }
 
@@ -84,9 +93,11 @@ export function startHttpServer(env: BackendEnv, logger: Logger, services: Servi
     response.end(JSON.stringify({ error: "Not found" }));
   });
 
+  const trackingSocketHub = new TrackingSocketHub(server, logger);
+
   server.listen(env.BACKEND_PORT, () => {
     logger.info("NovaBoost backend listening", { port: env.BACKEND_PORT });
   });
 
-  return server;
+  return { server, trackingSocketHub };
 }

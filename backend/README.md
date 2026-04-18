@@ -14,6 +14,8 @@
 - env-конфиг через zod
 - health endpoint
 - manifest endpoint
+- WebSocket gateway для live-status snapshots
+- tracking scheduler каждые 15-30 секунд
 - модули tracking, scoring, notifications, Telegram
 
 ## Команды
@@ -27,7 +29,21 @@ npm run start:backend
 
 - `GET /health`
 - `GET /manifest`
+- `GET /tracking/status`
 - `GET /notifications/stream/:streamerId/preview?trigger=live_started|boost_needed|post_published`
+
+## WebSocket
+
+- `ws://localhost:4310/ws/tracking`
+
+Сообщение подписки:
+
+```json
+{
+	"type": "subscribe",
+	"streamerIds": ["streamer-id-1", "streamer-id-2"]
+}
+```
 
 ## Следующие шаги
 
