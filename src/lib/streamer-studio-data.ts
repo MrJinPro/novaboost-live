@@ -205,7 +205,8 @@ async function getSubscriptionCount(streamerId: string) {
 }
 
 function buildDraft(base: StreamerStudioDraft, streamer: DbStreamer, settings: DbPageSettings | null): StreamerStudioDraft {
-  const tags = Array.isArray(settings?.layout?.tags) ? settings?.layout?.tags ?? [] : [];
+  const layout = (settings?.layout ?? {}) as { tags?: string[] };
+  const tags = Array.isArray(layout.tags) ? layout.tags : [];
 
   return {
     bannerUrl: settings?.banner_url ?? streamer.banner_url ?? base.bannerUrl,
@@ -372,7 +373,10 @@ export async function loadPublicStreamerPage(id: string) {
     total_likes: latestSession.like_count ?? 0,
     total_gifts: latestSession.gift_count ?? 0,
     accent: settings?.accent_color ?? "from-cosmic/80 via-magenta/30 to-blast/70",
-    tags: Array.isArray(settings?.layout?.tags) ? settings?.layout?.tags ?? [] : [],
+    tags: (() => {
+      const layout = (settings?.layout ?? {}) as { tags?: string[] };
+      return Array.isArray(layout.tags) ? layout.tags : [];
+    })(),
     perks: ["ранний доступ к анонсам", "сигналы по эфирам"],
     posts,
     videos: media,
