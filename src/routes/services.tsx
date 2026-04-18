@@ -130,7 +130,7 @@ function ServicesPage() {
   const selectedService = services.find((service) => String(service.id) === selectedServiceId) ?? null;
   const selectedStreamer = streamers.find((streamer) => streamer.id === selectedStreamerId) ?? null;
   const groupedServices = useMemo(() => groupTikTokPromotionServices(services), [services]);
-  const role = user?.role === "streamer" || user?.role === "admin" ? user.role : "viewer";
+  const role = user?.role === "streamer" ? "streamer" : "viewer";
   const parsedQuantity = Number(quantity);
   const liveTargetSelected = selectedService?.targetType === "live";
   const autoLiveLink = selectedStreamer ? `https://www.tiktok.com/@${selectedStreamer.tiktok_username}/live` : "";
