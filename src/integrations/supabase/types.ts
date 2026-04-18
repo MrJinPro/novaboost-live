@@ -55,56 +55,6 @@ export type Database = {
           },
         ]
       }
-      notification_deliveries: {
-        Row: {
-          attempted_at: string | null
-          channel: Database["public"]["Enums"]["notification_channel"]
-          created_at: string
-          delivered_at: string | null
-          error_message: string | null
-          id: string
-          metadata: Json
-          notification_id: string
-          provider_message_id: string | null
-          status: Database["public"]["Enums"]["delivery_status"]
-          user_id: string
-        }
-        Insert: {
-          attempted_at?: string | null
-          channel: Database["public"]["Enums"]["notification_channel"]
-          created_at?: string
-          delivered_at?: string | null
-          error_message?: string | null
-          id?: string
-          metadata?: Json
-          notification_id: string
-          provider_message_id?: string | null
-          status?: Database["public"]["Enums"]["delivery_status"]
-          user_id: string
-        }
-        Update: {
-          attempted_at?: string | null
-          channel?: Database["public"]["Enums"]["notification_channel"]
-          created_at?: string
-          delivered_at?: string | null
-          error_message?: string | null
-          id?: string
-          metadata?: Json
-          notification_id?: string
-          provider_message_id?: string | null
-          status?: Database["public"]["Enums"]["delivery_status"]
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "notification_deliveries_notification_id_fkey"
-            columns: ["notification_id"]
-            isOneToOne: false
-            referencedRelation: "notifications"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       donation_events: {
         Row: {
           amount: number
@@ -159,73 +109,52 @@ export type Database = {
           },
         ]
       }
-      promotion_orders: {
+      notification_deliveries: {
         Row: {
+          attempted_at: string | null
+          channel: Database["public"]["Enums"]["notification_channel"]
           created_at: string
-          currency: string
-          external_order_id: number | null
-          external_payload: Json
-          failure_reason: string | null
+          delivered_at: string | null
+          error_message: string | null
           id: string
-          quantity: number
-          quoted_amount: number
-          requester_user_id: string | null
-          service_category: string
-          service_id: number
-          service_name: string
-          service_rate: number
-          service_type: string
-          status: Database["public"]["Enums"]["promotion_order_status"]
-          streamer_id: string | null
-          target_link: string
-          updated_at: string
+          metadata: Json
+          notification_id: string
+          provider_message_id: string | null
+          status: Database["public"]["Enums"]["delivery_status"]
+          user_id: string
         }
         Insert: {
+          attempted_at?: string | null
+          channel: Database["public"]["Enums"]["notification_channel"]
           created_at?: string
-          currency?: string
-          external_order_id?: number | null
-          external_payload?: Json
-          failure_reason?: string | null
+          delivered_at?: string | null
+          error_message?: string | null
           id?: string
-          quantity: number
-          quoted_amount?: number
-          requester_user_id?: string | null
-          service_category: string
-          service_id: number
-          service_name: string
-          service_rate?: number
-          service_type: string
-          status?: Database["public"]["Enums"]["promotion_order_status"]
-          streamer_id?: string | null
-          target_link: string
-          updated_at?: string
+          metadata?: Json
+          notification_id: string
+          provider_message_id?: string | null
+          status?: Database["public"]["Enums"]["delivery_status"]
+          user_id: string
         }
         Update: {
+          attempted_at?: string | null
+          channel?: Database["public"]["Enums"]["notification_channel"]
           created_at?: string
-          currency?: string
-          external_order_id?: number | null
-          external_payload?: Json
-          failure_reason?: string | null
+          delivered_at?: string | null
+          error_message?: string | null
           id?: string
-          quantity?: number
-          quoted_amount?: number
-          requester_user_id?: string | null
-          service_category?: string
-          service_id?: number
-          service_name?: string
-          service_rate?: number
-          service_type?: string
-          status?: Database["public"]["Enums"]["promotion_order_status"]
-          streamer_id?: string | null
-          target_link?: string
-          updated_at?: string
+          metadata?: Json
+          notification_id?: string
+          provider_message_id?: string | null
+          status?: Database["public"]["Enums"]["delivery_status"]
+          user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "promotion_orders_streamer_id_fkey"
-            columns: ["streamer_id"]
+            foreignKeyName: "notification_deliveries_notification_id_fkey"
+            columns: ["notification_id"]
             isOneToOne: false
-            referencedRelation: "streamers"
+            referencedRelation: "notifications"
             referencedColumns: ["id"]
           },
         ]
@@ -325,6 +254,86 @@ export type Database = {
           username?: string
         }
         Relationships: []
+      }
+      promotion_orders: {
+        Row: {
+          created_at: string
+          currency: string
+          customer_amount: number
+          external_order_id: number | null
+          external_payload: Json
+          failure_reason: string | null
+          id: string
+          quantity: number
+          quoted_amount: number
+          requester_role: Database["public"]["Enums"]["app_role"]
+          requester_user_id: string | null
+          service_category: string
+          service_id: number
+          service_name: string
+          service_rate: number
+          service_type: string
+          status: Database["public"]["Enums"]["promotion_order_status"]
+          streamer_id: string | null
+          supplier_amount: number
+          target_link: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          customer_amount?: number
+          external_order_id?: number | null
+          external_payload?: Json
+          failure_reason?: string | null
+          id?: string
+          quantity: number
+          quoted_amount?: number
+          requester_role?: Database["public"]["Enums"]["app_role"]
+          requester_user_id?: string | null
+          service_category: string
+          service_id: number
+          service_name: string
+          service_rate?: number
+          service_type: string
+          status?: Database["public"]["Enums"]["promotion_order_status"]
+          streamer_id?: string | null
+          supplier_amount?: number
+          target_link: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          customer_amount?: number
+          external_order_id?: number | null
+          external_payload?: Json
+          failure_reason?: string | null
+          id?: string
+          quantity?: number
+          quoted_amount?: number
+          requester_role?: Database["public"]["Enums"]["app_role"]
+          requester_user_id?: string | null
+          service_category?: string
+          service_id?: number
+          service_name?: string
+          service_rate?: number
+          service_type?: string
+          status?: Database["public"]["Enums"]["promotion_order_status"]
+          streamer_id?: string | null
+          supplier_amount?: number
+          target_link?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotion_orders_streamer_id_fkey"
+            columns: ["streamer_id"]
+            isOneToOne: false
+            referencedRelation: "streamers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       raid_requests: {
         Row: {
@@ -531,6 +540,50 @@ export type Database = {
           },
         ]
       }
+      streamer_donation_links: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          minimum_amount: number
+          slug: string
+          streamer_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          minimum_amount?: number
+          slug: string
+          streamer_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          minimum_amount?: number
+          slug?: string
+          streamer_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "streamer_donation_links_streamer_id_fkey"
+            columns: ["streamer_id"]
+            isOneToOne: true
+            referencedRelation: "streamers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       streamer_media: {
         Row: {
           created_at: string
@@ -591,50 +644,6 @@ export type Database = {
           },
         ]
       }
-      streamer_donation_links: {
-        Row: {
-          created_at: string
-          description: string | null
-          id: string
-          is_active: boolean
-          minimum_amount: number
-          slug: string
-          streamer_id: string
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_active?: boolean
-          minimum_amount?: number
-          slug: string
-          streamer_id: string
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_active?: boolean
-          minimum_amount?: number
-          slug?: string
-          streamer_id?: string
-          title?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "streamer_donation_links_streamer_id_fkey"
-            columns: ["streamer_id"]
-            isOneToOne: true
-            referencedRelation: "streamers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       streamer_page_settings: {
         Row: {
           accent_color: string | null
@@ -685,11 +694,43 @@ export type Database = {
           },
         ]
       }
+      streamer_post_reactions: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          reaction_type: Database["public"]["Enums"]["post_reaction_type"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          reaction_type: Database["public"]["Enums"]["post_reaction_type"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          reaction_type?: Database["public"]["Enums"]["post_reaction_type"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "streamer_post_reactions_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "streamer_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       streamer_posts: {
         Row: {
           author_user_id: string | null
-          body: string | null
           blur_preview: boolean
+          body: string | null
           cover_url: string | null
           created_at: string
           expires_at: string | null
@@ -705,8 +746,8 @@ export type Database = {
         }
         Insert: {
           author_user_id?: string | null
-          body?: string | null
           blur_preview?: boolean
+          body?: string | null
           cover_url?: string | null
           created_at?: string
           expires_at?: string | null
@@ -722,8 +763,8 @@ export type Database = {
         }
         Update: {
           author_user_id?: string | null
-          body?: string | null
           blur_preview?: boolean
+          body?: string | null
           cover_url?: string | null
           created_at?: string
           expires_at?: string | null
@@ -852,38 +893,6 @@ export type Database = {
             columns: ["streamer_id"]
             isOneToOne: false
             referencedRelation: "streamers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      streamer_post_reactions: {
-        Row: {
-          created_at: string
-          id: string
-          post_id: string
-          reaction_type: Database["public"]["Enums"]["post_reaction_type"]
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          post_id: string
-          reaction_type: Database["public"]["Enums"]["post_reaction_type"]
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          post_id?: string
-          reaction_type?: Database["public"]["Enums"]["post_reaction_type"]
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "streamer_post_reactions_post_id_fkey"
-            columns: ["post_id"]
-            isOneToOne: false
-            referencedRelation: "streamer_posts"
             referencedColumns: ["id"]
           },
         ]
@@ -1102,17 +1111,17 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "tasks_streamer_id_fkey"
-            columns: ["streamer_id"]
-            isOneToOne: false
-            referencedRelation: "streamers"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "tasks_stream_session_id_fkey"
             columns: ["stream_session_id"]
             isOneToOne: false
             referencedRelation: "stream_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_streamer_id_fkey"
+            columns: ["streamer_id"]
+            isOneToOne: false
+            referencedRelation: "streamers"
             referencedColumns: ["id"]
           },
         ]
@@ -1849,12 +1858,12 @@ export type Database = {
       app_role: "admin" | "streamer" | "viewer"
       boost_status: "active" | "expired" | "cancelled"
       content_post_type: "news" | "announcement" | "video" | "update"
-      donation_status: "pending" | "succeeded" | "failed"
       delivery_status: "pending" | "sent" | "failed" | "cancelled"
+      donation_status: "pending" | "succeeded" | "failed"
       media_type: "image" | "video" | "tiktok_clip" | "external_link"
       notification_channel: "in_app" | "telegram" | "web_push"
       post_reaction_type: "nova" | "flare" | "pulse" | "crown"
-      promotion_order_status: "pending" | "queued" | "submitted" | "completed" | "failed" | "cancelled"
+      promotion_order_status: "pending" | "submitted" | "failed" | "cancelled"
       stream_event_type:
         | "live_started"
         | "live_ended"
@@ -2033,12 +2042,12 @@ export const Constants = {
       app_role: ["admin", "streamer", "viewer"],
       boost_status: ["active", "expired", "cancelled"],
       content_post_type: ["news", "announcement", "video", "update"],
-      donation_status: ["pending", "succeeded", "failed"],
       delivery_status: ["pending", "sent", "failed", "cancelled"],
+      donation_status: ["pending", "succeeded", "failed"],
       media_type: ["image", "video", "tiktok_clip", "external_link"],
       notification_channel: ["in_app", "telegram", "web_push"],
       post_reaction_type: ["nova", "flare", "pulse", "crown"],
-      promotion_order_status: ["pending", "queued", "submitted", "completed", "failed", "cancelled"],
+      promotion_order_status: ["pending", "submitted", "failed", "cancelled"],
       stream_event_type: [
         "live_started",
         "live_ended",
