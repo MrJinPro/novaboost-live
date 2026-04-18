@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { AppUser } from "@/lib/mock-platform";
-import { getViewerProfileStatsCompat, updateViewerProfileProgressCompat } from "@/lib/profile-schema-compat";
+import { getViewerProfileStatsCompat, updateViewerProfileProgressCompat } from "./profile-schema-compat";
 
 export type LiveTask = {
   id: string;

@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getStreamerById, type AppUser, type StreamerCardData } from "@/lib/mock-platform";
-import { getViewerProfileStatsCompat } from "@/lib/profile-schema-compat";
+import { getViewerProfileStatsCompat } from "./profile-schema-compat";
 
 type SubscriptionStreamerRow = {
   id: string;

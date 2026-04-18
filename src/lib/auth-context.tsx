@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { AppRole, AppUser } from "@/lib/mock-platform";
-import { getAuthProfileCompat, upsertAuthProfileCompat } from "@/lib/profile-schema-compat";
+import { getAuthProfileCompat, upsertAuthProfileCompat } from "./profile-schema-compat";
 
 interface AuthContextValue {
   user: AppUser | null;
