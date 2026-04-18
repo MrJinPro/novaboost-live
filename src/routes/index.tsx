@@ -36,10 +36,6 @@ function HomePage() {
         const data = await loadStreamerDirectory();
         if (active) {
           setStreamers(data);
-          const activity = await loadHomeActivityFeed(data);
-          if (active) {
-            setActivityFeed(activity);
-          }
         }
       } catch (error) {
         if (active) {
@@ -48,7 +44,22 @@ function HomePage() {
       }
     };
 
+    const syncActivity = async () => {
+      try {
+        const data = await loadStreamerDirectory();
+        const activity = await loadHomeActivityFeed(data);
+        if (active) {
+          setActivityFeed(activity);
+        }
+      } catch {
+        if (active) {
+          setActivityFeed([]);
+        }
+      }
+    };
+
     void syncStreamers();
+    void syncActivity();
 
     return () => {
       active = false;
