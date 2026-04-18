@@ -35,6 +35,12 @@ export interface StreamerPost {
   expiresAt: string | null;
 }
 
+const POST_DEFAULTS = {
+  requiredPlan: "free" as SubscriptionPlanKey,
+  blurPreview: false,
+  expiresAt: null,
+} satisfies Pick<StreamerPost, "requiredPlan" | "blurPreview" | "expiresAt">;
+
 export interface StreamerVideo {
   id: string;
   title: string;
@@ -120,8 +126,10 @@ const streamerPages: StreamerPageData[] = [
     accent: "from-blast/70 via-magenta/50 to-cosmic/60",
     tags: ["музыка", "ночной эфир", "челлендж", "кодовые слова"],
     perks: ["ранний доступ к анонсам", "закрытые коды", "рейды по сигналу"],
+    recent_donations: [],
     posts: [
       {
+        ...POST_DEFAULTS,
         id: "post-luna-1",
         type: "announcement",
         title: "Через час стартуем эфир",
@@ -129,6 +137,7 @@ const streamerPages: StreamerPageData[] = [
         createdAt: "18 апреля, 21:20",
       },
       {
+        ...POST_DEFAULTS,
         id: "post-luna-2",
         type: "news",
         title: "Запускаю серию коротких музыкальных баттлов",
@@ -163,8 +172,10 @@ const streamerPages: StreamerPageData[] = [
     accent: "from-cosmic/80 via-cosmic/30 to-blast/60",
     tags: ["игры", "рейды", "турнир", "командная активность"],
     perks: ["ранний заход на рейд", "таблица лучших зрителей", "личные сигналы"],
+    recent_donations: [],
     posts: [
       {
+        ...POST_DEFAULTS,
         id: "post-max-1",
         type: "news",
         title: "Открываю набор на командный буст",
@@ -172,6 +183,7 @@ const streamerPages: StreamerPageData[] = [
         createdAt: "18 апреля, 18:10",
       },
       {
+        ...POST_DEFAULTS,
         id: "post-max-2",
         type: "clip",
         title: "Короткий фрагмент вчерашнего клатча",
@@ -206,8 +218,10 @@ const streamerPages: StreamerPageData[] = [
     accent: "from-amber/70 via-blast/30 to-background",
     tags: ["арт", "скетчи", "уют", "анонсы"],
     perks: ["ранние скетчи", "закрытые референсы", "анонсы заранее"],
+    recent_donations: [],
     posts: [
       {
+        ...POST_DEFAULTS,
         id: "post-mira-1",
         type: "announcement",
         title: "Через час выложу тему следующего арт-челленджа",
@@ -241,8 +255,10 @@ const streamerPages: StreamerPageData[] = [
     accent: "from-background via-surface-2 to-cosmic/40",
     tags: ["город", "лайв", "ночной маршрут", "разговорный эфир"],
     perks: ["приватные анонсы", "городские маршруты", "внутренние активности"],
+    recent_donations: [],
     posts: [
       {
+        ...POST_DEFAULTS,
         id: "post-den-1",
         type: "news",
         title: "Тестирую формат коротких включений между большими эфирами",
