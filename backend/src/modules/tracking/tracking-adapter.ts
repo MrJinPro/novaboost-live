@@ -18,6 +18,13 @@ export class PassiveTrackingAdapter implements TrackingAdapter {
       followersCount: streamer.followers_count,
       checkedAt: new Date().toISOString(),
       source: this.sourceName,
+      rawSnapshot: {
+        display_name: streamer.display_name,
+        tiktok_username: streamer.tiktok_username,
+        is_live: streamer.is_live,
+        viewer_count: streamer.viewer_count,
+        followers_count: streamer.followers_count,
+      },
     };
   }
 }

@@ -78,9 +78,65 @@ export class TrackingService {
     const snapshots: TrackingSnapshot[] = [];
 
     for (const streamer of streamers) {
-      const snapshot = await this.adapter.fetchSnapshot(streamer);
-      await this.trackingRepository.updateTrackingSnapshot(snapshot);
-      snapshots.push(snapshot);
+      try {
+        const snapshot = await this.adapter.fetchSnapshot(streamer);
+        await this.trackingRepository.updateTrackingSnapshot(snapshot);
+
+        const liveSession = await this.trackingRepository.getLatestLiveSession(streamer.id);
+        let sessionId: string | null = liveSession?.id ?? null;
+
+        if (snapshot.isLive && !liveSession) {
+          const session = await this.trackingRepository.startLiveSession(snapshot);
+          sessionId = session.id;
+          await this.trackingRepository.insertStreamEvent({
+            streamerId: streamer.id,
+            streamSessionId: sessionId,
+            eventType: "live_started",
+            source: snapshot.source,
+            eventTimestamp: snapshot.checkedAt,
+            normalizedPayload: {
+              viewer_count: snapshot.viewerCount,
+              followers_count: snapshot.followersCount,
+            },
+            rawPayload: snapshot.rawSnapshot,
+          });
+        } else if (!snapshot.isLive && liveSession) {
+          await this.trackingRepository.endLiveSession(liveSession.id, snapshot, liveSession.peak_viewer_count);
+          await this.trackingRepository.insertStreamEvent({
+            streamerId: streamer.id,
+            streamSessionId: liveSession.id,
+            eventType: "live_ended",
+            source: snapshot.source,
+            eventTimestamp: snapshot.checkedAt,
+            normalizedPayload: {
+              viewer_count: snapshot.viewerCount,
+              followers_count: snapshot.followersCount,
+            },
+            rawPayload: snapshot.rawSnapshot,
+          });
+        } else if (snapshot.isLive && liveSession) {
+          await this.trackingRepository.updateLiveSession(liveSession.id, snapshot, liveSession.peak_viewer_count);
+          await this.trackingRepository.insertStreamEvent({
+            streamerId: streamer.id,
+            streamSessionId: liveSession.id,
+            eventType: "snapshot_updated",
+            source: snapshot.source,
+            eventTimestamp: snapshot.checkedAt,
+            normalizedPayload: {
+              viewer_count: snapshot.viewerCount,
+              followers_count: snapshot.followersCount,
+            },
+            rawPayload: snapshot.rawSnapshot,
+          });
+        }
+
+        snapshots.push(snapshot);
+      } catch (error) {
+        this.logger.error("Tracking tick failed for streamer", {
+          streamerId: streamer.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
 
     this.lastRunAt = new Date().toISOString();
