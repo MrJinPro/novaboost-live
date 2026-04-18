@@ -126,6 +126,7 @@ const streamerPages: StreamerPageData[] = [
     accent: "from-blast/70 via-magenta/50 to-cosmic/60",
     tags: ["музыка", "ночной эфир", "челлендж", "кодовые слова"],
     perks: ["ранний доступ к анонсам", "закрытые коды", "рейды по сигналу"],
+    recent_donations: [],
     posts: [
       {
         ...POST_DEFAULTS,
@@ -171,6 +172,7 @@ const streamerPages: StreamerPageData[] = [
     accent: "from-cosmic/80 via-cosmic/30 to-blast/60",
     tags: ["игры", "рейды", "турнир", "командная активность"],
     perks: ["ранний заход на рейд", "таблица лучших зрителей", "личные сигналы"],
+    recent_donations: [],
     posts: [
       {
         ...POST_DEFAULTS,
@@ -216,6 +218,7 @@ const streamerPages: StreamerPageData[] = [
     accent: "from-amber/70 via-blast/30 to-background",
     tags: ["арт", "скетчи", "уют", "анонсы"],
     perks: ["ранние скетчи", "закрытые референсы", "анонсы заранее"],
+    recent_donations: [],
     posts: [
       {
         ...POST_DEFAULTS,
@@ -252,6 +255,7 @@ const streamerPages: StreamerPageData[] = [
     accent: "from-background via-surface-2 to-cosmic/40",
     tags: ["город", "лайв", "ночной маршрут", "разговорный эфир"],
     perks: ["приватные анонсы", "городские маршруты", "внутренние активности"],
+    recent_donations: [],
     posts: [
       {
         ...POST_DEFAULTS,
