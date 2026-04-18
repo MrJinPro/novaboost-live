@@ -30,9 +30,9 @@ export interface StreamerPost {
   title: string;
   body: string;
   createdAt: string;
-  requiredPlan: SubscriptionPlanKey;
-  blurPreview: boolean;
-  expiresAt: string | null;
+  requiredPlan?: SubscriptionPlanKey;
+  blurPreview?: boolean;
+  expiresAt?: string | null;
 }
 
 export interface StreamerVideo {
