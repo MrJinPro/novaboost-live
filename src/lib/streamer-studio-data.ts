@@ -110,6 +110,20 @@ async function getOwnedStreamer(userId: string) {
   return (data ?? null) as DbStreamer | null;
 }
 
+export async function getOwnedStreamerPublicPage(userId: string) {
+  const streamer = await getOwnedStreamer(userId);
+
+  if (!streamer) {
+    return null;
+  }
+
+  return {
+    id: streamer.id,
+    displayName: streamer.display_name,
+    tiktokUsername: streamer.tiktok_username,
+  };
+}
+
 async function getPageSettings(streamerId: string) {
   const { data, error } = await supabase
     .from("streamer_page_settings")

@@ -3,9 +3,10 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
-import { Award, Crown, LogOut, Sparkles, Trophy } from "lucide-react";
+import { Award, Crown, ExternalLink, LogOut, Sparkles, Trophy } from "lucide-react";
 import { formatNumber } from "@/lib/format";
 import { loadViewerProfileData, type ViewerProfileData } from "@/lib/user-profile-data";
+import { getOwnedStreamerPublicPage } from "@/lib/streamer-studio-data";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/profile")({
@@ -23,6 +24,7 @@ function ProfilePage() {
   const { user, loading, signOut } = useAuth();
   const [viewerProfile, setViewerProfile] = useState<ViewerProfileData | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [publicPageId, setPublicPageId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -51,6 +53,34 @@ function ProfilePage() {
     };
 
     void syncProfile();
+
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
+  useEffect(() => {
+    let active = true;
+
+    if (!user || user.role !== "streamer") {
+      setPublicPageId(null);
+      return;
+    }
+
+    const syncPublicPage = async () => {
+      try {
+        const page = await getOwnedStreamerPublicPage(user.id);
+        if (active) {
+          setPublicPageId(page?.id ?? null);
+        }
+      } catch {
+        if (active) {
+          setPublicPageId(null);
+        }
+      }
+    };
+
+    void syncPublicPage();
 
     return () => {
       active = false;
@@ -154,9 +184,18 @@ function ProfilePage() {
               <p>Инструменты роста: бусты, сигналы нужен буст, Telegram-канал и внутренняя аналитика активности.</p>
             </div>
             <div className="mt-5">
-              <Link to="/studio">
-                <Button className="bg-gradient-cosmic text-foreground font-bold">Настроить публичную страницу</Button>
-              </Link>
+              <div className="flex flex-wrap gap-3">
+                <Link to="/studio">
+                  <Button className="bg-gradient-cosmic text-foreground font-bold">Настроить публичную страницу</Button>
+                </Link>
+                {publicPageId && (
+                  <Link to="/streamer/$id" params={{ id: publicPageId }}>
+                    <Button variant="outline" className="gap-2">
+                      <ExternalLink className="h-4 w-4" /> Открыть публичную страницу
+                    </Button>
+                  </Link>
+                )}
+              </div>
             </div>
           </div>
         )}
