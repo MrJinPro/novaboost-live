@@ -1,3 +1,11 @@
+-- IMPORTANT:
+-- This migration is intended for a clean database state.
+-- If your Supabase project is already partially migrated and you get errors like
+-- "type ... already exists" or missing dependent relations/functions on later migrations,
+-- do NOT rerun this file manually.
+-- Use supabase/recovery/20260418_backend_foundation_phase1_repair.sql first,
+-- then continue with the next migrations.
+
 -- ============= EXTRA ENUMS =============
 CREATE TYPE public.streamer_verification_status AS ENUM ('pending', 'verified', 'rejected');
 CREATE TYPE public.stream_session_status AS ENUM ('live', 'ended', 'failed');

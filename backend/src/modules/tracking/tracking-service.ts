@@ -2,12 +2,14 @@ import type { BackendEnv } from "../../config/env.js";
 import type { Logger } from "../../lib/logger.js";
 import type { TrackingRepository, TrackingSnapshot } from "../../repositories/tracking-repository.js";
 import type { TrackingAdapter } from "./tracking-adapter.js";
+import type { TrackingLiveEventBridge } from "./live-event-bridge.js";
 import type { TrackingSocketHub } from "./tracking-socket-hub.js";
 
 export class TrackingService {
   private poller: NodeJS.Timeout | null = null;
   private lastRunAt: string | null = null;
   private socketHub: TrackingSocketHub | null = null;
+  private liveEventBridge: TrackingLiveEventBridge | null = null;
 
   constructor(
     private readonly logger: Logger,
@@ -18,6 +20,10 @@ export class TrackingService {
 
   attachSocketHub(socketHub: TrackingSocketHub) {
     this.socketHub = socketHub;
+  }
+
+  attachLiveEventBridge(liveEventBridge: TrackingLiveEventBridge) {
+    this.liveEventBridge = liveEventBridge;
   }
 
   getHealth() {
@@ -66,6 +72,10 @@ export class TrackingService {
       clearInterval(this.poller);
       this.poller = null;
       this.logger.info("Tracking scheduler stopped");
+    }
+
+    if (this.liveEventBridge) {
+      void this.liveEventBridge.stopAll();
     }
   }
 
@@ -129,6 +139,8 @@ export class TrackingService {
             rawPayload: snapshot.rawSnapshot,
           });
         }
+
+        await this.liveEventBridge?.syncStreamer(streamer, snapshot, sessionId);
 
         snapshots.push(snapshot);
       } catch (error) {

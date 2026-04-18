@@ -1,4 +1,6 @@
 export type AppRole = "viewer" | "streamer";
+export type SubscriptionPlanKey = "free" | "supporter" | "superfan" | "legend";
+export type PostReactionType = "nova" | "flare" | "pulse" | "crown";
 
 export interface AppUser {
   id: string;
@@ -28,6 +30,9 @@ export interface StreamerPost {
   title: string;
   body: string;
   createdAt: string;
+  requiredPlan: SubscriptionPlanKey;
+  blurPreview: boolean;
+  expiresAt: string | null;
 }
 
 export interface StreamerVideo {
@@ -48,10 +53,19 @@ export interface StreamerStudioDraft {
   featuredVideoUrl: string;
 }
 
+export interface DonationEventSummary {
+  id: string;
+  donorName: string;
+  amount: number;
+  message: string | null;
+  createdAt: string;
+}
+
 export interface StreamerPageData extends StreamerCardData {
   banner_url: string;
   accent: string;
   tagline: string;
+  featured_video_url?: string | null;
   subscription_count: number;
   telegram_channel: string;
   next_event: string;
@@ -60,6 +74,9 @@ export interface StreamerPageData extends StreamerCardData {
   total_gifts: number;
   tags: string[];
   perks: string[];
+  donation_link_slug?: string | null;
+  donation_link_title?: string | null;
+  recent_donations: DonationEventSummary[];
   posts: StreamerPost[];
   videos: StreamerVideo[];
 }

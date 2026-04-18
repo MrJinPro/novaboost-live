@@ -3,6 +3,7 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { AppRole, AppUser } from "@/lib/mock-platform";
 import { getAuthProfileCompat, upsertAuthProfileCompat } from "./profile-schema-compat";
+import { ensureLinkedStreamer, resolveLinkedStreamer } from "./streamer-profile-linking";
 
 interface AuthContextValue {
   user: AppUser | null;
@@ -28,59 +29,16 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-type StreamerRow = {
-  id: string;
-  user_id: string | null;
-  tiktok_username: string;
-  display_name: string;
-};
-
 async function getProfile(userId: string) {
   return getAuthProfileCompat(userId);
 }
 
-async function getStreamer(userId: string) {
-  const { data, error } = await supabase
-    .from("streamers")
-    .select("id, user_id, tiktok_username, display_name")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (error) {
-    throw error;
-  }
-
-  return (data ?? null) as StreamerRow | null;
-}
-
-async function ensureStreamerRecord(userId: string, tiktokUsername: string, fallbackName: string) {
-  const existing = await getStreamer(userId);
-  if (existing) {
-    return existing;
-  }
-
-  const { data, error } = await supabase
-    .from("streamers")
-    .insert({
-      user_id: userId,
-      tiktok_username: tiktokUsername,
-      display_name: fallbackName,
-    })
-    .select("id, user_id, tiktok_username, display_name")
-    .single();
-
-  if (error) {
-    throw error;
-  }
-
-  return data as StreamerRow;
-}
-
 async function buildAppUser(session: Session): Promise<AppUser> {
-  const [profile, streamer] = await Promise.all([
-    getProfile(session.user.id),
-    getStreamer(session.user.id),
-  ]);
+  const profile = await getProfile(session.user.id);
+  const streamer = await resolveLinkedStreamer({
+    userId: session.user.id,
+    tiktokUsername: profile?.tiktok_username ?? session.user.user_metadata.tiktok_username ?? "",
+  });
 
   const username = profile?.username ?? session.user.user_metadata.username ?? session.user.email?.split("@")[0] ?? "user";
   const displayName = streamer?.display_name ?? profile?.display_name ?? session.user.user_metadata.display_name ?? username;
@@ -188,7 +146,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (payload.role === "streamer") {
-        await ensureStreamerRecord(data.user.id, payload.tiktokUsername, fallbackName);
+        await ensureLinkedStreamer({
+          userId: data.user.id,
+          tiktokUsername: payload.tiktokUsername,
+          displayName: fallbackName,
+        });
       }
 
       if (payload.role === "viewer" && payload.referralStreamerId) {
@@ -241,11 +203,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("Для входа стримера нужен TikTok username, чтобы связать кабинет со страницей.");
       }
 
-      await ensureStreamerRecord(
-        data.user.id,
-        streamerTikTokUsername,
-        profile?.display_name ?? profile?.username ?? streamerTikTokUsername
-      );
+      await ensureLinkedStreamer({
+        userId: data.user.id,
+        tiktokUsername: streamerTikTokUsername,
+        displayName: profile?.display_name ?? profile?.username ?? streamerTikTokUsername,
+      });
     }
 
     const nextUser = await buildAppUser(data.session);

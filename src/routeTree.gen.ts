@@ -12,11 +12,13 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as StudioRouteImport } from './routes/studio'
 import { Route as StreamersRouteImport } from './routes/streamers'
+import { Route as ServicesRouteImport } from './routes/services'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as BoostRouteImport } from './routes/boost'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SupportSlugRouteImport } from './routes/support.$slug'
 import { Route as StreamerIdRouteImport } from './routes/streamer.$id'
 
 const TasksRoute = TasksRouteImport.update({
@@ -32,6 +34,11 @@ const StudioRoute = StudioRouteImport.update({
 const StreamersRoute = StreamersRouteImport.update({
   id: '/streamers',
   path: '/streamers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ServicesRoute = ServicesRouteImport.update({
+  id: '/services',
+  path: '/services',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileRoute = ProfileRouteImport.update({
@@ -59,6 +66,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SupportSlugRoute = SupportSlugRouteImport.update({
+  id: '/support/$slug',
+  path: '/support/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StreamerIdRoute = StreamerIdRouteImport.update({
   id: '/streamer/$id',
   path: '/streamer/$id',
@@ -71,10 +83,12 @@ export interface FileRoutesByFullPath {
   '/boost': typeof BoostRoute
   '/leaderboard': typeof LeaderboardRoute
   '/profile': typeof ProfileRoute
+  '/services': typeof ServicesRoute
   '/streamers': typeof StreamersRoute
   '/studio': typeof StudioRoute
   '/tasks': typeof TasksRoute
   '/streamer/$id': typeof StreamerIdRoute
+  '/support/$slug': typeof SupportSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -82,10 +96,12 @@ export interface FileRoutesByTo {
   '/boost': typeof BoostRoute
   '/leaderboard': typeof LeaderboardRoute
   '/profile': typeof ProfileRoute
+  '/services': typeof ServicesRoute
   '/streamers': typeof StreamersRoute
   '/studio': typeof StudioRoute
   '/tasks': typeof TasksRoute
   '/streamer/$id': typeof StreamerIdRoute
+  '/support/$slug': typeof SupportSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -94,10 +110,12 @@ export interface FileRoutesById {
   '/boost': typeof BoostRoute
   '/leaderboard': typeof LeaderboardRoute
   '/profile': typeof ProfileRoute
+  '/services': typeof ServicesRoute
   '/streamers': typeof StreamersRoute
   '/studio': typeof StudioRoute
   '/tasks': typeof TasksRoute
   '/streamer/$id': typeof StreamerIdRoute
+  '/support/$slug': typeof SupportSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -107,10 +125,12 @@ export interface FileRouteTypes {
     | '/boost'
     | '/leaderboard'
     | '/profile'
+    | '/services'
     | '/streamers'
     | '/studio'
     | '/tasks'
     | '/streamer/$id'
+    | '/support/$slug'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -118,10 +138,12 @@ export interface FileRouteTypes {
     | '/boost'
     | '/leaderboard'
     | '/profile'
+    | '/services'
     | '/streamers'
     | '/studio'
     | '/tasks'
     | '/streamer/$id'
+    | '/support/$slug'
   id:
     | '__root__'
     | '/'
@@ -129,10 +151,12 @@ export interface FileRouteTypes {
     | '/boost'
     | '/leaderboard'
     | '/profile'
+    | '/services'
     | '/streamers'
     | '/studio'
     | '/tasks'
     | '/streamer/$id'
+    | '/support/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -141,10 +165,12 @@ export interface RootRouteChildren {
   BoostRoute: typeof BoostRoute
   LeaderboardRoute: typeof LeaderboardRoute
   ProfileRoute: typeof ProfileRoute
+  ServicesRoute: typeof ServicesRoute
   StreamersRoute: typeof StreamersRoute
   StudioRoute: typeof StudioRoute
   TasksRoute: typeof TasksRoute
   StreamerIdRoute: typeof StreamerIdRoute
+  SupportSlugRoute: typeof SupportSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -168,6 +194,13 @@ declare module '@tanstack/react-router' {
       path: '/streamers'
       fullPath: '/streamers'
       preLoaderRoute: typeof StreamersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/services': {
+      id: '/services'
+      path: '/services'
+      fullPath: '/services'
+      preLoaderRoute: typeof ServicesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profile': {
@@ -205,6 +238,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/support/$slug': {
+      id: '/support/$slug'
+      path: '/support/$slug'
+      fullPath: '/support/$slug'
+      preLoaderRoute: typeof SupportSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/streamer/$id': {
       id: '/streamer/$id'
       path: '/streamer/$id'
@@ -221,10 +261,12 @@ const rootRouteChildren: RootRouteChildren = {
   BoostRoute: BoostRoute,
   LeaderboardRoute: LeaderboardRoute,
   ProfileRoute: ProfileRoute,
+  ServicesRoute: ServicesRoute,
   StreamersRoute: StreamersRoute,
   StudioRoute: StudioRoute,
   TasksRoute: TasksRoute,
   StreamerIdRoute: StreamerIdRoute,
+  SupportSlugRoute: SupportSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

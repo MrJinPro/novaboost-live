@@ -120,6 +120,12 @@ function TasksPage() {
                         +{task.reward_points} очков
                       </span>
                     </div>
+                    {task.streamer_name && (
+                      <div className="mt-1 text-xs text-cosmic">
+                        Стример: {task.streamer_name}
+                        {task.streamer_tiktok_username ? ` · @${task.streamer_tiktok_username}` : ""}
+                      </div>
+                    )}
                     {task.description && <p className="mt-1 text-sm text-muted-foreground">{task.description}</p>}
 
                     {!done && task.type === "code" && (

@@ -2,6 +2,10 @@ export type NovaBoostEventType =
   | "streamer.live_started"
   | "streamer.live_ended"
   | "stream.snapshot_updated"
+  | "stream.viewer_joined"
+  | "stream.viewer_liked"
+  | "stream.viewer_gifted"
+  | "stream.viewer_commented"
   | "viewer.task_completed"
   | "boost.started"
   | "boost.expired"
@@ -58,4 +62,24 @@ export type ModerationIntent = {
   telegramUserId: string;
   reason: string;
   action: "warn" | "mute" | "ban";
+};
+
+export type LiveEngagementEventType = "viewer_joined" | "chat_message" | "like_received" | "gift_received";
+
+export type LiveEngagementEvent = {
+  type: LiveEngagementEventType;
+  streamerId: string;
+  streamSessionId: string;
+  occurredAt: string;
+  source: string;
+  externalViewerId?: string | null;
+  externalViewerUsername?: string | null;
+  externalViewerDisplayName?: string | null;
+  commentText?: string | null;
+  likeCount?: number;
+  giftCount?: number;
+  giftDiamondCount?: number;
+  viewerLevel?: number | null;
+  viewerCount?: number | null;
+  rawPayload: Record<string, unknown>;
 };

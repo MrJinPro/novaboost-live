@@ -8,9 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/auth-context";
 import type { StreamerPost } from "@/lib/mock-platform";
+import { createDonationLinkDraft, getSubscriptionPlanLabel, loadManagedDonationLink, saveManagedDonationLink, SUBSCRIPTION_PLANS } from "@/lib/monetization-data";
 import { loadStreamerStudioData, publishStreamerPost, saveStreamerStudioPage } from "@/lib/streamer-studio-data";
+import { deactivateStreamerCodeWordTask, loadStreamerCodeWordTasks, publishStreamerCodeWordTask, type StreamerCodeWordTask } from "@/lib/tasks-data";
 import { toast } from "sonner";
-import { Bell, ExternalLink, ImagePlus, LayoutPanelTop, PencilLine, Send, Sparkles } from "lucide-react";
+import { Bell, ExternalLink, ImagePlus, LayoutPanelTop, PencilLine, Send, Sparkles, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/studio")({
   head: () => ({
@@ -35,6 +37,15 @@ function createInitialStudioDraft() {
   };
 }
 
+function toLocalDateTimeValue(value: string | null) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
+
 function StreamerStudioPage() {
   const { user, loading } = useAuth();
   const [pageDraft, setPageDraft] = useState(createInitialStudioDraft);
@@ -43,9 +54,21 @@ function StreamerStudioPage() {
   const [studioLoading, setStudioLoading] = useState(false);
   const [savingPage, setSavingPage] = useState(false);
   const [publishingPost, setPublishingPost] = useState(false);
+  const [codeTasks, setCodeTasks] = useState<StreamerCodeWordTask[]>([]);
+  const [publishingCodeTask, setPublishingCodeTask] = useState(false);
+  const [deactivatingTaskId, setDeactivatingTaskId] = useState<string | null>(null);
   const [postType, setPostType] = useState<StreamerPost["type"]>("announcement");
   const [postTitle, setPostTitle] = useState("");
   const [postBody, setPostBody] = useState("");
+  const [postRequiredPlan, setPostRequiredPlan] = useState<StreamerPost["requiredPlan"]>("free");
+  const [postBlurPreview, setPostBlurPreview] = useState(false);
+  const [postExpiresAt, setPostExpiresAt] = useState("");
+  const [codeTaskTitle, setCodeTaskTitle] = useState("Кодовое слово эфира");
+  const [codeTaskDescription, setCodeTaskDescription] = useState("Узнай кодовое слово на эфире, введи его в приложении и получи очки.");
+  const [codeTaskWord, setCodeTaskWord] = useState("");
+  const [codeTaskReward, setCodeTaskReward] = useState("50");
+  const [donationLinkDraft, setDonationLinkDraft] = useState(() => createDonationLinkDraft("", ""));
+  const [savingDonationLink, setSavingDonationLink] = useState(false);
 
   if (loading) {
     return <div className="min-h-screen"><Header /><div className="container mx-auto px-4 py-16 text-center text-muted-foreground">Загрузка…</div></div>;
@@ -75,6 +98,7 @@ function StreamerStudioPage() {
     const syncStudio = async () => {
       setStudioLoading(true);
       try {
+        setDonationLinkDraft(createDonationLinkDraft(user.tiktokUsername, user.displayName));
         const data = await loadStreamerStudioData(user);
         if (!active) {
           return;
@@ -82,6 +106,26 @@ function StreamerStudioPage() {
         setPageDraft(data.pageDraft);
         setPosts(data.posts);
         setPublicPageId(data.streamerId);
+        const nextCodeTasks = await loadStreamerCodeWordTasks(user);
+        if (!active) {
+          return;
+        }
+        setCodeTasks(nextCodeTasks);
+        const existingDonationLink = await loadManagedDonationLink(user);
+        if (!active) {
+          return;
+        }
+        setDonationLinkDraft(
+          existingDonationLink
+            ? {
+                slug: existingDonationLink.slug,
+                title: existingDonationLink.title,
+                description: existingDonationLink.description ?? "",
+                minimumAmount: existingDonationLink.minimum_amount,
+                isActive: existingDonationLink.is_active,
+              }
+            : createDonationLinkDraft(user.tiktokUsername, user.displayName),
+        );
       } catch (error) {
         if (active) {
           toast.error(error instanceof Error ? error.message : "Не удалось загрузить данные студии");
@@ -127,17 +171,91 @@ function StreamerStudioPage() {
         type: postType,
         title: postTitle,
         body: postBody,
+        requiredPlan: postRequiredPlan,
+        blurPreview: postBlurPreview,
+        expiresAt: postExpiresAt ? new Date(postExpiresAt).toISOString() : null,
       });
       setPublicPageId(result.streamerId);
       setPosts((current) => [result.post, ...current]);
       setPostTitle("");
       setPostBody("");
       setPostType("announcement");
+      setPostRequiredPlan("free");
+      setPostBlurPreview(false);
+      setPostExpiresAt("");
       toast.success("Пост опубликован и сохранён в Supabase.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Не удалось опубликовать пост");
     } finally {
       setPublishingPost(false);
+    }
+  };
+
+  const publishCodeTask = async () => {
+    const rewardPoints = Number(codeTaskReward);
+
+    if (!codeTaskTitle.trim() || !codeTaskWord.trim()) {
+      toast.error("Для кодового слова нужны заголовок и само слово");
+      return;
+    }
+
+    if (!Number.isFinite(rewardPoints) || rewardPoints < 1) {
+      toast.error("Укажи корректное количество очков");
+      return;
+    }
+
+    setPublishingCodeTask(true);
+    try {
+      const createdTask = await publishStreamerCodeWordTask(user, {
+        title: codeTaskTitle,
+        description: codeTaskDescription,
+        code: codeTaskWord,
+        rewardPoints,
+      });
+      setCodeTasks((current) => [createdTask, ...current.map((task) => ({ ...task, active: false }))]);
+      setCodeTaskWord("");
+      toast.success(`Кодовое слово ${createdTask.code} опубликовано.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось опубликовать кодовое слово");
+    } finally {
+      setPublishingCodeTask(false);
+    }
+  };
+
+  const deactivateCodeTask = async (taskId: string) => {
+    setDeactivatingTaskId(taskId);
+    try {
+      await deactivateStreamerCodeWordTask(user, taskId);
+      setCodeTasks((current) => current.map((task) => task.id === taskId ? { ...task, active: false } : task));
+      toast.success("Кодовое слово отключено.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось отключить кодовое слово");
+    } finally {
+      setDeactivatingTaskId(null);
+    }
+  };
+
+  const saveDonationLink = async () => {
+    if (!donationLinkDraft.slug.trim() || !donationLinkDraft.title.trim()) {
+      toast.error("Для страницы поддержки нужны короткий адрес и заголовок");
+      return;
+    }
+
+    setSavingDonationLink(true);
+    try {
+      const savedLink = await saveManagedDonationLink(user, donationLinkDraft);
+      setDonationLinkDraft({
+        slug: savedLink.slug,
+        title: savedLink.title,
+        description: savedLink.description ?? "",
+        minimumAmount: savedLink.minimum_amount,
+        isActive: savedLink.is_active,
+      });
+      toast.success("Страница поддержки сохранена.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось сохранить страницу поддержки");
+    } finally {
+      setSavingDonationLink(false);
     }
   };
 
@@ -252,11 +370,151 @@ function StreamerStudioPage() {
               <Field label="Текст поста">
                 <Textarea value={postBody} onChange={(e) => setPostBody(e.target.value)} placeholder="Расскажи, что увидит аудитория, какой будет сигнал или зачем заходить на эфир" className="min-h-28 bg-background" />
               </Field>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Доступ к посту">
+                  <select
+                    value={postRequiredPlan}
+                    onChange={(e) => setPostRequiredPlan(e.target.value as StreamerPost["requiredPlan"])}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    {SUBSCRIPTION_PLANS.map((plan) => (
+                      <option key={plan.key} value={plan.key}>{getSubscriptionPlanLabel(plan.key)}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Срок жизни поста">
+                  <Input type="datetime-local" value={postExpiresAt} onChange={(e) => setPostExpiresAt(e.target.value)} />
+                </Field>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPostBlurPreview((current) => !current)}
+                className={`rounded-2xl border px-4 py-3 text-left text-sm transition-colors ${postBlurPreview ? "border-crown/50 bg-crown/10 text-foreground" : "border-border/50 bg-background/30 text-muted-foreground"}`}
+              >
+                <div className="font-medium">Blur preview для обычных зрителей</div>
+                <div className="mt-1 text-xs">Если включено, free-зритель увидит только превью и CTA на тариф.</div>
+              </button>
             </div>
 
             <div className="mt-5 flex flex-wrap gap-3">
               <Button onClick={publishPost} disabled={publishingPost || studioLoading} className="bg-gradient-blast text-blast-foreground font-bold">{publishingPost ? "Публикую…" : "Опубликовать пост"}</Button>
               <Button variant="outline" className="gap-2"><Send className="h-4 w-4" /> Отправить в Telegram позже</Button>
+            </div>
+          </section>
+        </div>
+
+        <div className="mt-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+          <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-crown" />
+              <h2 className="font-display text-2xl font-bold">Кодовое слово эфира</h2>
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Стример задаёт слово до эфира или прямо во время лайва. Зритель узнаёт его на трансляции, вводит в приложении и получает очки один раз.
+            </p>
+
+            <div className="mt-5 space-y-4">
+              <Field label="Заголовок задания">
+                <Input value={codeTaskTitle} onChange={(e) => setCodeTaskTitle(e.target.value)} placeholder="Например: Кодовое слово сегодняшнего эфира" />
+              </Field>
+              <Field label="Описание для зрителя">
+                <Textarea value={codeTaskDescription} onChange={(e) => setCodeTaskDescription(e.target.value)} placeholder="Где искать слово и что получит зритель" className="min-h-24 bg-background" />
+              </Field>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Кодовое слово">
+                  <Input value={codeTaskWord} onChange={(e) => setCodeTaskWord(e.target.value.toUpperCase())} placeholder="Например: NOVA" />
+                </Field>
+                <Field label="Очки за ввод">
+                  <Input value={codeTaskReward} onChange={(e) => setCodeTaskReward(e.target.value)} inputMode="numeric" placeholder="50" />
+                </Field>
+              </div>
+            </div>
+
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Button onClick={publishCodeTask} disabled={publishingCodeTask || studioLoading} className="bg-gradient-blast text-blast-foreground font-bold">
+                {publishingCodeTask ? "Публикую код…" : "Опубликовать кодовое слово"}
+              </Button>
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+            <h2 className="font-display text-2xl font-bold">Активные и прошлые кодовые слова</h2>
+            <div className="mt-5 space-y-3">
+              {codeTasks.length === 0 && (
+                <div className="rounded-2xl border border-dashed border-border/50 bg-background/20 p-4 text-sm text-muted-foreground">
+                  Пока ни одного кодового слова не опубликовано.
+                </div>
+              )}
+              {codeTasks.map((task) => (
+                <article key={task.id} className={`rounded-2xl border p-4 ${task.active ? "border-crown/40 bg-crown/5" : "border-border/50 bg-background/30"}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="font-display text-lg font-bold">{task.title}</h3>
+                      <div className="mt-1 text-xs text-muted-foreground">{new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }).format(new Date(task.created_at))}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${task.active ? "bg-crown/15 text-crown" : "bg-surface text-muted-foreground"}`}>{task.active ? "Активно" : "Отключено"}</span>
+                      <span className="rounded-full bg-blast/15 px-3 py-1 text-xs font-semibold text-blast">+{task.reward_points} очков</span>
+                    </div>
+                  </div>
+                  {task.description && <p className="mt-3 text-sm text-muted-foreground">{task.description}</p>}
+                  <div className="mt-3 rounded-xl border border-border/50 bg-surface/60 px-4 py-3 font-mono text-sm tracking-[0.2em] text-foreground">{task.code}</div>
+                  {task.auto_disable_on_live_end && (
+                    <div className="mt-3 text-xs text-crown">Этот код привязан к текущему live и отключится после завершения эфира.</div>
+                  )}
+                  {task.active && (
+                    <Button variant="outline" className="mt-4" disabled={deactivatingTaskId === task.id} onClick={() => deactivateCodeTask(task.id)}>
+                      {deactivatingTaskId === task.id ? "Отключаю…" : "Отключить кодовое слово"}
+                    </Button>
+                  )}
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+            <div className="flex items-center gap-2">
+              <Send className="h-5 w-5 text-cosmic" />
+              <h2 className="font-display text-2xl font-bold">Страница поддержки внутри платформы</h2>
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Это ссылка NovaBoost Live, которую можно дать зрителям на эфире. После доната событие появится в блоке последних поддержек на публичной странице.
+            </p>
+
+            <div className="mt-5 space-y-4">
+              <Field label="Короткий адрес страницы">
+                <Input value={donationLinkDraft.slug} onChange={(e) => setDonationLinkDraft((current) => ({ ...current, slug: e.target.value }))} placeholder="alina-luna-support" />
+              </Field>
+              <Field label="Заголовок страницы поддержки">
+                <Input value={donationLinkDraft.title} onChange={(e) => setDonationLinkDraft((current) => ({ ...current, title: e.target.value }))} placeholder="Поддержать эфир" />
+              </Field>
+              <Field label="Описание">
+                <Textarea value={donationLinkDraft.description} onChange={(e) => setDonationLinkDraft((current) => ({ ...current, description: e.target.value }))} className="min-h-24 bg-background" placeholder="Короткое описание, зачем поддерживать именно этот эфир" />
+              </Field>
+              <Field label="Минимальная сумма">
+                <Input type="number" min={10} value={String(donationLinkDraft.minimumAmount)} onChange={(e) => setDonationLinkDraft((current) => ({ ...current, minimumAmount: Number(e.target.value) || 10 }))} />
+              </Field>
+              <button
+                type="button"
+                onClick={() => setDonationLinkDraft((current) => ({ ...current, isActive: !current.isActive }))}
+                className={`rounded-2xl border px-4 py-3 text-left text-sm transition-colors ${donationLinkDraft.isActive ? "border-blast/40 bg-blast/10 text-foreground" : "border-border/50 bg-background/30 text-muted-foreground"}`}
+              >
+                <div className="font-medium">{donationLinkDraft.isActive ? "Ссылка активна" : "Ссылка отключена"}</div>
+                <div className="mt-1 text-xs">Отключённая ссылка перестаёт быть доступной публично.</div>
+              </button>
+            </div>
+
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Button onClick={saveDonationLink} disabled={savingDonationLink || studioLoading} className="bg-gradient-cosmic font-bold text-foreground">
+                {savingDonationLink ? "Сохраняю страницу…" : "Сохранить страницу поддержки"}
+              </Button>
+              {donationLinkDraft.slug && (
+                <Link to="/support/$slug" params={{ slug: donationLinkDraft.slug }}>
+                  <Button variant="outline" className="gap-2">
+                    <ExternalLink className="h-4 w-4" /> Открыть страницу поддержки
+                  </Button>
+                </Link>
+              )}
             </div>
           </section>
         </div>
@@ -305,6 +563,11 @@ function StreamerStudioPage() {
                   <div className="flex items-center justify-between gap-3">
                     <span className="rounded-full bg-surface px-2.5 py-1 text-[11px] uppercase tracking-wider text-muted-foreground">{post.type}</span>
                     <span className="text-xs text-muted-foreground">{post.createdAt}</span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
+                    <span className="rounded-full border border-border/50 px-2.5 py-1">{post.requiredPlan}</span>
+                    {post.blurPreview && <span className="rounded-full border border-crown/40 px-2.5 py-1 text-crown">blur preview</span>}
+                    {post.expiresAt && <span className="rounded-full border border-blast/40 px-2.5 py-1 text-blast">до {toLocalDateTimeValue(post.expiresAt).replace("T", " ")}</span>}
                   </div>
                   <h3 className="mt-3 font-display text-lg font-bold">{post.title}</h3>
                   <p className="mt-2 text-sm text-muted-foreground">{post.body}</p>

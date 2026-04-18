@@ -105,6 +105,131 @@ export type Database = {
           },
         ]
       }
+      donation_events: {
+        Row: {
+          amount: number
+          created_at: string
+          donation_link_id: string | null
+          donor_name: string
+          donor_user_id: string | null
+          id: string
+          message: string | null
+          source: string
+          status: Database["public"]["Enums"]["donation_status"]
+          streamer_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          donation_link_id?: string | null
+          donor_name: string
+          donor_user_id?: string | null
+          id?: string
+          message?: string | null
+          source?: string
+          status?: Database["public"]["Enums"]["donation_status"]
+          streamer_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          donation_link_id?: string | null
+          donor_name?: string
+          donor_user_id?: string | null
+          id?: string
+          message?: string | null
+          source?: string
+          status?: Database["public"]["Enums"]["donation_status"]
+          streamer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "donation_events_donation_link_id_fkey"
+            columns: ["donation_link_id"]
+            isOneToOne: false
+            referencedRelation: "streamer_donation_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "donation_events_streamer_id_fkey"
+            columns: ["streamer_id"]
+            isOneToOne: false
+            referencedRelation: "streamers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promotion_orders: {
+        Row: {
+          created_at: string
+          currency: string
+          external_order_id: number | null
+          external_payload: Json
+          failure_reason: string | null
+          id: string
+          quantity: number
+          quoted_amount: number
+          requester_user_id: string | null
+          service_category: string
+          service_id: number
+          service_name: string
+          service_rate: number
+          service_type: string
+          status: Database["public"]["Enums"]["promotion_order_status"]
+          streamer_id: string | null
+          target_link: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          external_order_id?: number | null
+          external_payload?: Json
+          failure_reason?: string | null
+          id?: string
+          quantity: number
+          quoted_amount?: number
+          requester_user_id?: string | null
+          service_category: string
+          service_id: number
+          service_name: string
+          service_rate?: number
+          service_type: string
+          status?: Database["public"]["Enums"]["promotion_order_status"]
+          streamer_id?: string | null
+          target_link: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          external_order_id?: number | null
+          external_payload?: Json
+          failure_reason?: string | null
+          id?: string
+          quantity?: number
+          quoted_amount?: number
+          requester_user_id?: string | null
+          service_category?: string
+          service_id?: number
+          service_name?: string
+          service_rate?: number
+          service_type?: string
+          status?: Database["public"]["Enums"]["promotion_order_status"]
+          streamer_id?: string | null
+          target_link?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotion_orders_streamer_id_fkey"
+            columns: ["streamer_id"]
+            isOneToOne: false
+            referencedRelation: "streamers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           body: string | null
@@ -466,6 +591,50 @@ export type Database = {
           },
         ]
       }
+      streamer_donation_links: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          minimum_amount: number
+          slug: string
+          streamer_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          minimum_amount?: number
+          slug: string
+          streamer_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          minimum_amount?: number
+          slug?: string
+          streamer_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "streamer_donation_links_streamer_id_fkey"
+            columns: ["streamer_id"]
+            isOneToOne: true
+            referencedRelation: "streamers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       streamer_page_settings: {
         Row: {
           accent_color: string | null
@@ -520,13 +689,16 @@ export type Database = {
         Row: {
           author_user_id: string | null
           body: string | null
+          blur_preview: boolean
           cover_url: string | null
           created_at: string
+          expires_at: string | null
           external_url: string | null
           id: string
           is_published: boolean
           post_type: Database["public"]["Enums"]["content_post_type"]
           published_at: string | null
+          required_plan: Database["public"]["Enums"]["subscription_plan_key"]
           streamer_id: string
           title: string
           updated_at: string
@@ -534,13 +706,16 @@ export type Database = {
         Insert: {
           author_user_id?: string | null
           body?: string | null
+          blur_preview?: boolean
           cover_url?: string | null
           created_at?: string
+          expires_at?: string | null
           external_url?: string | null
           id?: string
           is_published?: boolean
           post_type?: Database["public"]["Enums"]["content_post_type"]
           published_at?: string | null
+          required_plan?: Database["public"]["Enums"]["subscription_plan_key"]
           streamer_id: string
           title: string
           updated_at?: string
@@ -548,13 +723,16 @@ export type Database = {
         Update: {
           author_user_id?: string | null
           body?: string | null
+          blur_preview?: boolean
           cover_url?: string | null
           created_at?: string
+          expires_at?: string | null
           external_url?: string | null
           id?: string
           is_published?: boolean
           post_type?: Database["public"]["Enums"]["content_post_type"]
           published_at?: string | null
+          required_plan?: Database["public"]["Enums"]["subscription_plan_key"]
           streamer_id?: string
           title?: string
           updated_at?: string
@@ -574,8 +752,11 @@ export type Database = {
           created_at: string
           id: string
           notification_enabled: boolean
+          paid_until: string | null
+          plan_key: Database["public"]["Enums"]["subscription_plan_key"]
           streamer_id: string
           telegram_enabled: boolean
+          total_paid_amount: number
           updated_at: string
           user_id: string
         }
@@ -583,8 +764,11 @@ export type Database = {
           created_at?: string
           id?: string
           notification_enabled?: boolean
+          paid_until?: string | null
+          plan_key?: Database["public"]["Enums"]["subscription_plan_key"]
           streamer_id: string
           telegram_enabled?: boolean
+          total_paid_amount?: number
           updated_at?: string
           user_id: string
         }
@@ -592,8 +776,11 @@ export type Database = {
           created_at?: string
           id?: string
           notification_enabled?: boolean
+          paid_until?: string | null
+          plan_key?: Database["public"]["Enums"]["subscription_plan_key"]
           streamer_id?: string
           telegram_enabled?: boolean
+          total_paid_amount?: number
           updated_at?: string
           user_id?: string
         }
@@ -665,6 +852,38 @@ export type Database = {
             columns: ["streamer_id"]
             isOneToOne: false
             referencedRelation: "streamers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      streamer_post_reactions: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          reaction_type: Database["public"]["Enums"]["post_reaction_type"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          reaction_type: Database["public"]["Enums"]["post_reaction_type"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          reaction_type?: Database["public"]["Enums"]["post_reaction_type"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "streamer_post_reactions_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "streamer_posts"
             referencedColumns: ["id"]
           },
         ]
@@ -841,33 +1060,42 @@ export type Database = {
       tasks: {
         Row: {
           active: boolean
+          auto_disable_on_live_end: boolean
           code: string | null
           created_at: string
           description: string | null
+          expires_at: string | null
           id: string
           reward_points: number
+          stream_session_id: string | null
           streamer_id: string | null
           title: string
           type: Database["public"]["Enums"]["task_type"]
         }
         Insert: {
           active?: boolean
+          auto_disable_on_live_end?: boolean
           code?: string | null
           created_at?: string
           description?: string | null
+          expires_at?: string | null
           id?: string
           reward_points?: number
+          stream_session_id?: string | null
           streamer_id?: string | null
           title: string
           type?: Database["public"]["Enums"]["task_type"]
         }
         Update: {
           active?: boolean
+          auto_disable_on_live_end?: boolean
           code?: string | null
           created_at?: string
           description?: string | null
+          expires_at?: string | null
           id?: string
           reward_points?: number
+          stream_session_id?: string | null
           streamer_id?: string | null
           title?: string
           type?: Database["public"]["Enums"]["task_type"]
@@ -878,6 +1106,13 @@ export type Database = {
             columns: ["streamer_id"]
             isOneToOne: false
             referencedRelation: "streamers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_stream_session_id_fkey"
+            columns: ["stream_session_id"]
+            isOneToOne: false
+            referencedRelation: "stream_sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -1614,9 +1849,12 @@ export type Database = {
       app_role: "admin" | "streamer" | "viewer"
       boost_status: "active" | "expired" | "cancelled"
       content_post_type: "news" | "announcement" | "video" | "update"
+      donation_status: "pending" | "succeeded" | "failed"
       delivery_status: "pending" | "sent" | "failed" | "cancelled"
       media_type: "image" | "video" | "tiktok_clip" | "external_link"
       notification_channel: "in_app" | "telegram" | "web_push"
+      post_reaction_type: "nova" | "flare" | "pulse" | "crown"
+      promotion_order_status: "pending" | "submitted" | "failed" | "cancelled"
       stream_event_type:
         | "live_started"
         | "live_ended"
@@ -1632,6 +1870,7 @@ export type Database = {
         | "raid_requested"
       stream_session_status: "live" | "ended" | "failed"
       streamer_verification_status: "pending" | "verified" | "rejected"
+      subscription_plan_key: "free" | "supporter" | "superfan" | "legend"
       task_type: "visit" | "code" | "boost" | "referral"
       telegram_chat_kind:
         | "platform_group"
@@ -1794,9 +2033,12 @@ export const Constants = {
       app_role: ["admin", "streamer", "viewer"],
       boost_status: ["active", "expired", "cancelled"],
       content_post_type: ["news", "announcement", "video", "update"],
+      donation_status: ["pending", "succeeded", "failed"],
       delivery_status: ["pending", "sent", "failed", "cancelled"],
       media_type: ["image", "video", "tiktok_clip", "external_link"],
       notification_channel: ["in_app", "telegram", "web_push"],
+      post_reaction_type: ["nova", "flare", "pulse", "crown"],
+      promotion_order_status: ["pending", "submitted", "failed", "cancelled"],
       stream_event_type: [
         "live_started",
         "live_ended",
@@ -1813,6 +2055,7 @@ export const Constants = {
       ],
       stream_session_status: ["live", "ended", "failed"],
       streamer_verification_status: ["pending", "verified", "rejected"],
+      subscription_plan_key: ["free", "supporter", "superfan", "legend"],
       task_type: ["visit", "code", "boost", "referral"],
       telegram_chat_kind: [
         "platform_group",

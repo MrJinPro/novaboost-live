@@ -24,6 +24,20 @@ export type TrackingSnapshot = {
   rawSnapshot?: Record<string, unknown>;
 };
 
+type StreamEventKind =
+  | "live_started"
+  | "live_ended"
+  | "viewer_joined"
+  | "viewer_left"
+  | "like_received"
+  | "gift_received"
+  | "chat_message"
+  | "snapshot_updated"
+  | "code_word_submitted"
+  | "boost_started"
+  | "boost_expired"
+  | "raid_requested";
+
 type StreamSessionRow = {
   id: string;
   streamer_id: string;
@@ -155,16 +169,29 @@ export class TrackingRepository {
     if (error) {
       throw error;
     }
+
+    const { error: tasksError } = await this.supabase
+      .from("tasks")
+      .update({ active: false })
+      .eq("stream_session_id", sessionId)
+      .eq("auto_disable_on_live_end", true)
+      .eq("active", true);
+
+    if (tasksError) {
+      throw tasksError;
+    }
   }
 
   async insertStreamEvent(input: {
     streamerId: string;
     streamSessionId: string | null;
-    eventType: "live_started" | "live_ended" | "snapshot_updated";
+    eventType: StreamEventKind;
     source: string;
     eventTimestamp: string;
     normalizedPayload: Record<string, unknown>;
     rawPayload?: Record<string, unknown>;
+    viewerId?: string | null;
+    externalViewerId?: string | null;
   }) {
     const sessionId = input.streamSessionId;
     if (!sessionId) {
@@ -178,10 +205,58 @@ export class TrackingRepository {
         streamer_id: input.streamerId,
         event_type: input.eventType,
         source: input.source,
+        viewer_id: input.viewerId ?? null,
+        external_viewer_id: input.externalViewerId ?? null,
         event_timestamp: input.eventTimestamp,
         raw_payload: input.rawPayload ?? input.normalizedPayload,
         normalized_payload: input.normalizedPayload,
       });
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async getStreamSessionById(sessionId: string) {
+    const { data, error } = await this.supabase
+      .from("stream_sessions")
+      .select("id, streamer_id, source, status, started_at, ended_at, peak_viewer_count, current_viewer_count, like_count, gift_count, message_count, raw_snapshot")
+      .eq("id", sessionId)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? null) as StreamSessionRow | null;
+  }
+
+  async updateSessionEngagement(sessionId: string, input: {
+    likeDelta?: number;
+    giftDelta?: number;
+    messageDelta?: number;
+    currentViewerCount?: number;
+    rawSnapshot?: Record<string, unknown>;
+  }) {
+    const session = await this.getStreamSessionById(sessionId);
+    if (!session) {
+      return;
+    }
+
+    const nextViewerCount = input.currentViewerCount ?? session.current_viewer_count;
+    const nextPeakViewerCount = Math.max(session.peak_viewer_count, nextViewerCount);
+
+    const { error } = await this.supabase
+      .from("stream_sessions")
+      .update({
+        like_count: session.like_count + (input.likeDelta ?? 0),
+        gift_count: session.gift_count + (input.giftDelta ?? 0),
+        message_count: session.message_count + (input.messageDelta ?? 0),
+        current_viewer_count: nextViewerCount,
+        peak_viewer_count: nextPeakViewerCount,
+        raw_snapshot: input.rawSnapshot ?? session.raw_snapshot,
+      })
+      .eq("id", sessionId);
 
     if (error) {
       throw error;

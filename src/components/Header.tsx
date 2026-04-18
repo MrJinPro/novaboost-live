@@ -10,6 +10,7 @@ const NAV = [
   { to: "/" as const, label: "Главная" },
   { to: "/streamers" as const, label: "Стримеры" },
   { to: "/tasks" as const, label: "Задания" },
+  { to: "/services" as const, label: "Услуги" },
   { to: "/leaderboard" as const, label: "Рейтинг" },
 ];
 

@@ -1,3 +1,8 @@
+-- IMPORTANT:
+-- Run this migration only after phase1 objects exist.
+-- If phase1 was partially applied earlier, repair it with
+-- supabase/recovery/20260418_backend_foundation_phase1_repair.sql before executing this file.
+
 -- ============= TELEGRAM BOT ENUMS =============
 CREATE TYPE public.telegram_chat_kind AS ENUM (
   'platform_group',

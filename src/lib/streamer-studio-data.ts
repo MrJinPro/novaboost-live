@@ -7,25 +7,10 @@ import {
   type StreamerStudioDraft,
 } from "@/lib/mock-platform";
 import { loadActiveBoostTotals } from "@/lib/boost-data";
+import { loadDonationLinkByStreamerId, loadRecentDonationEvents } from "@/lib/monetization-data";
+import { resolveLinkedStreamer, type LinkedStreamerRow } from "@/lib/streamer-profile-linking";
 
-type DbStreamer = Pick<
-  Tables<"streamers">,
-  | "id"
-  | "user_id"
-  | "display_name"
-  | "tiktok_username"
-  | "avatar_url"
-  | "bio"
-  | "banner_url"
-  | "logo_url"
-  | "tagline"
-  | "telegram_channel"
-  | "is_live"
-  | "viewer_count"
-  | "followers_count"
-  | "needs_boost"
-  | "total_boost_amount"
->;
+type DbStreamer = LinkedStreamerRow;
 
 type DbPageSettings = Pick<
   Tables<"streamer_page_settings">,
@@ -40,7 +25,7 @@ type DbPageSettings = Pick<
 
 type DbPost = Pick<
   Tables<"streamer_posts">,
-  "id" | "post_type" | "title" | "body" | "published_at" | "created_at"
+  "id" | "post_type" | "title" | "body" | "published_at" | "created_at" | "expires_at" | "required_plan" | "blur_preview"
 >;
 
 type DbMedia = Pick<
@@ -93,25 +78,31 @@ function mapDbPost(row: DbPost): StreamerPost {
     title: row.title,
     body: row.body ?? "",
     createdAt: formatPostDate(row.published_at ?? row.created_at),
+    requiredPlan: row.required_plan,
+    blurPreview: row.blur_preview,
+    expiresAt: row.expires_at,
   };
 }
 
-async function getOwnedStreamer(userId: string) {
-  const { data, error } = await supabase
-    .from("streamers")
-    .select("id, user_id, display_name, tiktok_username, avatar_url, bio, banner_url, logo_url, tagline, telegram_channel, is_live, viewer_count, followers_count, needs_boost, total_boost_amount")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (error) {
-    throw error;
+function isPostActive(row: DbPost) {
+  if (!row.expires_at) {
+    return true;
   }
 
-  return (data ?? null) as DbStreamer | null;
+  return new Date(row.expires_at).getTime() > Date.now();
+}
+
+async function getManagedStreamer(user: Pick<AppUser, "id" | "tiktokUsername" | "displayName">) {
+  return resolveLinkedStreamer({
+    userId: user.id,
+    tiktokUsername: user.tiktokUsername,
+    displayName: user.displayName,
+    claimIfNeeded: true,
+  });
 }
 
 export async function getOwnedStreamerPublicPage(userId: string) {
-  const streamer = await getOwnedStreamer(userId);
+  const streamer = await resolveLinkedStreamer({ userId, claimIfNeeded: false });
 
   if (!streamer) {
     return null;
@@ -138,10 +129,10 @@ async function getPageSettings(streamerId: string) {
   return (data ?? null) as DbPageSettings | null;
 }
 
-async function getPosts(streamerId: string) {
+async function getPosts(streamerId: string, options?: { includeExpired?: boolean }) {
   const { data, error } = await supabase
     .from("streamer_posts")
-    .select("id, post_type, title, body, published_at, created_at")
+    .select("id, post_type, title, body, published_at, created_at, expires_at, required_plan, blur_preview")
     .eq("streamer_id", streamerId)
     .eq("is_published", true)
     .order("published_at", { ascending: false })
@@ -151,7 +142,11 @@ async function getPosts(streamerId: string) {
     throw error;
   }
 
-  return ((data ?? []) as DbPost[]).map(mapDbPost);
+  const rows = (data ?? []) as DbPost[];
+
+  return rows
+    .filter((row) => (options?.includeExpired ?? true ? true : isPostActive(row)))
+    .map(mapDbPost);
 }
 
 async function getMedia(streamerId: string) {
@@ -222,7 +217,7 @@ function buildDraft(base: StreamerStudioDraft, streamer: DbStreamer, settings: D
 
 export async function loadStreamerStudioData(user: AppUser) {
   const fallbackDraft = createEmptyStudioDraft(user.tiktokUsername, user.displayName);
-  const streamer = await getOwnedStreamer(user.id);
+  const streamer = await getManagedStreamer(user);
 
   if (!streamer) {
     return {
@@ -245,7 +240,7 @@ export async function loadStreamerStudioData(user: AppUser) {
 }
 
 export async function saveStreamerStudioPage(user: AppUser, draft: StreamerStudioDraft) {
-  const streamer = await getOwnedStreamer(user.id);
+  const streamer = await getManagedStreamer(user);
 
   if (!streamer) {
     throw new Error("Профиль стримера в базе ещё не создан.");
@@ -256,7 +251,7 @@ export async function saveStreamerStudioPage(user: AppUser, draft: StreamerStudi
     .map((tag) => tag.trim())
     .filter(Boolean);
 
-  const { error: streamerError } = await supabase
+  const { data: updatedStreamer, error: streamerError } = await supabase
     .from("streamers")
     .update({
       display_name: user.displayName,
@@ -267,13 +262,19 @@ export async function saveStreamerStudioPage(user: AppUser, draft: StreamerStudi
       tagline: draft.headline || null,
       telegram_channel: draft.telegramChannel || null,
     })
-    .eq("id", streamer.id);
+    .eq("id", streamer.id)
+    .select("id")
+    .maybeSingle();
 
   if (streamerError) {
     throw streamerError;
   }
 
-  const { error: settingsError } = await supabase
+  if (!updatedStreamer) {
+    throw new Error("Профиль стримера не был обновлён. Скорее всего, запись ещё не привязана к текущему аккаунту.");
+  }
+
+  const { data: upsertedSettings, error: settingsError } = await supabase
     .from("streamer_page_settings")
     .upsert(
       {
@@ -287,17 +288,25 @@ export async function saveStreamerStudioPage(user: AppUser, draft: StreamerStudi
         layout: { tags },
       },
       { onConflict: "streamer_id" }
-    );
+    )
+    .select("streamer_id");
 
   if (settingsError) {
     throw settingsError;
   }
 
+  if (!upsertedSettings || upsertedSettings.length === 0) {
+    throw new Error("Настройки публичной страницы не сохранились в Supabase.");
+  }
+
   return { streamerId: streamer.id };
 }
 
-export async function publishStreamerPost(user: AppUser, input: Pick<StreamerPost, "type" | "title" | "body">) {
-  const streamer = await getOwnedStreamer(user.id);
+export async function publishStreamerPost(
+  user: AppUser,
+  input: Pick<StreamerPost, "type" | "title" | "body"> & Partial<Pick<StreamerPost, "requiredPlan" | "blurPreview" | "expiresAt">>,
+) {
+  const streamer = await getManagedStreamer(user);
 
   if (!streamer) {
     throw new Error("Профиль стримера в базе ещё не создан.");
@@ -311,10 +320,13 @@ export async function publishStreamerPost(user: AppUser, input: Pick<StreamerPos
       post_type: toDbPostType(input.type),
       title: input.title.trim(),
       body: input.body.trim(),
+      required_plan: input.requiredPlan ?? "free",
+      blur_preview: input.blurPreview ?? false,
+      expires_at: input.expiresAt ?? null,
       is_published: true,
       published_at: new Date().toISOString(),
     })
-    .select("id, post_type, title, body, published_at, created_at")
+    .select("id, post_type, title, body, published_at, created_at, expires_at, required_plan, blur_preview")
     .single();
 
   if (error) {
@@ -344,13 +356,15 @@ export async function loadPublicStreamerPage(id: string) {
     return null;
   }
 
-  const [settings, posts, subscriptionCount, boostTotals, media, latestSession] = await Promise.all([
+  const [settings, posts, subscriptionCount, boostTotals, media, latestSession, donationLink, recentDonations] = await Promise.all([
     getPageSettings(streamer.id),
-    getPosts(streamer.id),
+    getPosts(streamer.id, { includeExpired: false }),
     getSubscriptionCount(streamer.id),
     loadActiveBoostTotals(),
     getMedia(streamer.id),
     getLatestSessionStats(streamer.id),
+    loadDonationLinkByStreamerId(streamer.id),
+    loadRecentDonationEvents(streamer.id),
   ]);
 
   return {
@@ -361,6 +375,7 @@ export async function loadPublicStreamerPage(id: string) {
     banner_url: settings?.banner_url ?? streamer.banner_url ?? "",
     bio: settings?.description ?? streamer.bio ?? "",
     tagline: settings?.headline ?? streamer.tagline ?? "Публичная страница стримера внутри NovaBoost Live.",
+    featured_video_url: settings?.featured_video_url ?? media[0]?.cover ?? null,
     is_live: streamer.is_live,
     viewer_count: streamer.viewer_count,
     followers_count: streamer.followers_count,
@@ -378,6 +393,9 @@ export async function loadPublicStreamerPage(id: string) {
       return Array.isArray(layout.tags) ? layout.tags : [];
     })(),
     perks: ["ранний доступ к анонсам", "сигналы по эфирам"],
+    donation_link_slug: donationLink?.slug ?? null,
+    donation_link_title: donationLink?.title ?? null,
+    recent_donations: recentDonations,
     posts,
     videos: media,
   } satisfies StreamerPageData;

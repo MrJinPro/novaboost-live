@@ -31,6 +31,16 @@ npm run start:backend
 - `GET /manifest`
 - `GET /tracking/status`
 - `GET /notifications/stream/:streamerId/preview?trigger=live_started|boost_needed|post_published`
+- `GET /growth/tiktok/services`
+- `POST /growth/orders`
+
+## Supplier env
+
+- `PRMOTION_API_URL=https://api.prmotion.me/v1`
+- `PRMOTION_API_KEY=...`
+- `PRMOTION_REQUEST_TIMEOUT_MS=10000`
+
+NovaBoost backend сам фильтрует каталог поставщика и отдаёт только TikTok-услуги без coin/монетных сервисов.
 
 ## WebSocket
 

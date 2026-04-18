@@ -1,0 +1,568 @@
+-- Run this file manually in Supabase SQL Editor only on a partially applied database.
+-- It reconciles the core objects from 20260418003000_backend_foundation_phase1.sql
+-- so that phase2 and phase3 migrations can be executed safely afterwards.
+
+-- ============= SAFE ENUMS =============
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE n.nspname = 'public' AND t.typname = 'streamer_verification_status'
+  ) THEN
+    CREATE TYPE public.streamer_verification_status AS ENUM ('pending', 'verified', 'rejected');
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE n.nspname = 'public' AND t.typname = 'stream_session_status'
+  ) THEN
+    CREATE TYPE public.stream_session_status AS ENUM ('live', 'ended', 'failed');
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE n.nspname = 'public' AND t.typname = 'stream_event_type'
+  ) THEN
+    CREATE TYPE public.stream_event_type AS ENUM (
+      'live_started',
+      'live_ended',
+      'viewer_joined',
+      'viewer_left',
+      'like_received',
+      'gift_received',
+      'chat_message',
+      'snapshot_updated',
+      'code_word_submitted',
+      'boost_started',
+      'boost_expired',
+      'raid_requested'
+    );
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE n.nspname = 'public' AND t.typname = 'viewer_action_type'
+  ) THEN
+    CREATE TYPE public.viewer_action_type AS ENUM (
+      'stream_visit',
+      'watch_time',
+      'code_submission',
+      'boost_participation',
+      'like',
+      'gift',
+      'chat_message',
+      'referral_join'
+    );
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE n.nspname = 'public' AND t.typname = 'content_post_type'
+  ) THEN
+    CREATE TYPE public.content_post_type AS ENUM ('news', 'announcement', 'video', 'update');
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE n.nspname = 'public' AND t.typname = 'media_type'
+  ) THEN
+    CREATE TYPE public.media_type AS ENUM ('image', 'video', 'tiktok_clip', 'external_link');
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE n.nspname = 'public' AND t.typname = 'notification_channel'
+  ) THEN
+    CREATE TYPE public.notification_channel AS ENUM ('in_app', 'telegram', 'web_push');
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE n.nspname = 'public' AND t.typname = 'delivery_status'
+  ) THEN
+    CREATE TYPE public.delivery_status AS ENUM ('pending', 'sent', 'failed', 'cancelled');
+  END IF;
+END $$;
+
+-- ============= HELPERS =============
+CREATE OR REPLACE FUNCTION public.owns_streamer(_streamer_id UUID)
+RETURNS BOOLEAN
+LANGUAGE SQL
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.streamers
+    WHERE id = _streamer_id
+      AND user_id = auth.uid()
+  )
+$$;
+
+-- ============= PROFILE EXTENSIONS =============
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS tiktok_username TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS telegram_username TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS telegram_user_id BIGINT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS telegram_linked_at TIMESTAMPTZ;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS activity_score INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS streak_days INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_activity_at TIMESTAMPTZ;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS preferred_language TEXT NOT NULL DEFAULT 'ru';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN NOT NULL DEFAULT false;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_tiktok_username
+  ON public.profiles(tiktok_username)
+  WHERE tiktok_username IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_telegram_user_id
+  ON public.profiles(telegram_user_id)
+  WHERE telegram_user_id IS NOT NULL;
+
+-- ============= STREAMER EXTENSIONS =============
+ALTER TABLE public.streamers ADD COLUMN IF NOT EXISTS banner_url TEXT;
+ALTER TABLE public.streamers ADD COLUMN IF NOT EXISTS logo_url TEXT;
+ALTER TABLE public.streamers ADD COLUMN IF NOT EXISTS tagline TEXT;
+ALTER TABLE public.streamers ADD COLUMN IF NOT EXISTS telegram_channel TEXT;
+ALTER TABLE public.streamers ADD COLUMN IF NOT EXISTS telegram_chat_id BIGINT;
+ALTER TABLE public.streamers ADD COLUMN IF NOT EXISTS verification_status public.streamer_verification_status NOT NULL DEFAULT 'pending';
+ALTER TABLE public.streamers ADD COLUMN IF NOT EXISTS verification_method TEXT;
+ALTER TABLE public.streamers ADD COLUMN IF NOT EXISTS verified_at TIMESTAMPTZ;
+ALTER TABLE public.streamers ADD COLUMN IF NOT EXISTS tracking_enabled BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.streamers ADD COLUMN IF NOT EXISTS tracking_source TEXT;
+ALTER TABLE public.streamers ADD COLUMN IF NOT EXISTS last_checked_live_at TIMESTAMPTZ;
+ALTER TABLE public.streamers ADD COLUMN IF NOT EXISTS priority_score INTEGER NOT NULL DEFAULT 0;
+
+CREATE INDEX IF NOT EXISTS idx_streamers_priority_score ON public.streamers(priority_score DESC);
+CREATE INDEX IF NOT EXISTS idx_streamers_tracking_enabled ON public.streamers(tracking_enabled);
+
+-- ============= STREAMER SUBSCRIPTIONS =============
+CREATE TABLE IF NOT EXISTS public.streamer_subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  streamer_id UUID NOT NULL REFERENCES public.streamers(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  notification_enabled BOOLEAN NOT NULL DEFAULT true,
+  telegram_enabled BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (streamer_id, user_id)
+);
+ALTER TABLE public.streamer_subscriptions ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'streamer_subscriptions' AND policyname = 'Users can view own streamer subscriptions'
+  ) THEN
+    CREATE POLICY "Users can view own streamer subscriptions"
+      ON public.streamer_subscriptions FOR SELECT USING (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'streamer_subscriptions' AND policyname = 'Streamer owners can view subscriptions to own streamer'
+  ) THEN
+    CREATE POLICY "Streamer owners can view subscriptions to own streamer"
+      ON public.streamer_subscriptions FOR SELECT USING (public.owns_streamer(streamer_id));
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'streamer_subscriptions' AND policyname = 'Users can create own streamer subscriptions'
+  ) THEN
+    CREATE POLICY "Users can create own streamer subscriptions"
+      ON public.streamer_subscriptions FOR INSERT WITH CHECK (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'streamer_subscriptions' AND policyname = 'Users can update own streamer subscriptions'
+  ) THEN
+    CREATE POLICY "Users can update own streamer subscriptions"
+      ON public.streamer_subscriptions FOR UPDATE USING (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'streamer_subscriptions' AND policyname = 'Users can delete own streamer subscriptions'
+  ) THEN
+    CREATE POLICY "Users can delete own streamer subscriptions"
+      ON public.streamer_subscriptions FOR DELETE USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_streamer_subscriptions_streamer ON public.streamer_subscriptions(streamer_id);
+CREATE INDEX IF NOT EXISTS idx_streamer_subscriptions_user ON public.streamer_subscriptions(user_id);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_trigger
+    WHERE tgname = 'update_streamer_subscriptions_updated_at'
+      AND tgrelid = 'public.streamer_subscriptions'::regclass
+  ) THEN
+    CREATE TRIGGER update_streamer_subscriptions_updated_at
+      BEFORE UPDATE ON public.streamer_subscriptions
+      FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  END IF;
+END $$;
+
+-- ============= TELEGRAM LINKS =============
+CREATE TABLE IF NOT EXISTS public.telegram_links (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+  role public.app_role NOT NULL,
+  telegram_user_id BIGINT UNIQUE,
+  telegram_username TEXT,
+  telegram_chat_id BIGINT,
+  bot_enabled BOOLEAN NOT NULL DEFAULT true,
+  linked_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE public.telegram_links ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'telegram_links' AND policyname = 'Users can view own telegram link'
+  ) THEN
+    CREATE POLICY "Users can view own telegram link"
+      ON public.telegram_links FOR SELECT USING (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'telegram_links' AND policyname = 'Users can create own telegram link'
+  ) THEN
+    CREATE POLICY "Users can create own telegram link"
+      ON public.telegram_links FOR INSERT WITH CHECK (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'telegram_links' AND policyname = 'Users can update own telegram link'
+  ) THEN
+    CREATE POLICY "Users can update own telegram link"
+      ON public.telegram_links FOR UPDATE USING (auth.uid() = user_id);
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_trigger
+    WHERE tgname = 'update_telegram_links_updated_at'
+      AND tgrelid = 'public.telegram_links'::regclass
+  ) THEN
+    CREATE TRIGGER update_telegram_links_updated_at
+      BEFORE UPDATE ON public.telegram_links
+      FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  END IF;
+END $$;
+
+-- ============= STREAM SESSIONS =============
+CREATE TABLE IF NOT EXISTS public.stream_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  streamer_id UUID NOT NULL REFERENCES public.streamers(id) ON DELETE CASCADE,
+  source TEXT NOT NULL DEFAULT 'tiktok',
+  external_stream_id TEXT,
+  status public.stream_session_status NOT NULL DEFAULT 'live',
+  started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  ended_at TIMESTAMPTZ,
+  peak_viewer_count INTEGER NOT NULL DEFAULT 0,
+  current_viewer_count INTEGER NOT NULL DEFAULT 0,
+  like_count BIGINT NOT NULL DEFAULT 0,
+  gift_count BIGINT NOT NULL DEFAULT 0,
+  message_count INTEGER NOT NULL DEFAULT 0,
+  raw_snapshot JSONB NOT NULL DEFAULT '{}'::JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE public.stream_sessions ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'stream_sessions' AND policyname = 'Stream sessions are viewable by everyone'
+  ) THEN
+    CREATE POLICY "Stream sessions are viewable by everyone"
+      ON public.stream_sessions FOR SELECT USING (true);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'stream_sessions' AND policyname = 'Streamer owners can view own sessions'
+  ) THEN
+    CREATE POLICY "Streamer owners can view own sessions"
+      ON public.stream_sessions FOR SELECT USING (public.owns_streamer(streamer_id));
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_stream_sessions_streamer_status ON public.stream_sessions(streamer_id, status, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_stream_sessions_external_id ON public.stream_sessions(external_stream_id);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_trigger
+    WHERE tgname = 'update_stream_sessions_updated_at'
+      AND tgrelid = 'public.stream_sessions'::regclass
+  ) THEN
+    CREATE TRIGGER update_stream_sessions_updated_at
+      BEFORE UPDATE ON public.stream_sessions
+      FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  END IF;
+END $$;
+
+-- ============= STREAM EVENTS =============
+CREATE TABLE IF NOT EXISTS public.stream_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  stream_session_id UUID NOT NULL REFERENCES public.stream_sessions(id) ON DELETE CASCADE,
+  streamer_id UUID NOT NULL REFERENCES public.streamers(id) ON DELETE CASCADE,
+  event_type public.stream_event_type NOT NULL,
+  source TEXT NOT NULL DEFAULT 'tiktok',
+  viewer_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  external_viewer_id TEXT,
+  event_timestamp TIMESTAMPTZ NOT NULL DEFAULT now(),
+  raw_payload JSONB NOT NULL DEFAULT '{}'::JSONB,
+  normalized_payload JSONB NOT NULL DEFAULT '{}'::JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE public.stream_events ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'stream_events' AND policyname = 'Streamer owners can view own stream events'
+  ) THEN
+    CREATE POLICY "Streamer owners can view own stream events"
+      ON public.stream_events FOR SELECT USING (public.owns_streamer(streamer_id));
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'stream_events' AND policyname = 'Admins can view all stream events'
+  ) THEN
+    CREATE POLICY "Admins can view all stream events"
+      ON public.stream_events FOR SELECT USING (public.has_role(auth.uid(), 'admin'));
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_stream_events_session_time ON public.stream_events(stream_session_id, event_timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_stream_events_streamer_time ON public.stream_events(streamer_id, event_timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_stream_events_type ON public.stream_events(event_type);
+
+-- ============= VIEWER STREAM ACTIONS =============
+CREATE TABLE IF NOT EXISTS public.viewer_stream_actions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  streamer_id UUID NOT NULL REFERENCES public.streamers(id) ON DELETE CASCADE,
+  stream_session_id UUID REFERENCES public.stream_sessions(id) ON DELETE SET NULL,
+  action_type public.viewer_action_type NOT NULL,
+  points_awarded INTEGER NOT NULL DEFAULT 0,
+  watch_seconds INTEGER NOT NULL DEFAULT 0,
+  metadata JSONB NOT NULL DEFAULT '{}'::JSONB,
+  occurred_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE public.viewer_stream_actions ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'viewer_stream_actions' AND policyname = 'Users can view own stream actions'
+  ) THEN
+    CREATE POLICY "Users can view own stream actions"
+      ON public.viewer_stream_actions FOR SELECT USING (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'viewer_stream_actions' AND policyname = 'Streamer owners can view actions on own streamer'
+  ) THEN
+    CREATE POLICY "Streamer owners can view actions on own streamer"
+      ON public.viewer_stream_actions FOR SELECT USING (public.owns_streamer(streamer_id));
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'viewer_stream_actions' AND policyname = 'Users can create own stream actions'
+  ) THEN
+    CREATE POLICY "Users can create own stream actions"
+      ON public.viewer_stream_actions FOR INSERT WITH CHECK (auth.uid() = user_id);
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_viewer_stream_actions_user ON public.viewer_stream_actions(user_id, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_viewer_stream_actions_streamer ON public.viewer_stream_actions(streamer_id, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_viewer_stream_actions_session ON public.viewer_stream_actions(stream_session_id);
+
+-- ============= VIEWER POINTS LEDGER =============
+CREATE TABLE IF NOT EXISTS public.viewer_points_ledger (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  source_type TEXT NOT NULL,
+  source_id UUID,
+  delta INTEGER NOT NULL,
+  balance_after INTEGER,
+  reason TEXT,
+  metadata JSONB NOT NULL DEFAULT '{}'::JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE public.viewer_points_ledger ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'viewer_points_ledger' AND policyname = 'Users can view own points ledger'
+  ) THEN
+    CREATE POLICY "Users can view own points ledger"
+      ON public.viewer_points_ledger FOR SELECT USING (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'viewer_points_ledger' AND policyname = 'Admins can view all points ledger rows'
+  ) THEN
+    CREATE POLICY "Admins can view all points ledger rows"
+      ON public.viewer_points_ledger FOR SELECT USING (public.has_role(auth.uid(), 'admin'));
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_viewer_points_ledger_user ON public.viewer_points_ledger(user_id, created_at DESC);
+
+-- ============= NOTIFICATION DELIVERIES =============
+CREATE TABLE IF NOT EXISTS public.notification_deliveries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  notification_id UUID NOT NULL REFERENCES public.notifications(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  channel public.notification_channel NOT NULL,
+  status public.delivery_status NOT NULL DEFAULT 'pending',
+  provider_message_id TEXT,
+  attempted_at TIMESTAMPTZ,
+  delivered_at TIMESTAMPTZ,
+  error_message TEXT,
+  metadata JSONB NOT NULL DEFAULT '{}'::JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE public.notification_deliveries ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'notification_deliveries' AND policyname = 'Users can view own notification deliveries'
+  ) THEN
+    CREATE POLICY "Users can view own notification deliveries"
+      ON public.notification_deliveries FOR SELECT USING (auth.uid() = user_id);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'notification_deliveries' AND policyname = 'Admins can manage notification deliveries'
+  ) THEN
+    CREATE POLICY "Admins can manage notification deliveries"
+      ON public.notification_deliveries FOR ALL
+      USING (public.has_role(auth.uid(), 'admin'))
+      WITH CHECK (public.has_role(auth.uid(), 'admin'));
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_notification_deliveries_user ON public.notification_deliveries(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notification_deliveries_status ON public.notification_deliveries(status, channel);
+
+-- ============= UPDATED SIGNUP FUNCTION =============
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  _username TEXT;
+BEGIN
+  _username := COALESCE(
+    NEW.raw_user_meta_data->>'username',
+    split_part(NEW.email, '@', 1)
+  );
+
+  INSERT INTO public.profiles (id, username, display_name, tiktok_username, preferred_language)
+  VALUES (
+    NEW.id,
+    _username,
+    COALESCE(NEW.raw_user_meta_data->>'display_name', _username),
+    NULLIF(NEW.raw_user_meta_data->>'tiktok_username', ''),
+    COALESCE(NEW.raw_user_meta_data->>'preferred_language', 'ru')
+  )
+  ON CONFLICT (id) DO NOTHING;
+
+  INSERT INTO public.user_roles (user_id, role)
+  VALUES (NEW.id, 'viewer')
+  ON CONFLICT (user_id, role) DO NOTHING;
+
+  RETURN NEW;
+END;
+$$;
+
+-- ============= REALTIME =============
+ALTER TABLE public.stream_sessions REPLICA IDENTITY FULL;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime'
+      AND schemaname = 'public'
+      AND tablename = 'stream_sessions'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.stream_sessions;
+  END IF;
+END $$;
