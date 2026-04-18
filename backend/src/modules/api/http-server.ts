@@ -20,7 +20,9 @@ export function startHttpServer(env: BackendEnv, logger: Logger, services: Servi
       return;
     }
 
-    if (request.url === "/health") {
+    const url = new URL(request.url, `http://127.0.0.1:${env.BACKEND_PORT}`);
+
+    if (url.pathname === "/health") {
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify({
         service: "novaboost-backend",
@@ -36,7 +38,7 @@ export function startHttpServer(env: BackendEnv, logger: Logger, services: Servi
       return;
     }
 
-    if (request.url === "/manifest") {
+    if (url.pathname === "/manifest") {
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify({
         api: ["/health", "/manifest"],
@@ -47,6 +49,34 @@ export function startHttpServer(env: BackendEnv, logger: Logger, services: Servi
           "notification fan-out foundation",
         ],
       }));
+      return;
+    }
+
+    const previewMatch = url.pathname.match(/^\/notifications\/stream\/([^/]+)\/preview$/);
+    if (previewMatch) {
+      const streamerId = previewMatch[1];
+      const trigger = url.searchParams.get("trigger") as "live_started" | "boost_needed" | "post_published" | null;
+
+      if (!trigger) {
+        response.writeHead(400, { "content-type": "application/json" });
+        response.end(JSON.stringify({ error: "Query param 'trigger' is required." }));
+        return;
+      }
+
+      void services.notifications.previewStreamPlan({ streamerId, trigger }).then((plan) => {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify(plan));
+      }).catch((error: unknown) => {
+        logger.error("Failed to build notification preview", {
+          streamerId,
+          trigger,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        response.writeHead(500, { "content-type": "application/json" });
+        response.end(JSON.stringify({
+          error: error instanceof Error ? error.message : "Failed to build notification preview.",
+        }));
+      });
       return;
     }
 

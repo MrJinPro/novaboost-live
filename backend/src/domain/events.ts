@@ -24,6 +24,34 @@ export type StreamRoutingIntent = {
   trigger: "live_started" | "boost_needed" | "post_published";
 };
 
+export type NotificationPlanDestination =
+  | {
+      kind: "streamer_chat" | "platform_chat";
+      routeId: string;
+      chatId: string;
+      externalChatId: string;
+      title: string | null;
+      username: string | null;
+    }
+  | {
+      kind: "subscriber_dm";
+      routeId: string;
+      userId: string;
+      telegramUserId: string;
+      telegramUsername: string | null;
+    };
+
+export type NotificationPlan = {
+  streamer: {
+    id: string;
+    displayName: string;
+    tiktokUsername: string;
+  } | null;
+  trigger: StreamRoutingIntent["trigger"];
+  destinations: NotificationPlanDestination[];
+  warnings: string[];
+};
+
 export type ModerationIntent = {
   streamerId: string;
   chatId: string;

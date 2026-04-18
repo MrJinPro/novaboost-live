@@ -27,6 +27,7 @@ npm run start:backend
 
 - `GET /health`
 - `GET /manifest`
+- `GET /notifications/stream/:streamerId/preview?trigger=live_started|boost_needed|post_published`
 
 ## Следующие шаги
 

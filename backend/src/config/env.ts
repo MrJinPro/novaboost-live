@@ -15,3 +15,7 @@ export type BackendEnv = z.infer<typeof envSchema>;
 export function loadEnv(): BackendEnv {
   return envSchema.parse(process.env);
 }
+
+export function hasSupabaseAdminCredentials(env: BackendEnv) {
+  return Boolean(env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY);
+}
