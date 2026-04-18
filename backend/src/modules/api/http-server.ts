@@ -80,6 +80,52 @@ export function startHttpServer(env: BackendEnv, logger: Logger, services: Servi
       return;
     }
 
+    if (request.method === "GET" && url.pathname === "/tracking/live") {
+      const usernames = url.searchParams
+        .getAll("username")
+        .flatMap((value) => value.split(","))
+        .map((value) => value.trim())
+        .filter(Boolean);
+
+      if (usernames.length === 0) {
+        writeJson(response, 400, { error: "Query param 'username' is required." });
+        return;
+      }
+
+      void services.tracking.resolveLiveStatuses(usernames).then((statuses) => {
+        writeJson(response, 200, { statuses });
+      }).catch((error: unknown) => {
+        logger.error("Failed to resolve live statuses", {
+          usernames,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        writeJson(response, 500, {
+          error: error instanceof Error ? error.message : "Не удалось проверить live-статус.",
+        });
+      });
+      return;
+    }
+
+    const trackingStreamMatch = request.method === "GET"
+      ? url.pathname.match(/^\/tracking\/stream\/([^/]+)$/)
+      : null;
+    if (trackingStreamMatch) {
+      const streamerId = trackingStreamMatch[1];
+
+      void services.tracking.getStreamerLiveDetails(streamerId).then((details) => {
+        writeJson(response, 200, { details });
+      }).catch((error: unknown) => {
+        logger.error("Failed to load streamer tracking details", {
+          streamerId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        writeJson(response, 500, {
+          error: error instanceof Error ? error.message : "Не удалось загрузить live-метрики стримера.",
+        });
+      });
+      return;
+    }
+
     if (request.method === "GET" && url.pathname === "/growth/tiktok/services") {
       void services.prmotion.listTikTokServices().then((catalog) => {
         writeJson(response, 200, { services: catalog });

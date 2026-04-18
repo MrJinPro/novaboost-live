@@ -1,6 +1,11 @@
 import { supabase } from "@/integrations/supabase/client";
+import { resolveLiveStatuses } from "@/lib/live-status-data";
 import { mockStreamers, type StreamerCardData } from "@/lib/mock-platform";
 import { loadActiveBoostTotals } from "@/lib/boost-data";
+
+function normalizeTikTokUsername(username: string) {
+  return username.trim().replace(/^@+/, "").toLowerCase();
+}
 
 type DbStreamerCard = {
   id: string;
@@ -50,12 +55,26 @@ export async function loadStreamerDirectory() {
     throw error;
   }
 
-  const realStreamers = ((data ?? []) as DbStreamerCard[]).map((row) =>
-    normalizeStreamer({
+  const streamers = (data ?? []) as DbStreamerCard[];
+  let liveStatuses = new Map<string, Awaited<ReturnType<typeof resolveLiveStatuses>> extends Map<string, infer TValue> ? TValue : never>();
+
+  try {
+    liveStatuses = await resolveLiveStatuses(streamers.map((row) => row.tiktok_username));
+  } catch {
+    // Fallback to stored DB values if the backend is temporarily unavailable.
+  }
+
+  const realStreamers = streamers.map((row) => {
+    const liveStatus = liveStatuses.get(normalizeTikTokUsername(row.tiktok_username));
+
+    return normalizeStreamer({
       ...row,
+      is_live: liveStatus?.isLive ?? row.is_live,
+      viewer_count: liveStatus?.viewerCount ?? row.viewer_count,
+      followers_count: liveStatus?.followersCount || row.followers_count,
       total_boost_amount: boostTotals.get(row.id) ?? row.total_boost_amount ?? 0,
-    })
-  );
+    });
+  });
 
   return realStreamers.length > 0 ? realStreamers : mockStreamers;
 }

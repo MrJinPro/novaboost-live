@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { TrackingStore } from "../storage/live-storage.js";
 
 export type TrackedStreamer = {
   id: string;
@@ -24,7 +25,7 @@ export type TrackingSnapshot = {
   rawSnapshot?: Record<string, unknown>;
 };
 
-type StreamEventKind =
+export type StreamEventKind =
   | "live_started"
   | "live_ended"
   | "viewer_joined"
@@ -38,7 +39,7 @@ type StreamEventKind =
   | "boost_expired"
   | "raid_requested";
 
-type StreamSessionRow = {
+export type StreamSessionRow = {
   id: string;
   streamer_id: string;
   source: string;
@@ -53,6 +54,13 @@ type StreamSessionRow = {
   raw_snapshot: Record<string, unknown>;
 };
 
+export type StreamEventRecord = {
+  id: string;
+  event_type: string;
+  event_timestamp: string;
+  normalized_payload: Record<string, unknown>;
+};
+
 export type StreamerLiveState = {
   id: string;
   tiktok_username: string;
@@ -60,7 +68,7 @@ export type StreamerLiveState = {
   viewer_count: number;
 };
 
-export class TrackingRepository {
+export class TrackingRepository implements TrackingStore {
   constructor(private readonly supabase: SupabaseClient) {}
 
   async getStreamerLiveState(streamerId: string) {
@@ -124,6 +132,37 @@ export class TrackingRepository {
     }
 
     return (data ?? null) as StreamSessionRow | null;
+  }
+
+  async getLatestSessionSummary(streamerId: string) {
+    const { data, error } = await this.supabase
+      .from("stream_sessions")
+      .select("id, streamer_id, source, status, started_at, ended_at, peak_viewer_count, current_viewer_count, like_count, gift_count, message_count, raw_snapshot")
+      .eq("streamer_id", streamerId)
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? null) as StreamSessionRow | null;
+  }
+
+  async listRecentStreamEvents(streamerId: string, limit = 12) {
+    const { data, error } = await this.supabase
+      .from("stream_events")
+      .select("id, event_type, event_timestamp, normalized_payload")
+      .eq("streamer_id", streamerId)
+      .order("event_timestamp", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      throw error;
+    }
+
+    return ((data ?? []) as StreamEventRecord[]);
   }
 
   async startLiveSession(snapshot: TrackingSnapshot) {

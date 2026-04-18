@@ -8,11 +8,10 @@ import { PromotionOrderRepository } from "./repositories/promotion-order-reposit
 import { ScoringService } from "./modules/scoring/scoring-service.js";
 import { createTrackingAdapter } from "./modules/tracking/tracking-adapter.js";
 import { TrackingLiveEventBridge } from "./modules/tracking/live-event-bridge.js";
+import { createLiveStorage } from "./storage/create-live-storage.js";
 import { TelegramService } from "./modules/telegram/telegram-service.js";
 import { TrackingService } from "./modules/tracking/tracking-service.js";
 import { NotificationRoutingRepository } from "./repositories/notification-routing-repository.js";
-import { TrackingRepository } from "./repositories/tracking-repository.js";
-import { ViewerEngagementRepository } from "./repositories/viewer-engagement-repository.js";
 
 export function bootstrapBackend() {
   const env = loadEnv();
@@ -20,21 +19,20 @@ export function bootstrapBackend() {
   const supabaseAdmin = hasSupabaseAdminCredentials(env) ? createSupabaseAdminClient(env) : null;
   const notificationRoutingRepository = supabaseAdmin ? new NotificationRoutingRepository(supabaseAdmin) : undefined;
   const promotionOrderRepository = supabaseAdmin ? new PromotionOrderRepository(supabaseAdmin) : undefined;
-  const trackingRepository = supabaseAdmin ? new TrackingRepository(supabaseAdmin) : undefined;
-  const viewerEngagementRepository = supabaseAdmin ? new ViewerEngagementRepository(supabaseAdmin) : undefined;
+  const { trackingStore, engagementStore } = createLiveStorage(env, supabaseAdmin);
   const trackingAdapter = createTrackingAdapter(logger, env);
 
-  const tracking = new TrackingService(logger, env, trackingAdapter, trackingRepository);
+  const tracking = new TrackingService(logger, env, trackingAdapter, trackingStore);
   const scoring = new ScoringService();
   const telegram = new TelegramService(logger);
   const notifications = new NotificationService(logger, telegram, notificationRoutingRepository);
-  const prmotion = new PRMotionService(env, logger, promotionOrderRepository, trackingRepository);
+  const prmotion = new PRMotionService(env, logger, promotionOrderRepository, trackingStore);
 
-  if (trackingRepository && viewerEngagementRepository) {
+  if (trackingStore && engagementStore) {
     tracking.attachLiveEventBridge(new TrackingLiveEventBridge({
       logger,
-      trackingRepository,
-      engagementRepository: viewerEngagementRepository,
+      trackingRepository: trackingStore,
+      engagementRepository: engagementStore,
       scoringService: scoring,
       requestTimeoutMs: env.TIKTOK_REQUEST_TIMEOUT_MS,
     }));

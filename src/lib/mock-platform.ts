@@ -78,11 +78,22 @@ export interface StreamerPageData extends StreamerCardData {
   support_goal: string;
   total_likes: number;
   total_gifts: number;
+  total_messages?: number;
+  peak_viewer_count?: number;
+  current_session_status?: "live" | "ended" | "failed" | null;
+  current_session_started_at?: string | null;
   tags: string[];
   perks: string[];
   donation_link_slug?: string | null;
   donation_link_title?: string | null;
   recent_donations: DonationEventSummary[];
+  recent_live_events?: Array<{
+    id: string;
+    type: string;
+    createdAt: string;
+    title: string;
+    description: string;
+  }>;
   posts: StreamerPost[];
   videos: StreamerVideo[];
 }

@@ -3,15 +3,15 @@ import type { WebcastChatMessage, WebcastGiftMessage, WebcastLikeMessage, Webcas
 
 import type { Logger } from "../../lib/logger.js";
 import type { ScoringService } from "../scoring/scoring-service.js";
-import type { TrackingRepository, TrackingSnapshot, TrackedStreamer } from "../../repositories/tracking-repository.js";
-import { ViewerEngagementRepository } from "../../repositories/viewer-engagement-repository.js";
+import type { TrackingSnapshot, TrackedStreamer } from "../../repositories/tracking-repository.js";
 import type { TeamMembershipSnapshot } from "../../repositories/viewer-engagement-repository.js";
 import type { LiveEngagementEvent } from "../../domain/events.js";
+import type { TrackingStore, ViewerEngagementStore } from "../../storage/live-storage.js";
 
 type LiveEventBridgeOptions = {
   logger: Logger;
-  trackingRepository: TrackingRepository;
-  engagementRepository: ViewerEngagementRepository;
+  trackingRepository: TrackingStore;
+  engagementRepository?: ViewerEngagementStore;
   scoringService: ScoringService;
   requestTimeoutMs: number;
 };
@@ -250,7 +250,9 @@ export class TrackingLiveEventBridge {
   }
 
   private async processLiveEvent(event: LiveEngagementEvent) {
-    const eligibleViewer = await this.options.engagementRepository.findEligibleViewer(event.streamerId, event.externalViewerUsername);
+    const eligibleViewer = this.options.engagementRepository
+      ? await this.options.engagementRepository.findEligibleViewer(event.streamerId, event.externalViewerUsername)
+      : null;
 
     await this.options.trackingRepository.insertStreamEvent({
       streamerId: event.streamerId,
@@ -278,6 +280,10 @@ export class TrackingLiveEventBridge {
         externalViewerUsername: event.externalViewerUsername,
         eventType: event.type,
       });
+      return;
+    }
+
+    if (!this.options.engagementRepository) {
       return;
     }
 

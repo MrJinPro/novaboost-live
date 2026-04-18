@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { ViewerEngagementStore } from "../storage/live-storage.js";
 
 type ViewerProfileRow = {
   id: string;
@@ -38,7 +39,7 @@ export type AchievementUnlockRow = {
   achievement_key: string;
 };
 
-export class ViewerEngagementRepository {
+export class ViewerEngagementRepository implements ViewerEngagementStore {
   constructor(private readonly supabase: SupabaseClient) {}
 
   async findEligibleViewer(streamerId: string, externalViewerUsername?: string | null) {

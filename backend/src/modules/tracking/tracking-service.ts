@@ -1,9 +1,19 @@
 import type { BackendEnv } from "../../config/env.js";
 import type { Logger } from "../../lib/logger.js";
-import type { TrackingRepository, TrackingSnapshot } from "../../repositories/tracking-repository.js";
+import type { TrackingSnapshot } from "../../repositories/tracking-repository.js";
+import type { TrackingStore } from "../../storage/live-storage.js";
 import type { TrackingAdapter } from "./tracking-adapter.js";
 import type { TrackingLiveEventBridge } from "./live-event-bridge.js";
 import type { TrackingSocketHub } from "./tracking-socket-hub.js";
+
+export type ResolvedLiveStatus = {
+  tiktokUsername: string;
+  isLive: boolean;
+  viewerCount: number;
+  followersCount: number;
+  checkedAt: string;
+  source: string;
+};
 
 export class TrackingService {
   private poller: NodeJS.Timeout | null = null;
@@ -15,7 +25,7 @@ export class TrackingService {
     private readonly logger: Logger,
     private readonly env: BackendEnv,
     private readonly adapter: TrackingAdapter,
-    private readonly trackingRepository?: TrackingRepository,
+    private readonly trackingRepository?: TrackingStore,
   ) {}
 
   attachSocketHub(socketHub: TrackingSocketHub) {
@@ -38,6 +48,54 @@ export class TrackingService {
       intervalMs: this.env.TRACKING_POLL_INTERVAL_MS,
       source: this.adapter.sourceName,
       lastRunAt: this.lastRunAt,
+    };
+  }
+
+  async resolveLiveStatuses(usernames: string[]) {
+    const uniqueUsernames = [...new Set(usernames.map((username) => username.trim()).filter(Boolean))];
+    const snapshots: ResolvedLiveStatus[] = [];
+
+    for (const username of uniqueUsernames) {
+      const snapshot = await this.adapter.fetchSnapshot({
+        id: `lookup:${username.toLowerCase()}`,
+        display_name: username,
+        tiktok_username: username,
+        is_live: false,
+        viewer_count: 0,
+        followers_count: 0,
+        tracking_enabled: false,
+        tracking_source: null,
+        last_checked_live_at: null,
+      });
+
+      snapshots.push({
+        tiktokUsername: username,
+        isLive: snapshot.isLive,
+        viewerCount: snapshot.viewerCount,
+        followersCount: snapshot.followersCount,
+        checkedAt: snapshot.checkedAt,
+        source: snapshot.source,
+      });
+    }
+
+    return snapshots;
+  }
+
+  async getStreamerLiveDetails(streamerId: string) {
+    if (!this.trackingRepository) {
+      return null;
+    }
+
+    const [state, latestSession, recentEvents] = await Promise.all([
+      this.trackingRepository.getStreamerLiveState(streamerId),
+      this.trackingRepository.getLatestSessionSummary(streamerId),
+      this.trackingRepository.listRecentStreamEvents(streamerId, 12),
+    ]);
+
+    return {
+      state,
+      latestSession,
+      recentEvents,
     };
   }
 

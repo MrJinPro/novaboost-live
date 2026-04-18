@@ -194,6 +194,22 @@ function StreamerProfile() {
     };
   }, [streamer, user]);
 
+  const promotionGroups = groupTikTokPromotionServices(promotionServices);
+  const activePromotionGroup = promotionGroups.find((group) => group.key === activePromotionGroupKey) ?? promotionGroups[0] ?? null;
+
+  useEffect(() => {
+    if (!promotionGroups.length) {
+      if (activePromotionGroupKey) {
+        setActivePromotionGroupKey("");
+      }
+      return;
+    }
+
+    if (!promotionGroups.some((group) => group.key === activePromotionGroupKey)) {
+      setActivePromotionGroupKey(promotionGroups[0].key);
+    }
+  }, [activePromotionGroupKey, promotionGroups]);
+
   if (!streamer && pageLoading) {
     return (
       <div className="min-h-screen"><Header />
@@ -219,21 +235,6 @@ function StreamerProfile() {
   const telegramHref = telegramChannel
     ? `https://t.me/${telegramChannel.replace(/^@+/, "")}`
     : null;
-  const promotionGroups = groupTikTokPromotionServices(promotionServices);
-  const activePromotionGroup = promotionGroups.find((group) => group.key === activePromotionGroupKey) ?? promotionGroups[0] ?? null;
-
-  useEffect(() => {
-    if (!promotionGroups.length) {
-      if (activePromotionGroupKey) {
-        setActivePromotionGroupKey("");
-      }
-      return;
-    }
-
-    if (!promotionGroups.some((group) => group.key === activePromotionGroupKey)) {
-      setActivePromotionGroupKey(promotionGroups[0].key);
-    }
-  }, [activePromotionGroupKey, promotionGroups]);
 
   const handleSubscription = async () => {
     if (!user) {
@@ -418,11 +419,15 @@ function StreamerProfile() {
           </div>
         </div>
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard icon={<Eye className="h-5 w-5" />} label="Зрителей сейчас" value={streamer.is_live ? formatNumber(streamer.viewer_count) : "—"} accent="live" />
           <StatCard icon={<Users className="h-5 w-5" />} label="Подписчиков" value={formatNumber(streamer.followers_count)} />
           <StatCard icon={<TrendingUp className="h-5 w-5" />} label="Подписки в платформе" value={formatNumber(streamer.subscription_count)} />
           <StatCard icon={<Zap className="h-5 w-5" />} label="Сумма бустов" value={formatNumber(streamer.total_boost_amount)} accent="blast" />
+          <StatCard icon={<Sparkles className="h-5 w-5" />} label="Лайков в эфире" value={formatNumber(streamer.total_likes)} accent="blast" />
+          <StatCard icon={<Wallet className="h-5 w-5" />} label="Подарков" value={formatNumber(streamer.total_gifts)} />
+          <StatCard icon={<Bell className="h-5 w-5" />} label="Сообщений в чате" value={formatNumber(streamer.total_messages ?? 0)} />
+          <StatCard icon={<Play className="h-5 w-5" />} label="Пик зрителей" value={formatNumber(streamer.peak_viewer_count ?? 0)} accent="live" />
         </div>
 
         <section id="promotion-services" className="mt-6 rounded-3xl border border-border/50 bg-surface/60 p-6">
@@ -673,6 +678,34 @@ function StreamerProfile() {
               <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                 <MiniStat label="Лайки" value={formatNumber(streamer.total_likes)} />
                 <MiniStat label="Подарки" value={formatNumber(streamer.total_gifts)} />
+                <MiniStat label="Сообщения" value={formatNumber(streamer.total_messages ?? 0)} />
+                <MiniStat label="Пик онлайна" value={formatNumber(streamer.peak_viewer_count ?? 0)} />
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="font-display font-bold text-xl">Последние события эфира</h2>
+                <div className="rounded-full border border-border/50 bg-background/30 px-3 py-1 text-xs text-muted-foreground">
+                  {streamer.current_session_status === "live" ? "live session" : streamer.current_session_status ?? "нет активной сессии"}
+                </div>
+              </div>
+              <div className="mt-4 space-y-3">
+                {(streamer.recent_live_events ?? []).length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-border/50 bg-background/20 px-4 py-3 text-sm text-muted-foreground">
+                    События эфира пока не накоплены в базе. Как только tracking начнёт писать stream_events, здесь появятся лайки, сообщения, входы зрителей и обновления онлайна.
+                  </div>
+                ) : (
+                  (streamer.recent_live_events ?? []).map((event) => (
+                    <div key={event.id} className="rounded-2xl border border-border/50 bg-background/30 px-4 py-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="font-medium">{event.title}</div>
+                        <div className="text-xs text-muted-foreground">{event.createdAt}</div>
+                      </div>
+                      <div className="mt-2 text-sm text-muted-foreground">{event.description}</div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 

@@ -7,6 +7,7 @@ import {
   type StreamerStudioDraft,
 } from "@/lib/mock-platform";
 import { loadActiveBoostTotals } from "@/lib/boost-data";
+import { loadStreamerTrackingDetails, resolveLiveStatus } from "@/lib/live-status-data";
 import { loadDonationLinkByStreamerId, loadRecentDonationEvents } from "@/lib/monetization-data";
 import { resolveLinkedStreamer, type LinkedStreamerRow } from "@/lib/streamer-profile-linking";
 
@@ -33,7 +34,12 @@ type DbMedia = Pick<
   "id" | "title" | "url" | "thumbnail_url" | "duration_seconds"
 >;
 
-type DbStreamSession = Pick<Tables<"stream_sessions">, "like_count" | "gift_count">;
+type DbStreamSession = Pick<
+  Tables<"stream_sessions">,
+  "like_count" | "gift_count" | "message_count" | "current_viewer_count" | "peak_viewer_count" | "status" | "started_at"
+>;
+
+type DbStreamEvent = Pick<Tables<"stream_events">, "id" | "event_type" | "event_timestamp" | "normalized_payload">;
 
 function createEmptyStudioDraft(tiktokUsername: string, displayName: string): StreamerStudioDraft {
   return {
@@ -173,7 +179,7 @@ async function getMedia(streamerId: string) {
 async function getLatestSessionStats(streamerId: string) {
   const { data, error } = await supabase
     .from("stream_sessions")
-    .select("like_count, gift_count")
+    .select("like_count, gift_count, message_count, current_viewer_count, peak_viewer_count, status, started_at")
     .eq("streamer_id", streamerId)
     .order("started_at", { ascending: false })
     .limit(1)
@@ -183,7 +189,117 @@ async function getLatestSessionStats(streamerId: string) {
     throw error;
   }
 
-  return (data ?? { like_count: 0, gift_count: 0 }) as DbStreamSession;
+  return (
+    data ?? {
+      like_count: 0,
+      gift_count: 0,
+      message_count: 0,
+      current_viewer_count: 0,
+      peak_viewer_count: 0,
+      status: null,
+      started_at: null,
+    }
+  ) as DbStreamSession;
+}
+
+function formatEventTime(value: string) {
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function mapLiveEvent(row: DbStreamEvent) {
+  const payload = (row.normalized_payload ?? {}) as Record<string, unknown>;
+  const username = typeof payload.external_viewer_username === "string" ? payload.external_viewer_username : null;
+  const likeCount = typeof payload.like_count === "number" ? payload.like_count : 0;
+  const giftCount = typeof payload.gift_count === "number" ? payload.gift_count : 0;
+  const viewerCount = typeof payload.viewer_count === "number" ? payload.viewer_count : 0;
+  const commentText = typeof payload.comment_text === "string" ? payload.comment_text : null;
+
+  switch (row.event_type) {
+    case "live_started":
+      return {
+        id: row.id,
+        type: row.event_type,
+        createdAt: formatEventTime(row.event_timestamp),
+        title: "Эфир начался",
+        description: "Система зафиксировала старт live-сессии.",
+      };
+    case "live_ended":
+      return {
+        id: row.id,
+        type: row.event_type,
+        createdAt: formatEventTime(row.event_timestamp),
+        title: "Эфир завершён",
+        description: "Активная live-сессия была закрыта.",
+      };
+    case "snapshot_updated":
+      return {
+        id: row.id,
+        type: row.event_type,
+        createdAt: formatEventTime(row.event_timestamp),
+        title: "Обновление онлайна",
+        description: viewerCount > 0 ? `В эфире ${viewerCount} зрителей.` : "Получен новый live-снимок.",
+      };
+    case "chat_message":
+      return {
+        id: row.id,
+        type: row.event_type,
+        createdAt: formatEventTime(row.event_timestamp),
+        title: "Сообщение в чате",
+        description: commentText ? `${username ? `@${username}: ` : ""}${commentText}` : "В чате появилось новое сообщение.",
+      };
+    case "like_received":
+      return {
+        id: row.id,
+        type: row.event_type,
+        createdAt: formatEventTime(row.event_timestamp),
+        title: "Пришли лайки",
+        description: `${username ? `@${username} отправил` : "Получено"} ${likeCount || 1} лайк${likeCount === 1 ? "" : likeCount < 5 ? "а" : "ов"}.`,
+      };
+    case "gift_received":
+      return {
+        id: row.id,
+        type: row.event_type,
+        createdAt: formatEventTime(row.event_timestamp),
+        title: "Получен подарок",
+        description: `${username ? `@${username} отправил` : "Получено"} ${giftCount || 1} подарок${giftCount === 1 ? "" : giftCount < 5 ? "а" : "ов"}.`,
+      };
+    case "viewer_joined":
+      return {
+        id: row.id,
+        type: row.event_type,
+        createdAt: formatEventTime(row.event_timestamp),
+        title: "Новый зритель в эфире",
+        description: username ? `К эфиру подключился @${username}.` : "К эфиру подключился новый зритель.",
+      };
+    default:
+      return {
+        id: row.id,
+        type: row.event_type,
+        createdAt: formatEventTime(row.event_timestamp),
+        title: "Событие эфира",
+        description: "Система сохранила новое событие live-эфира.",
+      };
+  }
+}
+
+async function getRecentLiveEvents(streamerId: string) {
+  const { data, error } = await supabase
+    .from("stream_events")
+    .select("id, event_type, event_timestamp, normalized_payload")
+    .eq("streamer_id", streamerId)
+    .order("event_timestamp", { ascending: false })
+    .limit(12);
+
+  if (error) {
+    throw error;
+  }
+
+  return ((data ?? []) as DbStreamEvent[]).map(mapLiveEvent);
 }
 
 async function getSubscriptionCount(streamerId: string) {
@@ -356,7 +472,7 @@ export async function loadPublicStreamerPage(id: string) {
     return null;
   }
 
-  const [settings, posts, subscriptionCount, boostTotals, media, latestSession, donationLink, recentDonations] = await Promise.all([
+  const [settings, posts, subscriptionCount, boostTotals, media, latestSession, donationLink, recentDonations, liveStatus, recentLiveEvents, trackingDetails] = await Promise.all([
     getPageSettings(streamer.id),
     getPosts(streamer.id, { includeExpired: false }),
     getSubscriptionCount(streamer.id),
@@ -365,7 +481,15 @@ export async function loadPublicStreamerPage(id: string) {
     getLatestSessionStats(streamer.id),
     loadDonationLinkByStreamerId(streamer.id),
     loadRecentDonationEvents(streamer.id),
+    resolveLiveStatus(streamer.tiktok_username).catch(() => null),
+    getRecentLiveEvents(streamer.id).catch(() => []),
+    loadStreamerTrackingDetails(streamer.id).catch(() => null),
   ]);
+
+  const resolvedSession = trackingDetails?.latestSession ?? latestSession;
+  const resolvedEvents = trackingDetails?.recentEvents?.length
+    ? trackingDetails.recentEvents.map(mapLiveEvent)
+    : recentLiveEvents;
 
   return {
     id: streamer.id,
@@ -376,17 +500,21 @@ export async function loadPublicStreamerPage(id: string) {
     bio: settings?.description ?? streamer.bio ?? "",
     tagline: settings?.headline ?? streamer.tagline ?? "Публичная страница стримера внутри NovaBoost Live.",
     featured_video_url: settings?.featured_video_url ?? media[0]?.cover ?? null,
-    is_live: streamer.is_live,
-    viewer_count: streamer.viewer_count,
-    followers_count: streamer.followers_count,
+    is_live: liveStatus?.isLive ?? streamer.is_live,
+    viewer_count: liveStatus?.viewerCount ?? streamer.viewer_count,
+    followers_count: liveStatus?.followersCount || streamer.followers_count,
     needs_boost: streamer.needs_boost,
     total_boost_amount: boostTotals.get(streamer.id) ?? streamer.total_boost_amount,
     subscription_count: subscriptionCount,
     telegram_channel: streamer.telegram_channel ?? "@telegram_channel",
     next_event: posts[0]?.title ? `Актуальный анонс: ${posts[0].title}` : "Следующий анонс появится после первой публикации в студии.",
     support_goal: streamer.needs_boost ? "Сейчас стримеру нужен дополнительный буст и трафик из платформы." : "Страница активна, следи за анонсами и новыми постами.",
-    total_likes: latestSession.like_count ?? 0,
-    total_gifts: latestSession.gift_count ?? 0,
+    total_likes: resolvedSession?.like_count ?? 0,
+    total_gifts: resolvedSession?.gift_count ?? 0,
+    total_messages: resolvedSession?.message_count ?? 0,
+    peak_viewer_count: resolvedSession?.peak_viewer_count ?? 0,
+    current_session_status: resolvedSession?.status ?? null,
+    current_session_started_at: resolvedSession?.started_at ?? null,
     accent: settings?.accent_color ?? "from-cosmic/80 via-magenta/30 to-blast/70",
     tags: (() => {
       const layout = (settings?.layout ?? {}) as { tags?: string[] };
@@ -396,6 +524,7 @@ export async function loadPublicStreamerPage(id: string) {
     donation_link_slug: donationLink?.slug ?? null,
     donation_link_title: donationLink?.title ?? null,
     recent_donations: recentDonations,
+    recent_live_events: resolvedEvents,
     posts,
     videos: media,
   } satisfies StreamerPageData;

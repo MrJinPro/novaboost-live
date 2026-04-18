@@ -2,7 +2,7 @@ import type { BackendEnv } from "../../config/env.js";
 import type { Logger } from "../../lib/logger.js";
 import type { PromotionOrderRepository } from "../../repositories/promotion-order-repository.js";
 import type { PromotionOrderRow } from "../../repositories/promotion-order-repository.js";
-import type { TrackingRepository } from "../../repositories/tracking-repository.js";
+import type { TrackingStore } from "../../storage/live-storage.js";
 
 type PRMotionServiceRow = {
   service: number;
@@ -118,7 +118,7 @@ export class PRMotionService {
     private readonly env: BackendEnv,
     private readonly logger: Logger,
     private readonly promotionOrderRepository?: PromotionOrderRepository,
-    private readonly trackingRepository?: TrackingRepository,
+    private readonly trackingRepository?: TrackingStore,
   ) {}
 
   getHealth() {

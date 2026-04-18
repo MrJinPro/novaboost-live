@@ -16,11 +16,12 @@ export type LinkedStreamerRow = Pick<
   | "is_live"
   | "viewer_count"
   | "followers_count"
+  | "tracking_enabled"
   | "needs_boost"
   | "total_boost_amount"
 >;
 
-const STREAMER_SELECT = "id, user_id, display_name, tiktok_username, avatar_url, bio, banner_url, logo_url, tagline, telegram_channel, is_live, viewer_count, followers_count, needs_boost, total_boost_amount";
+const STREAMER_SELECT = "id, user_id, display_name, tiktok_username, avatar_url, bio, banner_url, logo_url, tagline, telegram_channel, is_live, viewer_count, followers_count, tracking_enabled, needs_boost, total_boost_amount";
 
 export function normalizeTikTokUsername(value: string) {
   return value.trim().replace(/^@+/, "");
@@ -72,6 +73,7 @@ async function claimStreamerProfile(input: {
     .update({
       user_id: input.userId,
       tiktok_username: normalizedUsername,
+      tracking_enabled: true,
       ...(input.displayName ? { display_name: input.displayName } : {}),
     })
     .eq("id", input.streamerId)
@@ -86,6 +88,17 @@ async function claimStreamerProfile(input: {
   return (data ?? null) as LinkedStreamerRow | null;
 }
 
+async function enableStreamerTracking(streamerId: string) {
+  const { error } = await supabase
+    .from("streamers")
+    .update({ tracking_enabled: true })
+    .eq("id", streamerId);
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function resolveLinkedStreamer(input: {
   userId: string;
   tiktokUsername?: string;
@@ -94,6 +107,14 @@ export async function resolveLinkedStreamer(input: {
 }) {
   const ownedStreamer = await getStreamerByUserId(input.userId);
   if (ownedStreamer) {
+    if (!ownedStreamer.tracking_enabled) {
+      await enableStreamerTracking(ownedStreamer.id);
+      return {
+        ...ownedStreamer,
+        tracking_enabled: true,
+      };
+    }
+
     return ownedStreamer;
   }
 
@@ -156,6 +177,7 @@ export async function ensureLinkedStreamer(input: {
       user_id: input.userId,
       tiktok_username: normalizedUsername,
       display_name: input.displayName,
+      tracking_enabled: true,
     })
     .select(STREAMER_SELECT)
     .single();

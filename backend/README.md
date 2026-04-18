@@ -25,11 +25,30 @@ npm run build:backend
 npm run start:backend
 ```
 
+## Hybrid PostgreSQL rollout
+
+Если live-tracking и stream events нужно хранить не в Supabase, а в собственном PostgreSQL:
+
+1. В backend env установить `LIVE_STORAGE_DRIVER=postgres`
+2. Указать `POSTGRES_URL=...`
+3. Оставить `SUPABASE_URL` и `SUPABASE_PUBLISHABLE_KEY`, если backend должен читать список стримеров из Supabase на переходном этапе
+4. После `git pull` на сервере вручную применить SQL-схему из [backend/sql/001_live_tracking_postgres.sql](sql/001_live_tracking_postgres.sql)
+
+Пример применения:
+
+```bash
+psql "$POSTGRES_URL" -f backend/sql/001_live_tracking_postgres.sql
+```
+
+Runtime backend больше не создаёт PostgreSQL-таблицы автоматически. Если схема не применена, postgres live-storage будет падать на запросах к отсутствующим таблицам.
+
 ## HTTP endpoints
 
 - `GET /health`
 - `GET /manifest`
 - `GET /tracking/status`
+- `GET /tracking/live?username=...`
+- `GET /tracking/stream/:streamerId`
 - `GET /notifications/stream/:streamerId/preview?trigger=live_started|boost_needed|post_published`
 - `GET /growth/tiktok/services`
 - `POST /growth/orders`
