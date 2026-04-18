@@ -14,6 +14,11 @@ type LiveEventBridgeOptions = {
   engagementRepository?: ViewerEngagementStore;
   scoringService: ScoringService;
   requestTimeoutMs: number;
+  signApiKey?: string;
+  sessionId?: string;
+  ttTargetIdc?: string;
+  msToken?: string;
+  cookieHeader?: string;
 };
 
 type ActiveConnection = {
@@ -37,6 +42,19 @@ export class TrackingLiveEventBridge {
   private readonly activeConnections = new Map<string, ActiveConnection>();
 
   constructor(private readonly options: LiveEventBridgeOptions) {}
+
+  private hasCookie(cookieHeader: string, cookieName: string) {
+    return new RegExp(`(?:^|;\\s*)${cookieName}=`).test(cookieHeader);
+  }
+
+  private mergeCookieHeader(connection: TikTokLiveConnection, cookieHeader?: string) {
+    if (!cookieHeader || !connection?.webClient?.cookieJar) {
+      return;
+    }
+
+    const parsedCookies = connection.webClient.cookieJar.parseCookie(cookieHeader);
+    Object.assign(connection.webClient.cookieJar.cookies, parsedCookies);
+  }
 
   async syncStreamer(streamer: TrackedStreamer, snapshot: TrackingSnapshot, streamSessionId: string | null) {
     const existing = this.activeConnections.get(streamer.id);
@@ -65,15 +83,28 @@ export class TrackingLiveEventBridge {
   }
 
   private async connectStreamer(streamer: TrackedStreamer, streamSessionId: string, username: string) {
-    const connection = new TikTokLiveConnection(username, {
+    const connectionOptions: ConstructorParameters<typeof TikTokLiveConnection>[1] = {
+      processInitialData: false,
       fetchRoomInfoOnConnect: false,
       enableExtendedGiftInfo: true,
       enableRequestPolling: true,
       requestPollingIntervalMs: 1_000,
+      sessionId: (this.options.sessionId as never) ?? null,
+      ttTargetIdc: (this.options.ttTargetIdc as never) ?? null,
+      signApiKey: this.options.signApiKey ?? undefined,
+      authenticateWs: false,
       webClientOptions: {
         timeout: this.options.requestTimeoutMs,
       },
-    });
+    };
+
+    const connection = new TikTokLiveConnection(username, connectionOptions);
+
+    this.mergeCookieHeader(connection, this.options.cookieHeader);
+
+    if (this.options.msToken && !this.hasCookie(connection.webClient.cookieJar.getCookieString(), "msToken")) {
+      connection.webClient.cookieJar.cookies.msToken = this.options.msToken;
+    }
 
     this.registerHandlers(streamer, streamSessionId, connection);
 

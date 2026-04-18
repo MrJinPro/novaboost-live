@@ -164,7 +164,22 @@ type TikTokTrackingAdapterOptions = {
   signApiKey?: string;
   sessionId?: string;
   ttTargetIdc?: string;
+  msToken?: string;
+  cookieHeader?: string;
 };
+
+function hasCookie(cookieHeader: string, cookieName: string) {
+  return new RegExp(`(?:^|;\\s*)${cookieName}=`).test(cookieHeader);
+}
+
+function mergeCookieHeader(connection: TikTokLiveConnection, cookieHeader?: string) {
+  if (!cookieHeader || !connection?.webClient?.cookieJar) {
+    return;
+  }
+
+  const parsedCookies = connection.webClient.cookieJar.parseCookie(cookieHeader);
+  Object.assign(connection.webClient.cookieJar.cookies, parsedCookies);
+}
 
 export class TikTokLiveTrackingAdapter implements TrackingAdapter {
   readonly sourceName = "tiktok-live-connector";
@@ -188,16 +203,26 @@ export class TikTokLiveTrackingAdapter implements TrackingAdapter {
     }
 
     try {
-      const connectionOptions = {
+      const connectionOptions: ConstructorParameters<typeof TikTokLiveConnection>[1] = {
+        processInitialData: false,
         fetchRoomInfoOnConnect: false,
         enableRequestPolling: true,
         requestPollingIntervalMs: 1_000,
+        sessionId: (this.options.sessionId as never) ?? null,
+        ttTargetIdc: (this.options.ttTargetIdc as never) ?? null,
         signApiKey: this.options.signApiKey ?? null,
+        authenticateWs: false,
         webClientOptions: {
           timeout: this.options.requestTimeoutMs,
         },
       };
       const connection = new TikTokLiveConnection(username, connectionOptions);
+
+      mergeCookieHeader(connection, this.options.cookieHeader);
+
+      if (this.options.msToken && !hasCookie(connection.webClient.cookieJar.getCookieString(), "msToken")) {
+        connection.webClient.cookieJar.cookies.msToken = this.options.msToken;
+      }
 
       const isLive = await connection.fetchIsLive();
       if (!isLive) {
@@ -299,5 +324,7 @@ export function createTrackingAdapter(logger: Logger, env: BackendEnv): Tracking
     signApiKey: env.TIKTOK_SIGN_API_KEY,
     sessionId: env.TIKTOK_SESSION_ID,
     ttTargetIdc: env.TIKTOK_TT_TARGET_IDC,
+    msToken: env.TIKTOK_MS_TOKEN,
+    cookieHeader: env.TIKTOK_COOKIE_HEADER,
   });
 }

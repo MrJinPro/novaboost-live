@@ -28,13 +28,18 @@ export function bootstrapBackend() {
   const notifications = new NotificationService(logger, telegram, notificationRoutingRepository);
   const prmotion = new PRMotionService(env, logger, promotionOrderRepository, trackingStore);
 
-  if (trackingStore && engagementStore) {
+  if (trackingStore) {
     tracking.attachLiveEventBridge(new TrackingLiveEventBridge({
       logger,
       trackingRepository: trackingStore,
       engagementRepository: engagementStore,
       scoringService: scoring,
       requestTimeoutMs: env.TIKTOK_REQUEST_TIMEOUT_MS,
+      signApiKey: env.TIKTOK_SIGN_API_KEY,
+      sessionId: env.TIKTOK_SESSION_ID,
+      ttTargetIdc: env.TIKTOK_TT_TARGET_IDC,
+      msToken: env.TIKTOK_MS_TOKEN,
+      cookieHeader: env.TIKTOK_COOKIE_HEADER,
     }));
   }
 
