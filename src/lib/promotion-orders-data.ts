@@ -6,7 +6,7 @@ export type PromotionOrderSummary = {
   quantity: number;
   quotedAmount: number;
   currency: string;
-  status: "pending" | "submitted" | "failed" | "cancelled";
+  status: "pending" | "queued" | "submitted" | "completed" | "failed" | "cancelled";
   targetLink: string;
   failureReason: string | null;
   createdAt: string;
@@ -30,7 +30,7 @@ export async function loadMyPromotionOrders(userId: string) {
     quantity: number;
     quoted_amount: number;
     currency: string;
-    status: "pending" | "submitted" | "failed" | "cancelled";
+    status: "pending" | "queued" | "submitted" | "completed" | "failed" | "cancelled";
     target_link: string;
     failure_reason: string | null;
     created_at: string;

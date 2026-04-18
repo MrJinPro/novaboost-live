@@ -53,8 +53,29 @@ type StreamSessionRow = {
   raw_snapshot: Record<string, unknown>;
 };
 
+export type StreamerLiveState = {
+  id: string;
+  tiktok_username: string;
+  is_live: boolean;
+  viewer_count: number;
+};
+
 export class TrackingRepository {
   constructor(private readonly supabase: SupabaseClient) {}
+
+  async getStreamerLiveState(streamerId: string) {
+    const { data, error } = await this.supabase
+      .from("streamers")
+      .select("id, tiktok_username, is_live, viewer_count")
+      .eq("id", streamerId)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? null) as StreamerLiveState | null;
+  }
 
   async getTrackedStreamers() {
     const { data, error } = await this.supabase

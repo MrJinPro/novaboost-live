@@ -103,7 +103,7 @@ function AuthPage() {
           result.emailConfirmationRequired
             ? "Аккаунт создан. Подтверди email, затем выполни вход."
             : role === "streamer"
-              ? "Профиль стримера создан в Supabase. Можно переходить в кабинет."
+              ? "Профиль стримера создан. Можно переходить в кабинет."
               : `Профиль зрителя создан${referralStreamer ? `, любимый стример: ${referralStreamer.display_name}` : ""}.`
         );
 
@@ -145,7 +145,7 @@ function AuthPage() {
             {mode === "signup"
               ? role === "viewer"
                 ? "Сервис для аудитории TikTok-стримеров: подписки, задания, сигналы и участие в росте эфиров."
-                : "Сторонняя платформа для TikTok-стримеров: рост, бусты, контент, Telegram и автоматический live-tracking."
+                : "Платформа для TikTok-стримеров: рост, бусты, контент и работа с аудиторией."
               : role === "viewer"
                 ? "Войди в свой профиль зрителя, чтобы продолжить участие в активностях вокруг TikTok-эфиров."
                 : "Войди в кабинет стримера, чтобы управлять страницей и ростом вокруг TikTok LIVE."}
@@ -187,7 +187,7 @@ function AuthPage() {
           {mode === "signup" && (
             <>
               <div>
-                <Label htmlFor="username">Внутренний username</Label>
+                <Label htmlFor="username">Username</Label>
                 <Input id="username" required value={username} onChange={(e) => setUsername(e.target.value)} placeholder="nova_user" className="mt-1.5 bg-background" />
               </div>
               <div>
@@ -257,13 +257,13 @@ function AuthPage() {
 
           {mode === "signup" && role === "streamer" && (
             <div className="rounded-xl border border-cosmic/30 bg-cosmic/10 p-4 text-sm text-muted-foreground">
-              После регистрации стримера backend должен добавить аккаунт в пул отслеживания и автоматически подключаться к новым live-сессиям без ручной кнопки подключиться.
+              После регистрации ты сможешь оформить страницу, публиковать контент и развивать эфиры внутри кабинета.
             </div>
           )}
 
           {mode === "signin" && (
             <div className="rounded-xl border border-border/50 bg-background/30 p-4 text-sm text-muted-foreground">
-              Вход идёт через Supabase email/password. Для зрителя TikTok username больше не обязателен, а для стримера он нужен только если кабинет ещё не был связан с профилем.
+              Для входа используй email и пароль. TikTok username нужен стримеру только если профиль ещё не был привязан.
             </div>
           )}
 

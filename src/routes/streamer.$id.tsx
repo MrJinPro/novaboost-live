@@ -47,6 +47,7 @@ function StreamerProfile() {
   const [membershipLoading, setMembershipLoading] = useState(false);
   const [reactionSummaries, setReactionSummaries] = useState<Map<string, PostReactionSummary>>(new Map());
   const [promotionServices, setPromotionServices] = useState<TikTokPromotionService[]>([]);
+  const [activePromotionGroupKey, setActivePromotionGroupKey] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -219,6 +220,20 @@ function StreamerProfile() {
     ? `https://t.me/${telegramChannel.replace(/^@+/, "")}`
     : null;
   const promotionGroups = groupTikTokPromotionServices(promotionServices);
+  const activePromotionGroup = promotionGroups.find((group) => group.key === activePromotionGroupKey) ?? promotionGroups[0] ?? null;
+
+  useEffect(() => {
+    if (!promotionGroups.length) {
+      if (activePromotionGroupKey) {
+        setActivePromotionGroupKey("");
+      }
+      return;
+    }
+
+    if (!promotionGroups.some((group) => group.key === activePromotionGroupKey)) {
+      setActivePromotionGroupKey(promotionGroups[0].key);
+    }
+  }, [activePromotionGroupKey, promotionGroups]);
 
   const handleSubscription = async () => {
     if (!user) {
@@ -418,54 +433,61 @@ function StreamerProfile() {
               </div>
               <h2 className="mt-3 font-display text-2xl font-bold">Услуги продвижения TikTok</h2>
               <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-                Эти услуги появляются автоматически. Вручную их вбивать не нужно: NovaBoost показывает каталог даже до полной настройки supplier API, а затем подменяет его боевыми данными.
+                Выбери, что именно хочешь усилить: эфир, видео, профиль или активность в комментариях.
               </p>
             </div>
             <div className="rounded-2xl border border-border/50 bg-background/30 px-4 py-3 text-sm text-muted-foreground">
-              Для зрителя выбор услуг теперь находится прямо на публичной странице стримера.
+              Все основные варианты собраны прямо на странице стримера.
             </div>
           </div>
 
           <div className="mt-5 space-y-6">
-            {promotionGroups.map((group) => (
-              <div key={group.key}>
+            <div className="flex flex-wrap gap-2">
+              {promotionGroups.map((group) => (
+                <button
+                  key={group.key}
+                  type="button"
+                  onClick={() => setActivePromotionGroupKey(group.key)}
+                  className={`rounded-full border px-4 py-2 text-sm transition-colors ${group.key === activePromotionGroup?.key ? "border-blast bg-blast/10 text-foreground" : "border-border/50 bg-background/20 text-muted-foreground hover:border-foreground/30"}`}
+                >
+                  {group.title} · {group.services.length}
+                </button>
+              ))}
+            </div>
+
+            {activePromotionGroup && (
+              <div>
                 <div className="mb-3 flex items-end justify-between gap-3">
                   <div>
-                    <h3 className="font-display text-xl font-bold">{group.title}</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">{group.description}</p>
-                  </div>
-                  <div className="rounded-full border border-border/50 bg-background/20 px-3 py-1 text-xs text-muted-foreground">
-                    {group.services.length} услуг
+                    <h3 className="font-display text-xl font-bold">{activePromotionGroup.title}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">{activePromotionGroup.description}</p>
                   </div>
                 </div>
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {group.services.map((service) => {
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {activePromotionGroup.services.map((service) => {
                     const price = calculateCustomerAmount("viewer", service.rate, service.min);
 
                     return (
-                      <div key={service.id} className="rounded-3xl border border-border/50 bg-background/30 p-5">
+                      <div key={service.id} className="rounded-2xl border border-border/50 bg-background/30 p-4">
                         <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="rounded-full border border-border/50 bg-background/20 px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                          <div className="min-w-0">
+                            <div className="rounded-full border border-border/50 bg-background/20 px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-muted-foreground w-fit">
                               {service.subcategory}
                             </div>
-                            <h3 className="mt-3 font-display text-lg font-bold">{service.name}</h3>
-                            <div className="mt-1 text-xs text-muted-foreground">{service.category}</div>
+                            <h3 className="mt-3 font-display text-lg font-bold leading-tight">{service.name}</h3>
                           </div>
-                          <div className="text-right">
-                            <div className="font-display text-xl font-bold text-blast">{price.customerAmount} ₽</div>
+                          <div className="text-right shrink-0">
+                            <div className="font-display text-lg font-bold text-blast">{price.customerAmount} ₽</div>
                             <div className="text-xs text-muted-foreground">от {service.min}</div>
                           </div>
                         </div>
-                        <p className="mt-4 text-sm text-muted-foreground">{service.shortDescription}</p>
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          {(service.summaryBullets ?? []).map((bullet) => (
-                            <span key={bullet} className="rounded-full border border-border/50 px-2.5 py-1 text-[11px] text-muted-foreground">{bullet}</span>
+                        <p className="mt-3 text-sm leading-6 text-muted-foreground">{service.shortDescription}</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {(service.summaryBullets ?? []).slice(0, 2).map((bullet) => (
+                            <span key={bullet} className="rounded-full border border-border/50 px-2 py-1 text-[11px] text-muted-foreground">{bullet}</span>
                           ))}
                         </div>
-                        <div className="mt-4 rounded-2xl border border-border/40 bg-background/20 px-4 py-3 text-xs text-muted-foreground">
-                          {service.targetHelp}
-                        </div>
+                        <div className="mt-3 text-xs text-muted-foreground">{service.targetLabel}</div>
                         <Link to="/services" search={{ streamerId: streamer.id, serviceId: String(service.id) }}>
                           <Button className="mt-4 w-full gap-2 bg-gradient-blast text-blast-foreground">
                             <Sparkles className="h-4 w-4" /> Выбрать услугу
@@ -476,7 +498,7 @@ function StreamerProfile() {
                   })}
                 </div>
               </div>
-            ))}
+            )}
           </div>
         </section>
 

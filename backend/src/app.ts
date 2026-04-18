@@ -28,7 +28,7 @@ export function bootstrapBackend() {
   const scoring = new ScoringService();
   const telegram = new TelegramService(logger);
   const notifications = new NotificationService(logger, telegram, notificationRoutingRepository);
-  const prmotion = new PRMotionService(env, logger, promotionOrderRepository);
+  const prmotion = new PRMotionService(env, logger, promotionOrderRepository, trackingRepository);
 
   if (trackingRepository && viewerEngagementRepository) {
     tracking.attachLiveEventBridge(new TrackingLiveEventBridge({
@@ -55,6 +55,7 @@ export function bootstrapBackend() {
   tracking.attachSocketHub(trackingSocketHub);
 
   tracking.scheduleRegisteredStreamers();
+  prmotion.scheduleOrderQueue();
 
   return { env, logger, server, tracking, scoring, notifications, telegram, prmotion };
 }

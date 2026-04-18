@@ -151,7 +151,7 @@ function StreamerStudioPage() {
     try {
       const result = await saveStreamerStudioPage(user, pageDraft);
       setPublicPageId(result.streamerId);
-      toast.success("Настройки публичной страницы сохранены в Supabase.");
+      toast.success("Настройки публичной страницы сохранены.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Не удалось сохранить настройки страницы");
     } finally {
@@ -183,7 +183,7 @@ function StreamerStudioPage() {
       setPostRequiredPlan("free");
       setPostBlurPreview(false);
       setPostExpiresAt("");
-      toast.success("Пост опубликован и сохранён в Supabase.");
+      toast.success("Пост опубликован.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Не удалось опубликовать пост");
     } finally {
@@ -348,7 +348,7 @@ function StreamerStudioPage() {
             <p className="mt-2 text-sm text-muted-foreground">
               Именно здесь публикуются новости, анонсы и короткий контент, который потом виден на публичной странице стримера и может идти в Telegram-контур.
             </p>
-            {studioLoading && <p className="mt-3 text-xs text-muted-foreground">Подтягиваю сохранённые посты и настройки из Supabase…</p>}
+            {studioLoading && <p className="mt-3 text-xs text-muted-foreground">Загружаю сохранённые посты и настройки…</p>}
 
             <div className="mt-5 flex flex-wrap gap-2">
               {(["announcement", "news", "clip"] as const).map((type) => (

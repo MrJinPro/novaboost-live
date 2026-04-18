@@ -165,7 +165,7 @@ function BoostPage() {
             </Button>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            ⚡ — внутренние очки буста. Запуск уже сохраняется в Supabase, а реальные платежи подключим следующим шагом.
+            ⚡ Показывает объём выбранного буста перед запуском.
           </p>
         </section>
 

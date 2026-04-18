@@ -1854,7 +1854,7 @@ export type Database = {
       media_type: "image" | "video" | "tiktok_clip" | "external_link"
       notification_channel: "in_app" | "telegram" | "web_push"
       post_reaction_type: "nova" | "flare" | "pulse" | "crown"
-      promotion_order_status: "pending" | "submitted" | "failed" | "cancelled"
+      promotion_order_status: "pending" | "queued" | "submitted" | "completed" | "failed" | "cancelled"
       stream_event_type:
         | "live_started"
         | "live_ended"
@@ -2038,7 +2038,7 @@ export const Constants = {
       media_type: ["image", "video", "tiktok_clip", "external_link"],
       notification_channel: ["in_app", "telegram", "web_push"],
       post_reaction_type: ["nova", "flare", "pulse", "crown"],
-      promotion_order_status: ["pending", "submitted", "failed", "cancelled"],
+      promotion_order_status: ["pending", "queued", "submitted", "completed", "failed", "cancelled"],
       stream_event_type: [
         "live_started",
         "live_ended",

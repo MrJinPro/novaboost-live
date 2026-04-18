@@ -95,7 +95,7 @@ function TasksPage() {
         </div>
         <p className="mt-2 text-muted-foreground">Выполняй задания и поднимай уровень. 100 очков = +1 уровень.</p>
 
-        {tasksLoading && <div className="mt-6 text-sm text-muted-foreground">Загружаю реальные задания из Supabase…</div>}
+        {tasksLoading && <div className="mt-6 text-sm text-muted-foreground">Загружаю задания…</div>}
 
         <div className="mt-6 space-y-3">
           {tasks.map((task) => {

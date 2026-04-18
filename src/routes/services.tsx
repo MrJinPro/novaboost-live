@@ -35,6 +35,7 @@ function ServicesPage() {
   const [selectedStreamerId, setSelectedStreamerId] = useState(search.streamerId ?? "");
   const [services, setServices] = useState<TikTokPromotionService[]>([]);
   const [servicesLoading, setServicesLoading] = useState(false);
+  const [activeGroupKey, setActiveGroupKey] = useState("");
   const [selectedServiceId, setSelectedServiceId] = useState(search.serviceId ?? "");
   const [targetLink, setTargetLink] = useState("");
   const [quantity, setQuantity] = useState("100");
@@ -131,6 +132,23 @@ function ServicesPage() {
   const groupedServices = useMemo(() => groupTikTokPromotionServices(services), [services]);
   const role = user?.role === "streamer" || user?.role === "admin" ? user.role : "viewer";
   const parsedQuantity = Number(quantity);
+  const liveTargetSelected = selectedService?.targetType === "live";
+  const autoLiveLink = selectedStreamer ? `https://www.tiktok.com/@${selectedStreamer.tiktok_username}/live` : "";
+  const activeGroup = groupedServices.find((group) => group.key === activeGroupKey) ?? groupedServices[0] ?? null;
+
+  useEffect(() => {
+    if (!groupedServices.length) {
+      if (activeGroupKey) {
+        setActiveGroupKey("");
+      }
+      return;
+    }
+
+    if (!groupedServices.some((group) => group.key === activeGroupKey)) {
+      setActiveGroupKey(groupedServices[0].key);
+    }
+  }, [activeGroupKey, groupedServices]);
+
   const pricing = useMemo(() => {
     if (!selectedService || !Number.isFinite(parsedQuantity)) {
       return null;
@@ -138,6 +156,14 @@ function ServicesPage() {
 
     return calculateCustomerAmount(role, selectedService.rate, parsedQuantity);
   }, [parsedQuantity, role, selectedService]);
+
+  useEffect(() => {
+    if (!liveTargetSelected || !autoLiveLink) {
+      return;
+    }
+
+    setTargetLink(autoLiveLink);
+  }, [autoLiveLink, liveTargetSelected, selectedServiceId]);
 
   const handleCreateOrder = async () => {
     if (!user) {
@@ -153,6 +179,11 @@ function ServicesPage() {
 
     if (!selectedStreamerId) {
       toast.error(user.role === "viewer" ? "Выбери стримера, которого хочешь поддержать" : "Выбери стримера для заказа");
+      return;
+    }
+
+    if (liveTargetSelected && selectedStreamer && !selectedStreamer.is_live) {
+      toast.error("Эта услуга требует активный эфир. Дождись, когда стример выйдет в LIVE.");
       return;
     }
 
@@ -197,7 +228,7 @@ function ServicesPage() {
         ...current,
       ].slice(0, 8));
 
-      toast.success("Заказ услуги принят.");
+      toast.success(result.status === "queued" ? "Заказ поставлен в очередь. Отправим его, когда освободится слот на эфир." : "Заказ услуги принят.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Не удалось оформить услугу продвижения");
     } finally {
@@ -225,40 +256,50 @@ function ServicesPage() {
             </div>
             <h1 className="mt-3 font-display text-3xl font-bold md:text-4xl">Кабинет услуг TikTok</h1>
             <p className="mt-2 max-w-3xl text-muted-foreground">
-              Каталог подгружается автоматически. Ручной список вбивать не нужно: если supplier API ещё не подключён, NovaBoost всё равно покажет базовые TikTok-услуги для эфира и роликов.
+              Выбери формат продвижения, открой нужную группу и оформи заказ на эфир, видео, профиль или комментарии.
             </p>
           </div>
           <div className="rounded-2xl border border-border/50 bg-background/30 px-4 py-3 text-sm text-muted-foreground">
-            Наценка платформы: {role === "streamer" ? "15% для стримера" : role === "viewer" ? "30% для зрителя" : "0% для админа"}
+            {role === "viewer" ? "Поддержка доступна в пару кликов прямо внутри NovaBoost Live." : "Собери заказ по нужной ссылке и количеству без лишних шагов."}
           </div>
         </div>
 
         <div className="mt-6 grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
           <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
             <h2 className="font-display text-2xl font-bold">Каталог услуг</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Каталог разделён на подкатегории: для эфира, для видео, для профиля, для комментариев и отдельные служебные услуги.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Открой нужный раздел и выбери подходящую услугу без длинной ленты карточек.</p>
 
             {servicesLoading ? (
               <div className="mt-5 text-sm text-muted-foreground">Загружаю каталог услуг…</div>
             ) : services.length === 0 ? (
               <div className="mt-5 rounded-2xl border border-dashed border-border/50 bg-background/20 p-5 text-sm text-muted-foreground">
-                Каталог пока недоступен. Обычно это значит, что backend не запущен или не настроен поставщик услуг.
+                Каталог временно недоступен. Попробуй обновить страницу чуть позже.
               </div>
             ) : (
               <div className="mt-5 space-y-6">
-                {groupedServices.map((group) => (
-                  <div key={group.key}>
+                <div className="flex flex-wrap gap-2">
+                  {groupedServices.map((group) => (
+                    <button
+                      key={group.key}
+                      type="button"
+                      onClick={() => setActiveGroupKey(group.key)}
+                      className={`rounded-full border px-4 py-2 text-sm transition-colors ${group.key === activeGroup?.key ? "border-blast bg-blast/10 text-foreground" : "border-border/50 bg-background/20 text-muted-foreground hover:border-foreground/30"}`}
+                    >
+                      {group.title} · {group.services.length}
+                    </button>
+                  ))}
+                </div>
+
+                {activeGroup && (
+                  <div>
                     <div className="mb-3 flex items-end justify-between gap-3">
                       <div>
-                        <h3 className="font-display text-xl font-bold">{group.title}</h3>
-                        <p className="mt-1 text-sm text-muted-foreground">{group.description}</p>
-                      </div>
-                      <div className="rounded-full border border-border/50 bg-background/20 px-3 py-1 text-xs text-muted-foreground">
-                        {group.services.length} услуг
+                        <h3 className="font-display text-xl font-bold">{activeGroup.title}</h3>
+                        <p className="mt-1 text-sm text-muted-foreground">{activeGroup.description}</p>
                       </div>
                     </div>
-                    <div className="grid gap-3 md:grid-cols-2">
-                      {group.services.map((service) => {
+                    <div className="grid gap-3 lg:grid-cols-2">
+                      {activeGroup.services.map((service) => {
                         const active = String(service.id) === selectedServiceId;
                         const price = calculateCustomerAmount(role, service.rate, service.min);
 
@@ -270,38 +311,35 @@ function ServicesPage() {
                               setSelectedServiceId(String(service.id));
                               setQuantity(String(service.min));
                             }}
-                            className={`rounded-3xl border p-5 text-left transition-all ${active ? "border-blast bg-linear-to-br from-blast/12 via-background/40 to-background/60 shadow-glow" : "border-border/50 bg-background/20 hover:border-foreground/30"}`}
+                            className={`rounded-2xl border p-4 text-left transition-all ${active ? "border-blast bg-linear-to-br from-blast/12 via-background/40 to-background/60 shadow-glow" : "border-border/50 bg-background/20 hover:border-foreground/30"}`}
                           >
                             <div className="flex items-start justify-between gap-3">
-                              <div>
-                                <div className="rounded-full border border-border/50 bg-background/20 px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                              <div className="min-w-0">
+                                <div className="rounded-full border border-border/50 bg-background/20 px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-muted-foreground w-fit">
                                   {service.subcategory}
                                 </div>
-                                <div className="mt-3 font-display text-lg font-bold text-foreground">{service.name}</div>
-                                <div className="mt-1 text-xs text-muted-foreground">{service.category}</div>
+                                <div className="mt-3 font-display text-lg font-bold leading-tight text-foreground">{service.name}</div>
                               </div>
-                              <div className="text-right">
-                                <div className="font-display text-2xl font-bold text-blast">{price.customerAmount} ₽</div>
+                              <div className="text-right shrink-0">
+                                <div className="font-display text-xl font-bold text-blast">{price.customerAmount} ₽</div>
                                 <div className="text-xs text-muted-foreground">от {service.min}</div>
                               </div>
                             </div>
-                            <p className="mt-4 text-sm text-muted-foreground">{service.shortDescription}</p>
+                            <p className="mt-3 text-sm leading-6 text-muted-foreground">{service.shortDescription}</p>
                             {service.summaryBullets && service.summaryBullets.length > 0 && (
-                              <div className="mt-4 flex flex-wrap gap-2">
-                                {service.summaryBullets.map((bullet) => (
-                                  <span key={bullet} className="rounded-full border border-border/50 px-2.5 py-1 text-[11px] text-muted-foreground">{bullet}</span>
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                {service.summaryBullets.slice(0, 2).map((bullet) => (
+                                  <span key={bullet} className="rounded-full border border-border/50 px-2 py-1 text-[11px] text-muted-foreground">{bullet}</span>
                                 ))}
                               </div>
                             )}
-                            <div className="mt-4 rounded-2xl border border-border/40 bg-background/20 px-4 py-3 text-xs text-muted-foreground">
-                              {service.targetHelp}
-                            </div>
+                            <div className="mt-3 text-xs text-muted-foreground">{service.targetLabel}</div>
                           </button>
                         );
                       })}
                     </div>
                   </div>
-                ))}
+                )}
               </div>
             )}
           </section>
@@ -329,6 +367,11 @@ function ServicesPage() {
                 <label className="mb-1.5 block text-sm font-medium">{selectedService?.targetLabel ?? "Ссылка TikTok"}</label>
                 <input value={targetLink} onChange={(event) => setTargetLink(event.target.value)} placeholder={selectedService?.targetPlaceholder ?? getPromotionTargetMeta(selectedService?.targetType).placeholder} className="w-full rounded-lg border border-border bg-surface px-4 py-3 text-foreground" />
                 <div className="mt-2 text-xs text-muted-foreground">{selectedService?.targetHelp ?? getPromotionTargetMeta(selectedService?.targetType).help}</div>
+                {liveTargetSelected && selectedStreamer && !selectedStreamer.is_live && (
+                  <div className="mt-2 rounded-xl border border-amber/30 bg-amber/10 px-3 py-2 text-xs text-amber-foreground">
+                    Стример сейчас не в эфире. Live-услугу можно отправить только когда эфир уже начался.
+                  </div>
+                )}
               </div>
 
               <div>
@@ -342,8 +385,8 @@ function ServicesPage() {
                     {selectedStreamer && <div>Стример: {selectedStreamer.display_name}</div>}
                     <div>Услуга: {selectedService.name}</div>
                     <div className="mt-1">Подкатегория: {selectedService.subcategory}</div>
-                    <div className="mt-2">Закупочная стоимость: {pricing.supplierAmount} ₽</div>
-                    <div className="mt-1 font-medium text-foreground">Цена для клиента внутри NovaBoost Live: {pricing.customerAmount} ₽</div>
+                    <div className="mt-2">Количество: {parsedQuantity}</div>
+                    <div className="mt-1 font-medium text-foreground">Итоговая стоимость: {pricing.customerAmount} ₽</div>
                   </>
                 ) : (
                   <div>Выбери услугу, чтобы увидеть итоговую стоимость.</div>
@@ -352,7 +395,7 @@ function ServicesPage() {
             </div>
 
             <div className="mt-5 flex flex-wrap gap-3">
-              <Button onClick={handleCreateOrder} disabled={submitting || !selectedService} className="bg-gradient-cosmic font-bold text-foreground">
+              <Button onClick={handleCreateOrder} disabled={submitting || !selectedService || (liveTargetSelected && !!selectedStreamer && !selectedStreamer.is_live)} className="bg-gradient-cosmic font-bold text-foreground">
                 {submitting ? "Оформляю заказ…" : "Оформить услугу"}
               </Button>
               {!user && <Link to="/auth"><Button variant="outline">Войти</Button></Link>}
@@ -363,7 +406,7 @@ function ServicesPage() {
               <div className="mt-4 space-y-3">
                 {orders.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-border/50 bg-background/20 p-4 text-sm text-muted-foreground">
-                    Здесь появятся последние заказы из внутренней базы NovaBoost Live.
+                    Здесь появятся последние оформленные заказы.
                   </div>
                 ) : (
                   orders.map((order) => (
@@ -373,8 +416,8 @@ function ServicesPage() {
                           <div className="font-medium">{order.serviceName}</div>
                           <div className="mt-1 text-xs text-muted-foreground">{order.createdAt}</div>
                         </div>
-                        <span className={`rounded-full px-3 py-1 text-xs ${order.status === "submitted" ? "bg-cosmic/10 text-cosmic" : order.status === "failed" ? "bg-destructive/10 text-destructive" : "bg-background/40 text-muted-foreground"}`}>
-                          {order.status === "submitted" ? "Отправлен" : order.status === "failed" ? "Ошибка" : order.status === "cancelled" ? "Отменён" : "Ожидание"}
+                        <span className={`rounded-full px-3 py-1 text-xs ${order.status === "submitted" ? "bg-cosmic/10 text-cosmic" : order.status === "completed" ? "bg-emerald-500/10 text-emerald-300" : order.status === "queued" ? "bg-amber/10 text-amber-foreground" : order.status === "failed" ? "bg-destructive/10 text-destructive" : "bg-background/40 text-muted-foreground"}`}>
+                          {order.status === "submitted" ? "Отправлен" : order.status === "completed" ? "Выполнен" : order.status === "queued" ? "В очереди" : order.status === "failed" ? "Ошибка" : order.status === "cancelled" ? "Отменён" : "Ожидание"}
                         </span>
                       </div>
                       <div className="mt-3 text-sm text-muted-foreground">{order.quantity} единиц · {order.quotedAmount} {order.currency}</div>

@@ -1,6 +1,8 @@
 import type { BackendEnv } from "../../config/env.js";
 import type { Logger } from "../../lib/logger.js";
 import type { PromotionOrderRepository } from "../../repositories/promotion-order-repository.js";
+import type { PromotionOrderRow } from "../../repositories/promotion-order-repository.js";
+import type { TrackingRepository } from "../../repositories/tracking-repository.js";
 
 type PRMotionServiceRow = {
   service: number;
@@ -21,6 +23,7 @@ export type TikTokPromotionService = {
   min: number;
   max: number;
   tags: string[];
+  targetType: "live" | "video" | "profile" | "comment";
 };
 
 function getRoleMarkup(role: "viewer" | "streamer" | "admin") {
@@ -37,6 +40,13 @@ function getRoleMarkup(role: "viewer" | "streamer" | "admin") {
 
 function normalizeText(value: string) {
   return value.trim().toLowerCase();
+}
+
+function cleanCatalogText(value: string) {
+  return value
+    .replace(/[^\p{L}\p{N}\s.,:+\-()/]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function isTikTokCategory(category: string) {
@@ -75,11 +85,40 @@ function extractTags(name: string, category: string) {
   return [...tags];
 }
 
+function inferTargetType(name: string, category: string, type: string, tags: string[]) {
+  const normalized = `${normalizeText(category)} ${normalizeText(name)} ${normalizeText(type)} ${tags.join(" ")}`;
+
+  if (normalized.includes("comment")) {
+    return "comment" as const;
+  }
+
+  if (normalized.includes("follow") || normalized.includes("account") || normalized.includes("package")) {
+    return "profile" as const;
+  }
+
+  if (normalized.includes("live") || normalized.includes("minutes") || normalized.includes("эфир") || normalized.includes("stream")) {
+    return "live" as const;
+  }
+
+  return "video" as const;
+}
+
+function isCompletedSupplierStatus(status: string) {
+  return ["completed", "complete", "partial"].includes(status);
+}
+
+function isFailedSupplierStatus(status: string) {
+  return ["canceled", "cancelled", "failed", "error", "refunded"].includes(status);
+}
+
 export class PRMotionService {
+  private queuePoller: NodeJS.Timeout | null = null;
+
   constructor(
     private readonly env: BackendEnv,
     private readonly logger: Logger,
     private readonly promotionOrderRepository?: PromotionOrderRepository,
+    private readonly trackingRepository?: TrackingRepository,
   ) {}
 
   getHealth() {
@@ -97,17 +136,45 @@ export class PRMotionService {
 
     return rows
       .filter((row) => isTikTokCategory(row.category) && !isCoinService(row.name, row.category))
-      .map((row) => ({
+      .map((row) => {
+        const safeName = cleanCatalogText(row.name);
+        const safeCategory = cleanCatalogText(row.category);
+        const safeType = cleanCatalogText(row.type);
+        const tags = extractTags(safeName, safeCategory);
+
+        return {
         id: row.service,
-        name: row.name,
-        category: row.category,
-        type: row.type,
+        name: safeName,
+        category: safeCategory,
+        type: safeType,
         rate: Number(row.rate),
         min: row.min,
         max: row.max,
-        tags: extractTags(row.name, row.category),
-      }))
+        tags,
+        targetType: inferTargetType(safeName, safeCategory, safeType, tags),
+      };
+      })
       .sort((left, right) => left.name.localeCompare(right.name, "ru"));
+  }
+
+  scheduleOrderQueue() {
+    if (!this.promotionOrderRepository || !this.trackingRepository) {
+      this.logger.warn("Growth queue scheduler skipped because repositories are unavailable.");
+      return;
+    }
+
+    if (this.queuePoller) {
+      return;
+    }
+
+    void this.runQueueTick();
+    this.queuePoller = setInterval(() => {
+      void this.runQueueTick();
+    }, this.env.TRACKING_POLL_INTERVAL_MS);
+
+    this.logger.info("Growth queue scheduler started", {
+      intervalMs: this.env.TRACKING_POLL_INTERVAL_MS,
+    });
   }
 
   async createOrder(input: {
@@ -134,6 +201,56 @@ export class PRMotionService {
       throw new Error("Внутреннее хранилище заказов не настроено.");
     }
 
+    let submittedStreamSessionId: string | null = null;
+    if (selectedService.targetType === "live") {
+      if (!input.streamerId) {
+        throw new Error("Для live-услуги нужно выбрать стримера.");
+      }
+
+      if (this.trackingRepository) {
+        const streamerState = await this.trackingRepository.getStreamerLiveState(input.streamerId);
+        if (!streamerState?.is_live) {
+          throw new Error("Эта услуга доступна только когда эфир уже начался.");
+        }
+
+        const liveSession = await this.trackingRepository.getLatestLiveSession(input.streamerId);
+        submittedStreamSessionId = liveSession?.id ?? null;
+      }
+
+      const activeLiveOrder = await this.promotionOrderRepository.getActiveSubmittedOrder(input.streamerId);
+      if (activeLiveOrder) {
+        const queuedOrderId = await this.promotionOrderRepository.createPendingOrder({
+          requesterUserId: input.requesterUserId,
+          requesterRole: input.requesterRole,
+          streamerId: input.streamerId,
+          targetLink: input.link,
+          targetType: selectedService.targetType,
+          serviceId: selectedService.id,
+          serviceName: selectedService.name,
+          serviceCategory: selectedService.category,
+          serviceType: selectedService.type,
+          serviceRate: selectedService.rate,
+          quantity: input.quantity,
+          currency: input.currency ?? "RUB",
+          supplierAmount: Number(((selectedService.rate * input.quantity) / 1000).toFixed(2)),
+          customerAmount: Number((((selectedService.rate * input.quantity) / 1000) * (1 + getRoleMarkup(input.requesterRole))).toFixed(2)),
+          status: "queued",
+          queueReason: "waiting_previous_live_order",
+        });
+
+        return {
+          orderId: queuedOrderId,
+          service: selectedService,
+          quantity: input.quantity,
+          link: input.link,
+          currency: input.currency ?? "RUB",
+          supplierAmount: Number(((selectedService.rate * input.quantity) / 1000).toFixed(2)),
+          customerAmount: Number((((selectedService.rate * input.quantity) / 1000) * (1 + getRoleMarkup(input.requesterRole))).toFixed(2)),
+          status: "queued" as const,
+        };
+      }
+    }
+
     const supplierAmount = Number(((selectedService.rate * input.quantity) / 1000).toFixed(2));
     const customerAmount = Number((supplierAmount * (1 + getRoleMarkup(input.requesterRole))).toFixed(2));
     const internalOrderId = await this.promotionOrderRepository.createPendingOrder({
@@ -141,6 +258,7 @@ export class PRMotionService {
       requesterRole: input.requesterRole,
       streamerId: input.streamerId,
       targetLink: input.link,
+      targetType: selectedService.targetType,
       serviceId: selectedService.id,
       serviceName: selectedService.name,
       serviceCategory: selectedService.category,
@@ -161,7 +279,7 @@ export class PRMotionService {
         currency: input.currency ?? "RUB",
       });
 
-      await this.promotionOrderRepository.markSubmitted(internalOrderId, response.order, response as Record<string, unknown>);
+      await this.promotionOrderRepository.markSubmitted(internalOrderId, response.order, response as Record<string, unknown>, submittedStreamSessionId);
 
       this.logger.info("Supplier order created", {
         internalOrderId,
@@ -187,6 +305,105 @@ export class PRMotionService {
       );
       throw error;
     }
+  }
+
+  private async runQueueTick() {
+    if (!this.promotionOrderRepository || !this.trackingRepository || !this.env.PRMOTION_API_KEY) {
+      return;
+    }
+
+    try {
+      await this.refreshSubmittedOrders();
+      await this.processQueuedOrders();
+    } catch (error) {
+      this.logger.error("Growth queue tick failed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  private async refreshSubmittedOrders() {
+    if (!this.promotionOrderRepository) {
+      return;
+    }
+
+    const orders = await this.promotionOrderRepository.listSubmittedOrders();
+
+    for (const order of orders) {
+      if (!order.external_order_id) {
+        continue;
+      }
+
+      try {
+        const response = await this.request<{ status?: string }>({
+          action: "status",
+          order: String(order.external_order_id),
+        });
+        const normalizedStatus = String(response.status ?? "").trim().toLowerCase();
+
+        if (isCompletedSupplierStatus(normalizedStatus)) {
+          await this.promotionOrderRepository.markCompleted(order.id, response as Record<string, unknown>);
+          continue;
+        }
+
+        if (isFailedSupplierStatus(normalizedStatus)) {
+          await this.promotionOrderRepository.markFailed(order.id, `supplier_${normalizedStatus || "failed"}`, response as Record<string, unknown>);
+          continue;
+        }
+
+        await this.promotionOrderRepository.touchStatusCheck(order.id, response as Record<string, unknown>);
+      } catch (error) {
+        this.logger.warn("Supplier status check failed", {
+          orderId: order.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+  }
+
+  private async processQueuedOrders() {
+    if (!this.promotionOrderRepository || !this.trackingRepository) {
+      return;
+    }
+
+    const queuedOrders = await this.promotionOrderRepository.listQueuedOrders();
+    const submittedOrders = await this.promotionOrderRepository.listSubmittedOrders();
+    const busyStreamers = new Set(submittedOrders.map((order) => order.streamer_id).filter(Boolean));
+
+    for (const order of queuedOrders) {
+      if (!order.streamer_id || order.target_type !== "live") {
+        continue;
+      }
+
+      if (busyStreamers.has(order.streamer_id)) {
+        continue;
+      }
+
+      const streamerState = await this.trackingRepository.getStreamerLiveState(order.streamer_id);
+      if (!streamerState?.is_live) {
+        continue;
+      }
+
+      const liveSession = await this.trackingRepository.getLatestLiveSession(order.streamer_id);
+      await this.submitQueuedOrder(order, liveSession?.id ?? null);
+      busyStreamers.add(order.streamer_id);
+    }
+  }
+
+  private async submitQueuedOrder(order: PromotionOrderRow, submittedStreamSessionId: string | null) {
+    if (!this.promotionOrderRepository) {
+      return;
+    }
+
+    const response = await this.request<{ order: number }>({
+      action: "add",
+      service: String(order.service_id),
+      link: order.target_link,
+      quantity: String(order.quantity),
+      currency: order.currency,
+    });
+
+    await this.promotionOrderRepository.markSubmitted(order.id, response.order, response as Record<string, unknown>, submittedStreamSessionId);
   }
 
   private async request<TResponse>(params: Record<string, string>) {

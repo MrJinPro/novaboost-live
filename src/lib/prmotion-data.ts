@@ -23,7 +23,7 @@ export type PromotionServiceGroup = {
   services: TikTokPromotionService[];
 };
 
-const FALLBACK_TIKTOK_PROMOTION_SERVICES: TikTokPromotionService[] = [
+const RAW_FALLBACK_TIKTOK_PROMOTION_SERVICES: TikTokPromotionService[] = [
   {
     id: 910015,
     name: "Зрители на 15 мин",
@@ -349,6 +349,13 @@ const FALLBACK_TIKTOK_PROMOTION_SERVICES: TikTokPromotionService[] = [
   },
 ];
 
+const FALLBACK_RATE_SCALE = 10;
+
+const FALLBACK_TIKTOK_PROMOTION_SERVICES: TikTokPromotionService[] = RAW_FALLBACK_TIKTOK_PROMOTION_SERVICES.map((service) => ({
+  ...service,
+  rate: Number((service.rate * FALLBACK_RATE_SCALE).toFixed(2)),
+}));
+
 type CreateOrderInput = {
   requesterUserId?: string | null;
   requesterRole?: "viewer" | "streamer" | "admin";
@@ -397,7 +404,7 @@ function normalizePromotionService(service: TikTokPromotionService): TikTokPromo
       ? "comment"
       : haystack.includes("follow") || haystack.includes("подпис") || haystack.includes("profile") || haystack.includes("профил")
         ? "profile"
-        : haystack.includes("live") || haystack.includes("эфир") || haystack.includes("стрим") || haystack.includes("viewer") || haystack.includes("зрител")
+        : haystack.includes("live") || haystack.includes("minutes") || haystack.includes("мин") || haystack.includes("эфир") || haystack.includes("стрим") || haystack.includes("viewer") || haystack.includes("зрител")
           ? "live"
           : "video");
 
@@ -522,7 +529,7 @@ export async function createTikTokPromotionOrder(input: CreateOrderInput) {
     currency: "RUB" | "USD";
     supplierAmount: number;
     customerAmount: number;
-    status: "submitted";
+    status: "queued" | "submitted";
   }>("/growth/orders", {
     method: "POST",
     headers: {

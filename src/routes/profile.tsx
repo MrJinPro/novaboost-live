@@ -179,9 +179,9 @@ function ProfilePage() {
           <div className="mt-6 rounded-3xl border border-border/50 bg-surface/60 p-6">
             <h2 className="font-display font-bold text-xl">Что будет в кабинете стримера</h2>
             <div className="mt-4 space-y-2 text-sm text-muted-foreground">
-              <p>Отслеживание live-статуса и запуск stream-worker без ручного подключения к каждому эфиру.</p>
+              <p>Отслеживание статуса эфира и быстрый доступ к основным действиям по стриму.</p>
               <p>Контентный слой: посты, короткие видео, анонсы и оформление страницы.</p>
-              <p>Инструменты роста: бусты, сигналы нужен буст, Telegram-канал и внутренняя аналитика активности.</p>
+              <p>Инструменты роста: бусты, сигналы, Telegram-канал и статистика активности.</p>
             </div>
             <div className="mt-5">
               <div className="flex flex-wrap gap-3">
