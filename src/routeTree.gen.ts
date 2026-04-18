@@ -20,6 +20,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SupportSlugRouteImport } from './routes/support.$slug'
 import { Route as StreamerIdRouteImport } from './routes/streamer.$id'
+import { Route as ApiRevealKeyRouteImport } from './routes/api/_reveal-key'
 
 const TasksRoute = TasksRouteImport.update({
   id: '/tasks',
@@ -76,6 +77,11 @@ const StreamerIdRoute = StreamerIdRouteImport.update({
   path: '/streamer/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiRevealKeyRoute = ApiRevealKeyRouteImport.update({
+  id: '/api/_reveal-key',
+  path: '/api',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/streamers': typeof StreamersRoute
   '/studio': typeof StudioRoute
   '/tasks': typeof TasksRoute
+  '/api': typeof ApiRevealKeyRoute
   '/streamer/$id': typeof StreamerIdRoute
   '/support/$slug': typeof SupportSlugRoute
 }
@@ -100,6 +107,7 @@ export interface FileRoutesByTo {
   '/streamers': typeof StreamersRoute
   '/studio': typeof StudioRoute
   '/tasks': typeof TasksRoute
+  '/api': typeof ApiRevealKeyRoute
   '/streamer/$id': typeof StreamerIdRoute
   '/support/$slug': typeof SupportSlugRoute
 }
@@ -114,6 +122,7 @@ export interface FileRoutesById {
   '/streamers': typeof StreamersRoute
   '/studio': typeof StudioRoute
   '/tasks': typeof TasksRoute
+  '/api/_reveal-key': typeof ApiRevealKeyRoute
   '/streamer/$id': typeof StreamerIdRoute
   '/support/$slug': typeof SupportSlugRoute
 }
@@ -129,6 +138,7 @@ export interface FileRouteTypes {
     | '/streamers'
     | '/studio'
     | '/tasks'
+    | '/api'
     | '/streamer/$id'
     | '/support/$slug'
   fileRoutesByTo: FileRoutesByTo
@@ -142,6 +152,7 @@ export interface FileRouteTypes {
     | '/streamers'
     | '/studio'
     | '/tasks'
+    | '/api'
     | '/streamer/$id'
     | '/support/$slug'
   id:
@@ -155,6 +166,7 @@ export interface FileRouteTypes {
     | '/streamers'
     | '/studio'
     | '/tasks'
+    | '/api/_reveal-key'
     | '/streamer/$id'
     | '/support/$slug'
   fileRoutesById: FileRoutesById
@@ -169,6 +181,7 @@ export interface RootRouteChildren {
   StreamersRoute: typeof StreamersRoute
   StudioRoute: typeof StudioRoute
   TasksRoute: typeof TasksRoute
+  ApiRevealKeyRoute: typeof ApiRevealKeyRoute
   StreamerIdRoute: typeof StreamerIdRoute
   SupportSlugRoute: typeof SupportSlugRoute
 }
@@ -252,6 +265,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StreamerIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/_reveal-key': {
+      id: '/api/_reveal-key'
+      path: '/api'
+      fullPath: '/api'
+      preLoaderRoute: typeof ApiRevealKeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -265,6 +285,7 @@ const rootRouteChildren: RootRouteChildren = {
   StreamersRoute: StreamersRoute,
   StudioRoute: StudioRoute,
   TasksRoute: TasksRoute,
+  ApiRevealKeyRoute: ApiRevealKeyRoute,
   StreamerIdRoute: StreamerIdRoute,
   SupportSlugRoute: SupportSlugRoute,
 }
