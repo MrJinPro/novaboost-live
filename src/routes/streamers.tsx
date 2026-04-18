@@ -5,7 +5,7 @@ import { StreamerCard } from "@/components/StreamerCard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
-import { mockStreamers, type StreamerCardData } from "@/lib/mock-platform";
+import type { StreamerCardData } from "@/lib/mock-platform";
 import { loadStreamerDirectory } from "@/lib/streamers-directory-data";
 import { toast } from "sonner";
 
@@ -24,7 +24,7 @@ type Filter = "all" | "live" | "boosted" | "needs_boost";
 function StreamersPage() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
-  const [streamers, setStreamers] = useState<StreamerCardData[]>(mockStreamers);
+  const [streamers, setStreamers] = useState<StreamerCardData[]>([]);
 
   useEffect(() => {
     let active = true;

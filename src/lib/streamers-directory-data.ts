@@ -56,8 +56,6 @@ export async function loadStreamerDirectory() {
       total_boost_amount: boostTotals.get(row.id) ?? row.total_boost_amount ?? 0,
     })
   );
-  const seen = new Set(realStreamers.map((item) => item.id));
-  const fallbackOnly = mockStreamers.filter((item) => !seen.has(item.id));
 
-  return [...realStreamers, ...fallbackOnly];
+  return realStreamers.length > 0 ? realStreamers : mockStreamers;
 }

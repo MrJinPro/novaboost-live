@@ -6,7 +6,7 @@ import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Crown, Zap } from "lucide-react";
 import { toast } from "sonner";
-import { mockStreamers, type StreamerCardData } from "@/lib/mock-platform";
+import type { StreamerCardData } from "@/lib/mock-platform";
 import { loadStreamerDirectory } from "@/lib/streamers-directory-data";
 import { createBoost } from "@/lib/boost-data";
 
@@ -35,7 +35,7 @@ function BoostPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const search = Route.useSearch();
-  const [streamers, setStreamers] = useState<StreamerCardData[]>(mockStreamers);
+  const [streamers, setStreamers] = useState<StreamerCardData[]>([]);
   const [selected, setSelected] = useState<string>(search.streamerId ?? "");
   const [tier, setTier] = useState<number>(1500);
   const [submitting, setSubmitting] = useState(false);

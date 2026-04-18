@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Crown, Search, Users } from "lucide-react";
 import { toast } from "sonner";
-import { mockStreamers, type StreamerCardData } from "@/lib/mock-platform";
+import type { StreamerCardData } from "@/lib/mock-platform";
 import { loadStreamerDirectory } from "@/lib/streamers-directory-data";
 
 export const Route = createFileRoute("/auth")({
@@ -29,7 +29,7 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [referralQuery, setReferralQuery] = useState("");
-  const [directoryStreamers, setDirectoryStreamers] = useState<StreamerCardData[]>(mockStreamers);
+  const [directoryStreamers, setDirectoryStreamers] = useState<StreamerCardData[]>([]);
   const [referralStreamer, setReferralStreamer] = useState<StreamerCardData | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -46,8 +46,10 @@ function AuthPage() {
         if (active) {
           setDirectoryStreamers(data);
         }
-      } catch {
-        // fallback remains mock-only on auth screen
+      } catch (error) {
+        if (active) {
+          toast.error(error instanceof Error ? error.message : "Не удалось загрузить каталог стримеров");
+        }
       }
     };
 

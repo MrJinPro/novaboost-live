@@ -1,5 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-import { mockViewerStandings } from "@/lib/mock-platform";
 
 export type ViewerLeaderboardEntry = {
   id: string;
@@ -21,6 +20,5 @@ export async function loadViewerLeaderboard() {
     throw error;
   }
 
-  const rows = (data ?? []) as ViewerLeaderboardEntry[];
-  return rows.length > 0 ? rows : mockViewerStandings;
+  return (data ?? []) as ViewerLeaderboardEntry[];
 }

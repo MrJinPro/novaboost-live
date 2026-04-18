@@ -4,7 +4,7 @@ import { Header } from "@/components/Header";
 import { Trophy, Crown, Users } from "lucide-react";
 import { formatNumber } from "@/lib/format";
 import { Link } from "@tanstack/react-router";
-import { mockStreamers, type StreamerCardData } from "@/lib/mock-platform";
+import type { StreamerCardData } from "@/lib/mock-platform";
 import { loadStreamerDirectory } from "@/lib/streamers-directory-data";
 import { loadViewerLeaderboard, type ViewerLeaderboardEntry } from "@/lib/leaderboard-data";
 import { toast } from "sonner";
@@ -20,7 +20,7 @@ export const Route = createFileRoute("/leaderboard")({
 });
 
 function LeaderboardPage() {
-  const [streamerList, setStreamerList] = useState<StreamerCardData[]>(mockStreamers);
+  const [streamerList, setStreamerList] = useState<StreamerCardData[]>([]);
   const [viewers, setViewers] = useState<ViewerLeaderboardEntry[]>([]);
 
   useEffect(() => {

@@ -9,7 +9,7 @@ import { BoostBadge } from "@/components/BoostBadge";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Crown, Eye, Flame, Send, Sparkles, Trophy, Zap } from "lucide-react";
 import { formatNumber } from "@/lib/format";
-import { mockStreamers, type StreamerCardData } from "@/lib/mock-platform";
+import type { StreamerCardData } from "@/lib/mock-platform";
 import { loadStreamerDirectory } from "@/lib/streamers-directory-data";
 import { loadHomeActivityFeed, type HomeActivityItem } from "@/lib/home-activity-data";
 import { toast } from "sonner";
@@ -25,7 +25,7 @@ export const Route = createFileRoute("/")({
 });
 
 function HomePage() {
-  const [streamers, setStreamers] = useState<StreamerCardData[]>(mockStreamers);
+  const [streamers, setStreamers] = useState<StreamerCardData[]>([]);
   const [activityFeed, setActivityFeed] = useState<HomeActivityItem[]>([]);
 
   useEffect(() => {
