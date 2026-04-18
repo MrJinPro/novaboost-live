@@ -30,10 +30,16 @@ export interface StreamerPost {
   title: string;
   body: string;
   createdAt: string;
-  requiredPlan?: SubscriptionPlanKey;
-  blurPreview?: boolean;
-  expiresAt?: string | null;
+  requiredPlan: SubscriptionPlanKey;
+  blurPreview: boolean;
+  expiresAt: string | null;
 }
+
+const POST_DEFAULTS = {
+  requiredPlan: "free" as SubscriptionPlanKey,
+  blurPreview: false,
+  expiresAt: null,
+} satisfies Pick<StreamerPost, "requiredPlan" | "blurPreview" | "expiresAt">;
 
 export interface StreamerVideo {
   id: string;
