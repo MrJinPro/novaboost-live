@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
+    "build:backend": "tsc -p backend/tsconfig.json",
     "build:dev": "vite build --mode development",
+    "start:backend": "node backend/dist/index.js",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write ."

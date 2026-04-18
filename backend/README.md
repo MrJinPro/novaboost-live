@@ -1,0 +1,37 @@
+# NovaBoost Backend Foundation
+
+Этот backend-контур выделен отдельно от frontend и служит базой для следующих сервисов:
+
+- API service
+- stream tracking manager
+- scoring engine
+- notification fan-out
+- Telegram bot и moderation
+
+## Что уже есть
+
+- отдельный TypeScript entrypoint
+- env-конфиг через zod
+- health endpoint
+- manifest endpoint
+- модули tracking, scoring, notifications, Telegram
+
+## Команды
+
+```bash
+npm run build:backend
+npm run start:backend
+```
+
+## HTTP endpoints
+
+- `GET /health`
+- `GET /manifest`
+
+## Следующие шаги
+
+- подключить Supabase service-role client
+- добавить Redis и job queue
+- реализовать routing уведомлений по streamer subscriptions и telegram routes
+- подключить tracking scheduler и stream workers
+- реализовать moderation executor для Telegram bot
