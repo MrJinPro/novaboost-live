@@ -19,7 +19,7 @@ interface AuthContextValue {
   signIn: (payload: {
     role: AppRole;
     email: string;
-    tiktokUsername: string;
+    tiktokUsername?: string;
     password: string;
   }) => Promise<void>;
   signOut: () => Promise<void>;
@@ -236,7 +236,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (payload: {
     role: AppRole;
     email: string;
-    tiktokUsername: string;
+    tiktokUsername?: string;
     password: string;
   }) => {
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -253,12 +253,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const profile = await getProfile(data.user.id);
+    const enteredTikTok = payload.tiktokUsername?.trim() ?? "";
+    const knownTikTokUsername = profile?.tiktok_username?.trim() ?? "";
 
     if (payload.role === "streamer") {
+      const streamerTikTokUsername = enteredTikTok || knownTikTokUsername;
+
+      if (!streamerTikTokUsername) {
+        await supabase.auth.signOut();
+        throw new Error("Для входа стримера нужен TikTok username, чтобы связать кабинет со страницей.");
+      }
+
       await ensureStreamerRecord(
         data.user.id,
-        payload.tiktokUsername,
-        profile?.display_name ?? profile?.username ?? payload.tiktokUsername
+        streamerTikTokUsername,
+        profile?.display_name ?? profile?.username ?? streamerTikTokUsername
       );
     }
 
@@ -269,7 +278,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(payload.role === "streamer" ? "У этого аккаунта ещё не создан профиль стримера." : "Этот аккаунт относится к кабинету стримера. Выбери вход как стример.");
     }
 
-    if (nextUser.tiktokUsername.toLowerCase() !== payload.tiktokUsername.toLowerCase()) {
+    if (enteredTikTok && nextUser.tiktokUsername && nextUser.tiktokUsername.toLowerCase() !== enteredTikTok.toLowerCase()) {
       await supabase.auth.signOut();
       throw new Error("TikTok username не совпадает с профилем в базе.");
     }

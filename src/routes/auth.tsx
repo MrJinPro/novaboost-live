@@ -111,13 +111,13 @@ function AuthPage() {
           return;
         }
       } else {
-        if (!email || !tiktokUsername || !password) {
-          toast.error("Для входа укажи email, TikTok username и пароль");
+        if (!email || !password) {
+          toast.error(role === "streamer" ? "Для входа стримера укажи email, пароль и при необходимости TikTok username" : "Для входа укажи email и пароль");
           setSubmitting(false);
           return;
         }
 
-        await signIn({ role, email, tiktokUsername, password });
+        await signIn({ role, email, tiktokUsername: tiktokUsername || undefined, password });
         toast.success(role === "streamer" ? "Вход в кабинет стримера выполнен" : "Вход выполнен");
       }
       setSubmitting(false);
@@ -197,7 +197,7 @@ function AuthPage() {
 
           <div>
             <Label htmlFor="tiktokUsername">TikTok username</Label>
-            <Input id="tiktokUsername" required value={tiktokUsername} onChange={(e) => setTiktokUsername(e.target.value)} placeholder={mode === "signin" ? "Нужен для входа в существующий профиль" : "Введите вручную, без автоподстановки"} className="mt-1.5 bg-background" />
+            <Input id="tiktokUsername" required={mode === "signup"} value={tiktokUsername} onChange={(e) => setTiktokUsername(e.target.value)} placeholder={mode === "signin" ? role === "streamer" ? "Если профиль стримера ещё не связан, введи username вручную" : "Необязательно для входа зрителя" : "Введите вручную, без автоподстановки"} className="mt-1.5 bg-background" />
           </div>
 
           <div>
@@ -261,7 +261,7 @@ function AuthPage() {
 
           {mode === "signin" && (
             <div className="rounded-xl border border-border/50 bg-background/30 p-4 text-sm text-muted-foreground">
-              Вход уже идёт через Supabase email/password. Роль и TikTok username дополнительно сверяются с профилем, чтобы зритель и стример не смешивались.
+              Вход идёт через Supabase email/password. Для зрителя TikTok username больше не обязателен, а для стримера он нужен только если кабинет ещё не был связан с профилем.
             </div>
           )}
 
