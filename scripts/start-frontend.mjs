@@ -1,9 +1,65 @@
+import fs from "node:fs";
+import path from "node:path";
 import http from "node:http";
+import { fileURLToPath } from "node:url";
 import { Readable } from "node:stream";
 import { default as serverEntry } from "../dist/server/server.js";
 
 const port = Number.parseInt(process.env.PORT ?? "3000", 10);
 const host = process.env.HOST ?? "0.0.0.0";
+const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
+const projectRoot = path.resolve(currentDirectory, "..");
+const clientRoot = path.join(projectRoot, "dist", "client");
+const publicRoot = path.join(projectRoot, "public");
+
+const contentTypes = new Map([
+  [".css", "text/css; charset=utf-8"],
+  [".gif", "image/gif"],
+  [".html", "text/html; charset=utf-8"],
+  [".ico", "image/x-icon"],
+  [".jpg", "image/jpeg"],
+  [".jpeg", "image/jpeg"],
+  [".js", "text/javascript; charset=utf-8"],
+  [".json", "application/json; charset=utf-8"],
+  [".png", "image/png"],
+  [".svg", "image/svg+xml"],
+  [".txt", "text/plain; charset=utf-8"],
+  [".webp", "image/webp"],
+  [".woff", "font/woff"],
+  [".woff2", "font/woff2"],
+]);
+
+function getStaticContentType(filePath) {
+  return contentTypes.get(path.extname(filePath).toLowerCase()) ?? "application/octet-stream";
+}
+
+function isInsideDirectory(candidatePath, rootPath) {
+  const relativePath = path.relative(rootPath, candidatePath);
+  return relativePath !== "" && !relativePath.startsWith("..") && !path.isAbsolute(relativePath);
+}
+
+function resolveStaticFile(requestPathname) {
+  const normalizedPath = requestPathname === "/" ? "/index.html" : requestPathname;
+  const clientCandidate = path.normalize(path.join(clientRoot, normalizedPath));
+
+  if (isInsideDirectory(clientCandidate, clientRoot) && fs.existsSync(clientCandidate) && fs.statSync(clientCandidate).isFile()) {
+    return clientCandidate;
+  }
+
+  const publicCandidate = path.normalize(path.join(publicRoot, normalizedPath));
+
+  if (isInsideDirectory(publicCandidate, publicRoot) && fs.existsSync(publicCandidate) && fs.statSync(publicCandidate).isFile()) {
+    return publicCandidate;
+  }
+
+  return null;
+}
+
+function writeStaticResponse(nodeResponse, filePath) {
+  nodeResponse.statusCode = 200;
+  nodeResponse.setHeader("content-type", getStaticContentType(filePath));
+  fs.createReadStream(filePath).pipe(nodeResponse);
+}
 
 function toWebHeaders(headers) {
   const webHeaders = new Headers();
@@ -59,6 +115,14 @@ async function writeResponse(nodeResponse, webResponse) {
 
 const httpServer = http.createServer(async (req, res) => {
   try {
+    const requestUrl = new URL(req.url ?? "/", `http://${req.headers.host ?? `${host}:${port}`}`);
+    const staticFile = resolveStaticFile(requestUrl.pathname);
+
+    if (staticFile) {
+      writeStaticResponse(res, staticFile);
+      return;
+    }
+
     const request = createRequest(req);
     const response = await serverEntry.fetch(request);
     await writeResponse(res, response);
