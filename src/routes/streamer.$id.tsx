@@ -9,6 +9,7 @@ import { ArrowLeft, Bell, Crown, Eye, ExternalLink, Play, Send, Sparkles, Users,
 import { formatNumber } from "@/lib/format";
 import type { PostReactionType, StreamerPageData, StreamerPost, SubscriptionPlanKey } from "@/lib/mock-platform";
 import { activateStreamerPlan, getSubscriptionPlanLabel, loadPostReactionSummaries, loadStreamerMembershipState, SUBSCRIPTION_PLANS, togglePostReaction, type PostReactionSummary, type StreamerMembershipState } from "@/lib/monetization-data";
+import { calculateCustomerAmount, groupTikTokPromotionServices, loadTikTokPromotionServices, type TikTokPromotionService } from "@/lib/prmotion-data";
 import { getStreamerSubscriptionState, loadPublicStreamerPage, toggleStreamerSubscription } from "@/lib/streamer-studio-data";
 import { toast } from "sonner";
 
@@ -45,6 +46,7 @@ function StreamerProfile() {
   const [membershipState, setMembershipState] = useState<StreamerMembershipState>({ subscribed: false, planKey: "free", paidUntil: null, totalPaidAmount: 0 });
   const [membershipLoading, setMembershipLoading] = useState(false);
   const [reactionSummaries, setReactionSummaries] = useState<Map<string, PostReactionSummary>>(new Map());
+  const [promotionServices, setPromotionServices] = useState<TikTokPromotionService[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -139,6 +141,29 @@ function StreamerProfile() {
   useEffect(() => {
     let active = true;
 
+    const syncServices = async () => {
+      try {
+        const nextServices = await loadTikTokPromotionServices();
+        if (active) {
+          setPromotionServices(nextServices);
+        }
+      } catch {
+        if (active) {
+          setPromotionServices([]);
+        }
+      }
+    };
+
+    void syncServices();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
     if (!streamer) {
       setReactionSummaries(new Map());
       return;
@@ -193,6 +218,7 @@ function StreamerProfile() {
   const telegramHref = telegramChannel
     ? `https://t.me/${telegramChannel.replace(/^@+/, "")}`
     : null;
+  const promotionGroups = groupTikTokPromotionServices(promotionServices);
 
   const handleSubscription = async () => {
     if (!user) {
@@ -356,11 +382,11 @@ function StreamerProfile() {
                     <Zap className="h-4 w-4 text-cosmic" /> Запустить буст
                   </Button>
                 </Link>
-                <Link to="/services" search={{ streamerId: streamer.id }}>
+                <a href="#promotion-services">
                   <Button size="lg" variant="outline" className="gap-2 w-full border-blast/40 hover:bg-blast/10">
                     <Sparkles className="h-4 w-4 text-blast" /> Поддержать продвижением
                   </Button>
-                </Link>
+                </a>
                 {telegramHref ? (
                   <a href={telegramHref} target="_blank" rel="noopener noreferrer">
                     <Button size="lg" variant="outline" className="gap-2 w-full border-border/60">
@@ -383,6 +409,76 @@ function StreamerProfile() {
           <StatCard icon={<TrendingUp className="h-5 w-5" />} label="Подписки в платформе" value={formatNumber(streamer.subscription_count)} />
           <StatCard icon={<Zap className="h-5 w-5" />} label="Сумма бустов" value={formatNumber(streamer.total_boost_amount)} accent="blast" />
         </div>
+
+        <section id="promotion-services" className="mt-6 rounded-3xl border border-border/50 bg-surface/60 p-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/30 px-3 py-1 text-xs text-muted-foreground">
+                <Sparkles className="h-3.5 w-3.5 text-blast" /> Поддержка эфира
+              </div>
+              <h2 className="mt-3 font-display text-2xl font-bold">Услуги продвижения TikTok</h2>
+              <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+                Эти услуги появляются автоматически. Вручную их вбивать не нужно: NovaBoost показывает каталог даже до полной настройки supplier API, а затем подменяет его боевыми данными.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-border/50 bg-background/30 px-4 py-3 text-sm text-muted-foreground">
+              Для зрителя выбор услуг теперь находится прямо на публичной странице стримера.
+            </div>
+          </div>
+
+          <div className="mt-5 space-y-6">
+            {promotionGroups.map((group) => (
+              <div key={group.key}>
+                <div className="mb-3 flex items-end justify-between gap-3">
+                  <div>
+                    <h3 className="font-display text-xl font-bold">{group.title}</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">{group.description}</p>
+                  </div>
+                  <div className="rounded-full border border-border/50 bg-background/20 px-3 py-1 text-xs text-muted-foreground">
+                    {group.services.length} услуг
+                  </div>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {group.services.map((service) => {
+                    const price = calculateCustomerAmount("viewer", service.rate, service.min);
+
+                    return (
+                      <div key={service.id} className="rounded-3xl border border-border/50 bg-background/30 p-5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="rounded-full border border-border/50 bg-background/20 px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                              {service.subcategory}
+                            </div>
+                            <h3 className="mt-3 font-display text-lg font-bold">{service.name}</h3>
+                            <div className="mt-1 text-xs text-muted-foreground">{service.category}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-display text-xl font-bold text-blast">{price.customerAmount} ₽</div>
+                            <div className="text-xs text-muted-foreground">от {service.min}</div>
+                          </div>
+                        </div>
+                        <p className="mt-4 text-sm text-muted-foreground">{service.shortDescription}</p>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {(service.summaryBullets ?? []).map((bullet) => (
+                            <span key={bullet} className="rounded-full border border-border/50 px-2.5 py-1 text-[11px] text-muted-foreground">{bullet}</span>
+                          ))}
+                        </div>
+                        <div className="mt-4 rounded-2xl border border-border/40 bg-background/20 px-4 py-3 text-xs text-muted-foreground">
+                          {service.targetHelp}
+                        </div>
+                        <Link to="/services" search={{ streamerId: streamer.id, serviceId: String(service.id) }}>
+                          <Button className="mt-4 w-full gap-2 bg-gradient-blast text-blast-foreground">
+                            <Sparkles className="h-4 w-4" /> Выбрать услугу
+                          </Button>
+                        </Link>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
 
         <div className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
           <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">

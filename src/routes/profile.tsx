@@ -206,7 +206,6 @@ function ProfilePage() {
         <div className={`mt-6 grid gap-3 ${isStreamer ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
           <Link to="/tasks"><Button variant="outline" className="w-full gap-2"><Trophy className="h-4 w-4" /> К заданиям</Button></Link>
           <Link to="/boost"><Button className="w-full gap-2 bg-gradient-blast text-blast-foreground font-bold"><Sparkles className="h-4 w-4" /> Запустить буст</Button></Link>
-          {!isStreamer && <Link to="/services"><Button variant="outline" className="w-full gap-2">Поддержать продвижением</Button></Link>}
           {isStreamer && <Link to="/studio"><Button variant="outline" className="w-full gap-2">Студия стримера</Button></Link>}
         </div>
       </div>

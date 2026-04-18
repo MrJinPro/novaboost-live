@@ -6,11 +6,10 @@ import { Button } from "@/components/ui/button";
 import { ExternalLink, LogOut, User as UserIcon } from "lucide-react";
 import { getOwnedStreamerPublicPage } from "@/lib/streamer-studio-data";
 
-const NAV = [
+const BASE_NAV = [
   { to: "/" as const, label: "Главная" },
   { to: "/streamers" as const, label: "Стримеры" },
   { to: "/tasks" as const, label: "Задания" },
-  { to: "/services" as const, label: "Услуги" },
   { to: "/leaderboard" as const, label: "Рейтинг" },
 ];
 
@@ -19,8 +18,8 @@ export function Header() {
   const location = useLocation();
   const [publicPageId, setPublicPageId] = useState<string | null>(null);
   const navItems = user?.role === "streamer"
-    ? [...NAV, { to: "/studio" as const, label: "Студия" }]
-    : NAV;
+    ? [...BASE_NAV, { to: "/services" as const, label: "Продвижение" }, { to: "/studio" as const, label: "Студия" }]
+    : BASE_NAV;
 
   useEffect(() => {
     let active = true;
