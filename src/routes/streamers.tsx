@@ -65,37 +65,37 @@ function StreamersPage() {
     { value: "needs_boost", label: "Нужен буст" },
   ];
 
+  const helpPanel = (
+    <ProjectHelpPanel
+      badge="Как читать каталог"
+      title="Что означают статусы в каталоге"
+      description="Каталог - это не просто список аккаунтов. Он показывает текущее состояние стримеров внутри NovaBoost Live и помогает быстро понять, кому сейчас нужна аудитория или поддержка."
+      items={[
+        {
+          key: "live",
+          title: "В эфире",
+          body: "Эта вкладка показывает стримеров, у которых прямо сейчас идёт live-сессия. Для них важнее всего быстрый вход аудитории и буст от зрителей.",
+        },
+        {
+          key: "boosted",
+          title: "Продвигаются",
+          body: "Здесь стримеры с активным boost внутри NovaBoost Live. Это означает более высокую видимость в каталоге и live-подборках платформы.",
+        },
+        {
+          key: "needs-boost",
+          title: "Нужен буст",
+          body: "Это сигнал аудитории: стримеру особенно полезна внутренняя поддержка, чтобы подняться выше и привлечь внимание внутри платформы.",
+        },
+      ]}
+    />
+  );
+
   return (
     <div className="min-h-screen">
       <Header />
       <div className="container mx-auto px-4 py-8">
         <h1 className="font-display font-bold text-3xl md:text-4xl">Каталог стримеров</h1>
         <p className="mt-2 text-muted-foreground">Выбирай, кому дать внимание прямо сейчас, и на кого подписаться между эфирами</p>
-
-        <div className="mt-6">
-          <ProjectHelpPanel
-            badge="Как читать каталог"
-            title="Что означают статусы в каталоге"
-            description="Каталог - это не просто список аккаунтов. Он показывает текущее состояние стримеров внутри NovaBoost Live и помогает быстро понять, кому сейчас нужна аудитория или поддержка."
-            items={[
-              {
-                key: "live",
-                title: "В эфире",
-                body: "Эта вкладка показывает стримеров, у которых прямо сейчас идёт live-сессия. Для них важнее всего быстрый вход аудитории и буст от зрителей.",
-              },
-              {
-                key: "boosted",
-                title: "Продвигаются",
-                body: "Здесь стримеры с активным boost внутри NovaBoost Live. Это означает более высокую видимость в каталоге и live-подборках платформы.",
-              },
-              {
-                key: "needs-boost",
-                title: "Нужен буст",
-                body: "Это сигнал аудитории: стримеру особенно полезна внутренняя поддержка, чтобы подняться выше и привлечь внимание внутри платформы.",
-              },
-            ]}
-          />
-        </div>
 
         <div className="mt-6 flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
@@ -128,6 +128,10 @@ function StreamersPage() {
         {filtered.length === 0 && (
           <div className="text-center py-16 text-muted-foreground">Никого не нашли по этому запросу</div>
         )}
+
+        <div className="mt-10">
+          {helpPanel}
+        </div>
       </div>
     </div>
   );

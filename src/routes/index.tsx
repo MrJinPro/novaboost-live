@@ -74,6 +74,30 @@ function HomePage() {
   const top = [...streamers].sort((a, b) => (b.subscription_count ?? 0) - (a.subscription_count ?? 0)).slice(0, 5);
   const totalLiveViewers = live.reduce((acc, s) => acc + s.viewer_count, 0);
 
+  const helpPanel = (
+    <ProjectHelpPanel
+      title="Что здесь можно делать"
+      description="Этот блок объясняет продукт простыми словами: что именно делает NovaBoost Live, чем отличаются очки, бусты, каталог и инструменты стримера."
+      items={[
+        {
+          key: "project",
+          title: "Что такое NovaBoost Live",
+          body: "Это отдельная платформа вокруг TikTok LIVE. Она помогает стримерам и зрителям взаимодействовать между эфирами: находить друг друга, поддерживать рост, публиковать контент и участвовать в активностях.",
+        },
+        {
+          key: "catalog",
+          title: "Что показывает каталог стримеров",
+          body: "Каталог показывает, кто сейчас в эфире, кому нужен буст, кто уже продвигается и какие стримеры заметнее внутри самой экосистемы NovaBoost Live.",
+        },
+        {
+          key: "boost",
+          title: "Что дают viewer points и бусты",
+          body: "Зрители получают очки за активность и могут тратить их на бусты. Буст поднимает стримера выше внутри NovaBoost Live, но не обещает внешний трафик или метрики TikTok сам по себе.",
+        },
+      ]}
+    />
+  );
+
   return (
     <div className="min-h-screen">
       <Header />
@@ -130,30 +154,6 @@ function HomePage() {
             </div>
           </div>
         </div>
-      </section>
-
-      <section className="container mx-auto px-4 py-10">
-        <ProjectHelpPanel
-          title="Что здесь можно делать"
-          description="Этот блок объясняет продукт простыми словами: что именно делает NovaBoost Live, чем отличаются очки, бусты, каталог и инструменты стримера."
-          items={[
-            {
-              key: "project",
-              title: "Что такое NovaBoost Live",
-              body: "Это отдельная платформа вокруг TikTok LIVE. Она помогает стримерам и зрителям взаимодействовать между эфирами: находить друг друга, поддерживать рост, публиковать контент и участвовать в активностях.",
-            },
-            {
-              key: "catalog",
-              title: "Что показывает каталог стримеров",
-              body: "Каталог показывает, кто сейчас в эфире, кому нужен буст, кто уже продвигается и какие стримеры заметнее внутри самой экосистемы NovaBoost Live.",
-            },
-            {
-              key: "boost",
-              title: "Что дают viewer points и бусты",
-              body: "Зрители получают очки за активность и могут тратить их на бусты. Буст поднимает стримера выше внутри NovaBoost Live, но не обещает внешний трафик или метрики TikTok сам по себе.",
-            },
-          ]}
-        />
       </section>
 
       {/* BENTO GRID */}
@@ -287,6 +287,10 @@ function HomePage() {
               </div>
             </BentoBlock>
           </div>
+      </section>
+
+      <section className="container mx-auto px-4 pb-10">
+        {helpPanel}
       </section>
 
     </div>

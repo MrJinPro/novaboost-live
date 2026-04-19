@@ -438,31 +438,6 @@ function StreamerProfile() {
           <StatCard icon={<Play className="h-5 w-5" />} label="Пик зрителей" value={formatNumber(streamer.peak_viewer_count ?? 0)} accent="live" />
         </div>
 
-        <div className="mt-6">
-          <ProjectHelpPanel
-            badge="Как читать страницу стримера"
-            title="Что здесь может сделать зритель"
-            description="Публичная страница стримера в NovaBoost Live - это не только визитка, но и отдельная продуктовая поверхность для вовлечения между эфирами и во время live." 
-            items={[
-              {
-                key: "public-page-purpose",
-                title: "Зачем нужна эта страница",
-                body: "Здесь собираются все ключевые точки взаимодействия со стримером внутри NovaBoost Live: подписка, boost, контент, support, платные сценарии в подготовке и внутренние сигналы активности.",
-              },
-              {
-                key: "boost-on-page",
-                title: "Что означает crown и boost-сумма",
-                body: "Если у стримера есть активный boost, его карточка и страница получают более высокий приоритет внутри NovaBoost Live. Crown и сумма показывают силу текущей волны поддержки аудитории внутри платформы.",
-              },
-              {
-                key: "memberships-page",
-                title: "Что с тарифами и поддержкой",
-                body: "Часть сценариев уже оформлена как продуктовый интерфейс, но реальные платежи ещё могут быть не активированы. В таких случаях платформа показывает coming-soon flow и собирает платёжные предпочтения.",
-              },
-            ]}
-          />
-        </div>
-
         <div className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
           <section className="rounded-3xl border border-border/50 bg-surface/60 p-5 sm:p-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
@@ -799,6 +774,31 @@ function StreamerProfile() {
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                   <h3 className="font-display text-xl font-bold">Отдельные инструменты продвижения</h3>
+
+              <div className="mt-10">
+                <ProjectHelpPanel
+                  badge="Как читать страницу стримера"
+                  title="Что здесь может сделать зритель"
+                  description="Публичная страница стримера в NovaBoost Live - это не только визитка, но и отдельная продуктовая поверхность для вовлечения между эфирами и во время live."
+                  items={[
+                    {
+                      key: "public-page-purpose",
+                      title: "Зачем нужна эта страница",
+                      body: "Здесь собираются все ключевые точки взаимодействия со стримером внутри NovaBoost Live: подписка, boost, контент, support, платные сценарии в подготовке и внутренние сигналы активности.",
+                    },
+                    {
+                      key: "boost-on-page",
+                      title: "Что означает crown и boost-сумма",
+                      body: "Если у стримера есть активный boost, его карточка и страница получают более высокий приоритет внутри NovaBoost Live. Crown и сумма показывают силу текущей волны поддержки аудитории внутри платформы.",
+                    },
+                    {
+                      key: "memberships-page",
+                      title: "Что с тарифами и поддержкой",
+                      body: "Часть сценариев уже оформлена как продуктовый интерфейс, но реальные платежи ещё могут быть не активированы. В таких случаях платформа показывает coming-soon flow и собирает платёжные предпочтения.",
+                    },
+                  ]}
+                />
+              </div>
                   <p className="mt-1 text-sm text-muted-foreground">
                     Это вторичный раздел. Он не является главным действием на публичной странице стримера.
                   </p>

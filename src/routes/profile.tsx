@@ -251,6 +251,41 @@ function ProfilePage() {
     setStreamerApplication((current) => current ? { ...current, [key]: value } : current);
   };
 
+  const helpPanel = (
+    <ProjectHelpPanel
+      badge="Что изменено"
+      title={isStreamer ? "Теперь профиль стримера это реальные настройки" : "Теперь профиль зрителя это реальные настройки"}
+      description={isStreamer
+        ? "Кабинет больше не просто сводка. Здесь настраивается то, что видят зрители в публичной странице и что использует студия."
+        : "Профиль зрителя теперь можно нормально привести в порядок: аватар, био, username и TikTok внутри платформы."}
+      items={isStreamer
+        ? [
+            {
+              key: "streamer-settings-media",
+              title: "Как теперь работают картинки",
+              body: "Аватар и баннер загружаются файлами на backend, который сам создаёт локальные папки пользователя. Ввод ссылок на картинки убран из настройки профиля и студии.",
+            },
+            {
+              key: "streamer-settings-sync",
+              title: "Что именно синхронизируется",
+              body: "Имя, TikTok username, био, баннер, аватар, tagline и Telegram-канал записываются в streamer-профиль и в настройки публичной страницы, чтобы не было расхождения между экранами.",
+            },
+          ]
+        : [
+            {
+              key: "viewer-settings-basics",
+              title: "Что настраивается у зрителя",
+              body: "Display name, username, TikTok username, био и локальный аватар платформы. Это базовый профиль зрителя, а не просто карточка статистики.",
+            },
+            {
+              key: "viewer-settings-media",
+              title: "Как теперь работает аватар",
+              body: "Вместо URL загружается реальный файл. Backend кладёт его в локальную папку пользователя и возвращает готовый URL для платформы.",
+            },
+          ]}
+    />
+  );
+
   const handleSubmitStreamerApplication = async () => {
     if (!streamerApplication) {
       return;
@@ -343,39 +378,6 @@ function ProfilePage() {
 
         <div className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
           <div className="space-y-6">
-            <ProjectHelpPanel
-              badge="Что изменено"
-              title={isStreamer ? "Теперь профиль стримера это реальные настройки" : "Теперь профиль зрителя это реальные настройки"}
-              description={isStreamer
-                ? "Кабинет больше не просто сводка. Здесь настраивается то, что видят зрители в публичной странице и что использует студия."
-                : "Профиль зрителя теперь можно нормально привести в порядок: аватар, био, username и TikTok внутри платформы."}
-              items={isStreamer
-                ? [
-                    {
-                      key: "streamer-settings-media",
-                      title: "Как теперь работают картинки",
-                      body: "Аватар и баннер загружаются файлами на backend, который сам создаёт локальные папки пользователя. Ввод ссылок на картинки убран из настройки профиля и студии.",
-                    },
-                    {
-                      key: "streamer-settings-sync",
-                      title: "Что именно синхронизируется",
-                      body: "Имя, TikTok username, био, баннер, аватар, tagline и Telegram-канал записываются в streamer-профиль и в настройки публичной страницы, чтобы не было расхождения между экранами.",
-                    },
-                  ]
-                : [
-                    {
-                      key: "viewer-settings-basics",
-                      title: "Что настраивается у зрителя",
-                      body: "Display name, username, TikTok username, био и локальный аватар платформы. Это базовый профиль зрителя, а не просто карточка статистики.",
-                    },
-                    {
-                      key: "viewer-settings-media",
-                      title: "Как теперь работает аватар",
-                      body: "Вместо URL загружается реальный файл. Backend кладёт его в локальную папку пользователя и возвращает готовый URL для платформы.",
-                    },
-                  ]}
-            />
-
             <section className="rounded-3xl border border-border/50 bg-surface/60 p-5 sm:p-6">
               <div className="flex items-center gap-2">
                 <UserRound className="h-5 w-5 text-cosmic" />
@@ -561,6 +563,10 @@ function ProfilePage() {
               </section>
             )}
           </div>
+        </div>
+
+        <div className="mt-10">
+          {helpPanel}
         </div>
       </div>
     </div>

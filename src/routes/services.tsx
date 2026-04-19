@@ -168,6 +168,31 @@ function ServicesPage() {
     [currencyPreference, pricing],
   );
 
+  const helpPanel = (
+    <ProjectHelpPanel
+      badge="Подсказки по услугам"
+      title="Что это за раздел и что здесь происходит"
+      description="Этот экран нужен, чтобы пользователь понимал разницу между внутренними механиками NovaBoost и будущими платными услугами продвижения."
+      items={[
+        {
+          key: "services-purpose",
+          title: "Что такое услуги продвижения",
+          body: "Это отдельный раздел для сценариев, где в будущем могут быть реальные платные услуги, связанные с продвижением TikTok-ссылок, профилей, live-эфиров и роликов.",
+        },
+        {
+          key: "difference-boost",
+          title: "Чем это отличается от boost",
+          body: "Boost - это внутренняя механика NovaBoost Live за viewer points. Услуги продвижения - это отдельный тип продукта, который потенциально связан с оплатой и внешним заказом, поэтому он отделён от boost.",
+        },
+        {
+          key: "payments-status",
+          title: "Почему оплата здесь пока не включена",
+          body: "Платформа пока собирает обратную связь о предпочтительных способах оплаты. Это нужно, чтобы подключить будущий платёжный шлюз осознанно, а не случайно выбрать неудобный метод для аудитории.",
+        },
+      ]}
+    />
+  );
+
   useEffect(() => {
     if (!liveTargetSelected || !autoLiveLink) {
       return;
@@ -250,31 +275,6 @@ function ServicesPage() {
             <div className="mt-1 text-xs">Основная витрина цен: USD. Локальная валюта: {currencyPreference.localCurrency}{currencyPreference.countryCode ? ` (${currencyPreference.countryCode})` : ""}.</div>
             <div className="mt-3"><CurrencySwitcher inline /></div>
           </div>
-        </div>
-
-        <div className="mt-6">
-          <ProjectHelpPanel
-            badge="Подсказки по услугам"
-            title="Что это за раздел и что здесь происходит"
-            description="Этот экран нужен, чтобы пользователь понимал разницу между внутренними механиками NovaBoost и будущими платными услугами продвижения."
-            items={[
-              {
-                key: "services-purpose",
-                title: "Что такое услуги продвижения",
-                body: "Это отдельный раздел для сценариев, где в будущем могут быть реальные платные услуги, связанные с продвижением TikTok-ссылок, профилей, live-эфиров и роликов.",
-              },
-              {
-                key: "difference-boost",
-                title: "Чем это отличается от boost",
-                body: "Boost - это внутренняя механика NovaBoost Live за viewer points. Услуги продвижения - это отдельный тип продукта, который потенциально связан с оплатой и внешним заказом, поэтому он отделён от boost.",
-              },
-              {
-                key: "payments-status",
-                title: "Почему оплата здесь пока не включена",
-                body: "Платформа пока собирает обратную связь о предпочтительных способах оплаты. Это нужно, чтобы подключить будущий платёжный шлюз осознанно, а не случайно выбрать неудобный метод для аудитории.",
-              },
-            ]}
-          />
         </div>
 
         <div className="mt-6 grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
@@ -463,6 +463,10 @@ function ServicesPage() {
               </div>
             </div>
           </section>
+        </div>
+
+        <div className="mt-10">
+          {helpPanel}
         </div>
       </div>
       {surveyDialog}

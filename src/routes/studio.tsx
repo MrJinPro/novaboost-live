@@ -962,36 +962,6 @@ function StreamerStudioPage() {
           <PlatformDisclaimer compact />
         </div>
 
-        <div className="mt-6">
-          <ProjectHelpPanel
-            badge="Подсказки для стримера"
-            title="Что за что отвечает в студии"
-            description="Студия - это центр управления твоим присутствием внутри NovaBoost Live. Подсказки ниже помогают быстро понять назначение основных вкладок."
-            items={[
-              {
-                key: "page",
-                title: "Вкладка “Страница”",
-                body: "Здесь ты оформляешь публичную страницу внутри NovaBoost Live: баннер, логотип, headline, bio, ссылку на Telegram и общее позиционирование стримера для аудитории между эфирами.",
-              },
-              {
-                key: "content",
-                title: "Вкладка “Контент”",
-                body: "Здесь создаются посты, анонсы и другие публикации, которые помогают удерживать зрителя даже тогда, когда ты не в прямом эфире.",
-              },
-              {
-                key: "engagement",
-                title: "Вкладка “Активности”",
-                body: "Этот раздел нужен для вовлечения зрителей: задания, кодовые слова, reward points и сценарии, которые побуждают аудиторию возвращаться и участвовать в росте канала.",
-              },
-              {
-                key: "donations",
-                title: "Вкладка “Донаты и OBS”",
-                body: "Здесь настраиваются donation links, overlay-сцены и OBS-виджеты. Это визуальный и интерактивный слой поддержки стримера внутри NovaBoost Live.",
-              },
-            ]}
-          />
-        </div>
-
         <Tabs defaultValue="page" className="mt-6">
           <TabsList className="h-auto justify-start gap-2 overflow-x-auto rounded-2xl border border-border/50 bg-surface/60 p-2 whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <TabsTrigger value="page">Страница</TabsTrigger>
@@ -1025,6 +995,36 @@ function StreamerStudioPage() {
             {donationSection}
           </TabsContent>
         </Tabs>
+
+        <div className="mt-10">
+          <ProjectHelpPanel
+            badge="Подсказки для стримера"
+            title="Что за что отвечает в студии"
+            description="Студия - это центр управления твоим присутствием внутри NovaBoost Live. Подсказки ниже помогают быстро понять назначение основных вкладок."
+            items={[
+              {
+                key: "page",
+                title: "Вкладка “Страница”",
+                body: "Здесь ты оформляешь публичную страницу внутри NovaBoost Live: баннер, логотип, headline, bio, ссылку на Telegram и общее позиционирование стримера для аудитории между эфирами.",
+              },
+              {
+                key: "content",
+                title: "Вкладка “Контент”",
+                body: "Здесь создаются посты, анонсы и другие публикации, которые помогают удерживать зрителя даже тогда, когда ты не в прямом эфире.",
+              },
+              {
+                key: "engagement",
+                title: "Вкладка “Активности”",
+                body: "Этот раздел нужен для вовлечения зрителей: задания, кодовые слова, reward points и сценарии, которые побуждают аудиторию возвращаться и участвовать в росте канала.",
+              },
+              {
+                key: "donations",
+                title: "Вкладка “Донаты и OBS”",
+                body: "Здесь настраиваются donation links, overlay-сцены и OBS-виджеты. Это визуальный и интерактивный слой поддержки стримера внутри NovaBoost Live.",
+              },
+            ]}
+          />
+        </div>
       </div>
     </div>
   );
