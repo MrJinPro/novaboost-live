@@ -278,11 +278,11 @@ function ProfilePage() {
   return (
     <div className="min-h-screen">
       <Header />
-      <div className="container mx-auto max-w-6xl px-4 py-6">
-        <div className="rounded-3xl border border-border/50 bg-surface/60 p-6 md:p-8">
+      <div className="container mx-auto max-w-6xl px-4 py-5 md:py-6">
+        <div className="rounded-3xl border border-border/50 bg-surface/60 p-4 sm:p-6 md:p-8">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-              <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full border border-border/60 bg-surface-2">
+              <div className="relative mx-auto h-24 w-24 shrink-0 overflow-hidden rounded-full border border-border/60 bg-surface-2 sm:mx-0">
                 {avatarPreview ? (
                   <img src={avatarPreview} alt={settings?.displayName ?? user.displayName} className="h-full w-full object-cover" />
                 ) : (
@@ -293,9 +293,9 @@ function ProfilePage() {
               </div>
 
               <div className="min-w-0 flex-1">
-                <h1 className="font-display text-2xl font-bold md:text-3xl">{settings?.displayName ?? user.displayName}</h1>
-                <div className="text-sm text-muted-foreground">@{settings?.username ?? user.username} · TikTok: @{settings?.tiktokUsername ?? user.tiktokUsername}</div>
-                <div className="mt-3 flex flex-wrap gap-2">
+                <h1 className="text-center font-display text-xl font-bold sm:text-left md:text-3xl">{settings?.displayName ?? user.displayName}</h1>
+                <div className="mt-2 text-center text-sm leading-6 text-muted-foreground sm:text-left">@{settings?.username ?? user.username} · TikTok: @{settings?.tiktokUsername ?? user.tiktokUsername}</div>
+                <div className="mt-3 flex flex-wrap justify-center gap-2 sm:justify-start">
                   <div className="inline-flex items-center gap-2 rounded-full bg-gradient-cosmic px-3 py-1 text-sm font-bold shadow-glow-cosmic">
                     <Sparkles className="h-4 w-4" /> {isStreamer ? "Настройки стримера" : `Уровень ${level}`}
                   </div>
@@ -304,7 +304,7 @@ function ProfilePage() {
                     {isStreamer ? "Профиль и публичная страница синхронизированы" : `Серия активности: ${viewerProfile?.streakDays ?? 0} дней`}
                   </div>
                 </div>
-                <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
+                <p className="mt-3 max-w-2xl text-center text-sm leading-6 text-muted-foreground sm:text-left">
                   {isStreamer
                     ? "Здесь живут реальные аккаунтные настройки стримера: имя, TikTok, аватар, баннер и короткое позиционирование. Всё это уходит в публичную страницу и студию без ручных ссылок на картинки."
                     : "Здесь живут реальные настройки зрителя: имя, username, TikTok, био и локально загружаемый аватар внутри платформы."}
@@ -313,10 +313,10 @@ function ProfilePage() {
             </div>
 
             <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-              <Button variant="outline" size="sm" onClick={signOut} className="gap-2">
+              <Button variant="outline" size="sm" onClick={signOut} className="w-full gap-2 sm:w-auto">
                 <LogOut className="h-4 w-4" /> Выйти
               </Button>
-              <Button onClick={handleSave} disabled={settingsSaving || settingsLoading || !settings} className="gap-2 bg-gradient-cosmic text-foreground">
+              <Button onClick={handleSave} disabled={settingsSaving || settingsLoading || !settings} className="w-full gap-2 bg-gradient-cosmic text-foreground sm:w-auto">
                 <Save className="h-4 w-4" /> {settingsSaving ? "Сохраняю…" : "Сохранить настройки"}
               </Button>
             </div>
@@ -376,10 +376,10 @@ function ProfilePage() {
                   ]}
             />
 
-            <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+            <section className="rounded-3xl border border-border/50 bg-surface/60 p-5 sm:p-6">
               <div className="flex items-center gap-2">
                 <UserRound className="h-5 w-5 text-cosmic" />
-                <h2 className="font-display text-2xl font-bold">Базовые настройки аккаунта</h2>
+                <h2 className="font-display text-xl font-bold sm:text-2xl">Базовые настройки аккаунта</h2>
               </div>
               <div className="mt-2 text-sm text-muted-foreground">Общие поля для любого пользователя платформы: имя, username, TikTok, био и аватар.</div>
 
@@ -419,10 +419,10 @@ function ProfilePage() {
             </section>
 
             {isStreamer && (
-              <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+              <section className="rounded-3xl border border-border/50 bg-surface/60 p-5 sm:p-6">
                 <div className="flex items-center gap-2">
                   <Wallpaper className="h-5 w-5 text-blast" />
-                  <h2 className="font-display text-2xl font-bold">Оформление стримера</h2>
+                  <h2 className="font-display text-xl font-bold sm:text-2xl">Оформление стримера</h2>
                 </div>
                 <div className="mt-2 text-sm text-muted-foreground">Блок для публичной страницы: баннер, tagline и Telegram-канал. Всё хранится централизованно и больше не зависит от внешних image URL.</div>
 
@@ -456,10 +456,10 @@ function ProfilePage() {
             )}
 
             {!isStreamer && streamerApplication && (
-              <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+              <section className="rounded-3xl border border-border/50 bg-surface/60 p-5 sm:p-6">
                 <div className="flex items-center gap-2">
                   <BadgeCheck className="h-5 w-5 text-blast" />
-                  <h2 className="font-display text-2xl font-bold">Заявка на профиль стримера</h2>
+                  <h2 className="font-display text-xl font-bold sm:text-2xl">Заявка на профиль стримера</h2>
                 </div>
                 <div className="mt-2 text-sm text-muted-foreground">
                   Публичную страницу и студию получают только подтверждённые стримеры. Если хочешь кабинет стримера, отправь заявку и приложи доказательство, что реально стримишь.
@@ -506,8 +506,8 @@ function ProfilePage() {
                   </div>
                 </div>
 
-                <div className="mt-5 flex flex-wrap gap-3">
-                  <Button onClick={handleSubmitStreamerApplication} disabled={applicationSubmitting || applicationLoading} className="gap-2 bg-gradient-blast text-blast-foreground">
+                <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                  <Button onClick={handleSubmitStreamerApplication} disabled={applicationSubmitting || applicationLoading} className="w-full gap-2 bg-gradient-blast text-blast-foreground sm:w-auto">
                     <Send className="h-4 w-4" /> {applicationSubmitting ? "Отправляю заявку…" : applicationStatus === "rejected" ? "Отправить заново" : "Подать заявку"}
                   </Button>
                   {streamerApplication.submittedAt ? (
@@ -611,7 +611,7 @@ function MediaUploadCard({
         <h3 className="font-semibold">{title}</h3>
       </div>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
-      <div className={`mt-4 overflow-hidden rounded-2xl border border-border/50 bg-surface-2 ${isBanner ? "h-44" : "h-40 w-40"}`}>
+      <div className={`mt-4 overflow-hidden rounded-2xl border border-border/50 bg-surface-2 ${isBanner ? "h-44 w-full" : "mx-auto h-40 w-full max-w-40 sm:mx-0"}`}>
         {previewUrl ? (
           <img src={previewUrl} alt={title} className="h-full w-full object-cover" />
         ) : (
@@ -644,7 +644,7 @@ function StatBox({ icon, label, value, accent }: { icon: React.ReactNode; label:
     <div className="rounded-2xl border border-border/50 bg-surface/60 p-4">
       <div className={`flex h-9 w-9 items-center justify-center rounded-lg bg-surface-2 ${color}`}>{icon}</div>
       <div className={`mt-3 font-display text-2xl font-bold ${color}`}>{value}</div>
-      <div className="mt-1 text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="mt-1 text-[11px] uppercase tracking-wider text-muted-foreground sm:text-xs">{label}</div>
     </div>
   );
 }

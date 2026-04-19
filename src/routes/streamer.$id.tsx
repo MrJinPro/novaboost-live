@@ -337,36 +337,36 @@ function StreamerProfile() {
   return (
     <div className="min-h-screen">
       <Header />
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-4 py-5 md:py-6">
         <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/streamers" })} className="gap-1.5 -ml-3">
           <ArrowLeft className="h-4 w-4" /> К каталогу
         </Button>
 
         <div className="mt-6 overflow-hidden rounded-3xl border border-border/50 bg-surface/70">
-          <div className={`h-44 w-full bg-linear-to-r ${streamer.accent}`} style={{ backgroundImage: `linear-gradient(135deg, rgba(255,255,255,0.05), transparent), url(${streamer.banner_url})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+          <div className={`h-36 w-full bg-linear-to-r sm:h-44 ${streamer.accent}`} style={{ backgroundImage: `linear-gradient(135deg, rgba(255,255,255,0.05), transparent), url(${streamer.banner_url})`, backgroundSize: "cover", backgroundPosition: "center" }} />
 
-          <div className={`relative px-6 pb-6 md:px-10 md:pb-10 ${boosted ? "shadow-glow" : ""}`}>
-            <div className="relative -mt-14 flex flex-col md:flex-row md:items-end gap-6">
+          <div className={`relative px-4 pb-5 sm:px-6 sm:pb-6 md:px-10 md:pb-10 ${boosted ? "shadow-glow" : ""}`}>
+            <div className="relative -mt-12 flex flex-col gap-5 md:-mt-14 md:flex-row md:items-end md:gap-6">
               <div className="relative shrink-0">
                 <img
                   src={streamer.avatar_url ?? ""}
                   alt={streamer.display_name}
-                  className={`h-28 w-28 rounded-full bg-surface-2 object-cover ring-4 ${boosted ? "ring-blast/60" : "ring-border"}`}
+                  className={`h-24 w-24 rounded-full bg-surface-2 object-cover ring-4 sm:h-28 sm:w-28 ${boosted ? "ring-blast/60" : "ring-border"}`}
                 />
                 {streamer.is_live && (
                   <span className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-live ring-4 ring-background animate-pulse-live" />
                 )}
               </div>
 
-              <div className="flex-1 min-w-0 pt-3 md:pt-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="font-display font-bold text-3xl md:text-4xl">{streamer.display_name}</h1>
+              <div className="min-w-0 flex-1 pt-2 md:pt-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="font-display text-2xl font-bold leading-tight sm:text-3xl md:text-4xl">{streamer.display_name}</h1>
                   {boosted && <span className="text-3xl text-crown">👑</span>}
                   {streamer.is_live && <LiveIndicator size="md" />}
                 </div>
                 <div className="mt-1 text-muted-foreground">@{streamer.tiktok_username}</div>
-                <p className="mt-3 max-w-3xl text-foreground/90">{streamer.tagline}</p>
-                {streamer.bio && <p className="mt-3 text-sm text-muted-foreground max-w-2xl">{streamer.bio}</p>}
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-foreground/90 sm:text-base">{streamer.tagline}</p>
+                {streamer.bio && <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">{streamer.bio}</p>}
 
                 <div className="mt-4 flex flex-wrap gap-2">
                   {streamer.tags.map((tag) => (
@@ -383,7 +383,7 @@ function StreamerProfile() {
                 )}
               </div>
 
-              <div className="flex md:flex-col gap-3 shrink-0 pt-3 md:pt-0">
+              <div className="flex w-full shrink-0 flex-col gap-3 pt-1 sm:pt-3 md:w-auto md:pt-0">
                 <a href={`https://www.tiktok.com/@${streamer.tiktok_username}/live`} target="_blank" rel="noopener noreferrer">
                   <Button size="lg" className="bg-gradient-blast text-blast-foreground hover:opacity-90 shadow-glow font-bold gap-2 w-full">
                     <ExternalLink className="h-4 w-4" /> Перейти на стрим
@@ -457,11 +457,11 @@ function StreamerProfile() {
         </div>
 
         <div className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-          <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+          <section className="rounded-3xl border border-border/50 bg-surface/60 p-5 sm:p-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Публичный профиль</div>
-                <h2 className="mt-2 font-display text-2xl font-bold">О стримере</h2>
+                <h2 className="mt-2 font-display text-xl font-bold sm:text-2xl">О стримере</h2>
               </div>
               <div className="rounded-2xl border border-border/50 bg-background/30 px-4 py-3 text-right">
                 <div className="text-xs uppercase tracking-wider text-muted-foreground">TikTok LIVE</div>
@@ -490,7 +490,7 @@ function StreamerProfile() {
           </section>
 
           <section className="overflow-hidden rounded-3xl border border-border/50 bg-surface/60">
-            <div className="relative min-h-80 bg-surface-2">
+            <div className="relative min-h-72 bg-surface-2 sm:min-h-80">
               {featuredVideoCover ? (
                 <div
                   className="absolute inset-0 bg-cover bg-center"
@@ -499,20 +499,20 @@ function StreamerProfile() {
               ) : (
                 <div className={`absolute inset-0 bg-linear-to-br ${streamer.accent}`} />
               )}
-              <div className="relative flex h-full min-h-80 flex-col justify-end p-6">
+              <div className="relative flex h-full min-h-72 flex-col justify-end p-5 sm:min-h-80 sm:p-6">
                 <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/15 bg-black/25 px-3 py-1 text-xs uppercase tracking-[0.2em] text-white/80">
                   <Play className="h-3.5 w-3.5" /> Главный тизер
                 </div>
-                <h2 className="mt-4 max-w-lg font-display text-3xl font-bold text-white">{streamer.display_name} показывает страницу не только для live, но и между эфирами.</h2>
+                <h2 className="mt-4 max-w-lg font-display text-2xl font-bold text-white sm:text-3xl">{streamer.display_name} показывает страницу не только для live, но и между эфирами.</h2>
                 <p className="mt-3 max-w-xl text-sm leading-6 text-white/75">Используй этот блок как главный ролик: анонс следующего эфира, лучший фрагмент или короткое знакомство со стримером.</p>
-                <div className="mt-5 flex flex-wrap gap-3">
+                <div className="mt-5 grid gap-3 sm:flex sm:flex-wrap">
                   <a href={`https://www.tiktok.com/@${streamer.tiktok_username}/live`} target="_blank" rel="noopener noreferrer">
-                    <Button className="gap-2 bg-white text-black hover:bg-white/90">
+                    <Button className="w-full gap-2 bg-white text-black hover:bg-white/90 sm:w-auto">
                       <ExternalLink className="h-4 w-4" /> Открыть TikTok LIVE
                     </Button>
                   </a>
                   {featuredVideoCover && (
-                    <Button variant="outline" className="gap-2 border-white/20 bg-black/20 text-white hover:bg-black/30">
+                    <Button variant="outline" className="w-full gap-2 border-white/20 bg-black/20 text-white hover:bg-black/30 sm:w-auto">
                       <Play className="h-4 w-4" /> Главный ролик подключён
                     </Button>
                   )}
@@ -523,8 +523,8 @@ function StreamerProfile() {
         </div>
 
         <div className="mt-6 grid gap-4 lg:grid-cols-[1.3fr_0.7fr]">
-          <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
-            <h2 className="font-display font-bold text-2xl">Контент стримера</h2>
+          <section className="rounded-3xl border border-border/50 bg-surface/60 p-5 sm:p-6">
+            <h2 className="font-display text-xl font-bold sm:text-2xl">Контент стримера</h2>
             <p className="mt-2 text-sm text-muted-foreground">Платформа должна жить между эфирами, поэтому здесь посты, анонсы и сигналы для подписчиков.</p>
             <div className="mt-5 space-y-3">
               {streamer.posts.length === 0 ? (
@@ -586,10 +586,10 @@ function StreamerProfile() {
           <section className="space-y-4">
             {streamer.donation_link_slug ? (
               <div className="lg:sticky lg:top-20 lg:z-20">
-                <div className="overflow-hidden rounded-4xl border border-blast/30 bg-[radial-gradient(circle_at_top,rgba(255,133,32,0.18),transparent_58%),linear-gradient(180deg,rgba(19,13,44,0.96),rgba(14,11,34,0.96))] p-6 shadow-glow">
+                <div className="overflow-hidden rounded-4xl border border-blast/30 bg-[radial-gradient(circle_at_top,rgba(255,133,32,0.18),transparent_58%),linear-gradient(180deg,rgba(19,13,44,0.96),rgba(14,11,34,0.96))] p-5 sm:p-6 shadow-glow">
                   <div className="flex items-center gap-2">
                     <Wallet className="h-5 w-5 text-blast" />
-                    <h2 className="font-display font-bold text-2xl">Поддержка стримера</h2>
+                    <h2 className="font-display text-xl font-bold sm:text-2xl">Поддержка стримера</h2>
                   </div>
                   <p className="mt-3 text-sm leading-6 text-muted-foreground">
                     {streamer.donation_link_title ?? "Поддержать эфир через NovaBoost Live"}
@@ -633,9 +633,9 @@ function StreamerProfile() {
               </div>
             ) : null}
 
-            <div className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+            <div className="rounded-3xl border border-border/50 bg-surface/60 p-5 sm:p-6">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="font-display font-bold text-xl">Тарифы NovaBoost</h2>
+                <h2 className="font-display text-xl font-bold">Тарифы NovaBoost</h2>
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   <div className="rounded-full border border-border/50 bg-background/30 px-3 py-1 text-xs text-muted-foreground">
                     План: {membershipLoading ? "обновляю…" : membershipState.planKey}
@@ -685,7 +685,7 @@ function StreamerProfile() {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+            <div className="rounded-3xl border border-border/50 bg-surface/60 p-5 sm:p-6">
               <h2 className="font-display font-bold text-xl">Сигналы платформы</h2>
               <p className="mt-3 text-sm text-muted-foreground">{streamer.next_event}</p>
               <p className="mt-3 text-sm text-muted-foreground">{streamer.support_goal}</p>
@@ -697,7 +697,7 @@ function StreamerProfile() {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+            <div className="rounded-3xl border border-border/50 bg-surface/60 p-5 sm:p-6">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="font-display font-bold text-xl">Последние события эфира</h2>
                 <div className="rounded-full border border-border/50 bg-background/30 px-3 py-1 text-xs text-muted-foreground">
@@ -726,8 +726,8 @@ function StreamerProfile() {
           </section>
         </div>
 
-        <section className="mt-6 rounded-3xl border border-border/50 bg-surface/60 p-6">
-          <h2 className="font-display font-bold text-2xl">Короткие видео и тизеры</h2>
+        <section className="mt-6 rounded-3xl border border-border/50 bg-surface/60 p-5 sm:p-6">
+          <h2 className="font-display text-xl font-bold sm:text-2xl">Короткие видео и тизеры</h2>
           <p className="mt-2 text-sm text-muted-foreground">Здесь собираются несколько видео стримера: тизеры, клипы и обложки главных моментов.</p>
           <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {streamer.videos.length === 0 ? (
@@ -756,7 +756,7 @@ function StreamerProfile() {
           </div>
         </section>
 
-        <section className="mt-6 rounded-3xl border border-border/50 bg-surface/60 p-6">
+        <section className="mt-6 rounded-3xl border border-border/50 bg-surface/60 p-5 sm:p-6">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/30 px-3 py-1 text-xs text-muted-foreground">
