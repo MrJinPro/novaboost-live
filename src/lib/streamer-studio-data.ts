@@ -786,13 +786,13 @@ export async function getStreamerSubscriptionState(streamerId: string, userId: s
     .select("id")
     .eq("streamer_id", streamerId)
     .eq("user_id", userId)
-    .maybeSingle();
+    .limit(1);
 
   if (error) {
     throw error;
   }
 
-  return Boolean(data);
+  return (data?.length ?? 0) > 0;
 }
 
 export async function toggleStreamerSubscription(streamerId: string, userId: string, subscribed: boolean) {
@@ -812,14 +812,17 @@ export async function toggleStreamerSubscription(streamerId: string, userId: str
 
   const { error } = await supabase
     .from("streamer_subscriptions")
-    .insert({
-      streamer_id: streamerId,
-      user_id: userId,
-      notification_enabled: true,
-      telegram_enabled: false,
-    });
+    .upsert(
+      {
+        streamer_id: streamerId,
+        user_id: userId,
+        notification_enabled: true,
+        telegram_enabled: false,
+      },
+      { onConflict: "streamer_id,user_id", ignoreDuplicates: true },
+    );
 
-  if (error && error.code !== "23505") {
+  if (error) {
     throw error;
   }
 

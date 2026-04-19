@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { AppUser, StreamerCardData } from "@/lib/mock-platform";
 import { getViewerProfileStatsCompat } from "./profile-schema-compat";
+import { resolveLinkedStreamer } from "./streamer-profile-linking";
 
 type SubscriptionStreamerRow = {
   id: string;
@@ -43,6 +44,64 @@ async function getViewerProfile(userId: string) {
   return getViewerProfileStatsCompat(userId);
 }
 
+function getIsoDay(value: string) {
+  return value.slice(0, 10);
+}
+
+function addUtcDays(day: string, offset: number) {
+  const date = new Date(`${day}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + offset);
+  return date.toISOString().slice(0, 10);
+}
+
+function calculateConsecutiveDayStreak(days: string[]) {
+  if (days.length === 0) {
+    return 0;
+  }
+
+  let streak = 1;
+
+  for (let index = 1; index < days.length; index += 1) {
+    if (days[index] !== addUtcDays(days[index - 1], -1)) {
+      break;
+    }
+
+    streak += 1;
+  }
+
+  return streak;
+}
+
+async function getStreamerLiveStreak(user: AppUser) {
+  const streamer = await resolveLinkedStreamer({
+    userId: user.id,
+    tiktokUsername: user.tiktokUsername,
+    displayName: user.displayName,
+    claimIfNeeded: false,
+  });
+
+  if (!streamer) {
+    return 0;
+  }
+
+  const { data, error } = await supabase
+    .from("stream_sessions")
+    .select("started_at")
+    .eq("streamer_id", streamer.id)
+    .order("started_at", { ascending: false })
+    .limit(30);
+
+  if (error) {
+    throw error;
+  }
+
+  const uniqueDays = Array.from(
+    new Set(((data ?? []) as Array<{ started_at: string }>).map((row) => getIsoDay(row.started_at))),
+  );
+
+  return calculateConsecutiveDayStreak(uniqueDays);
+}
+
 async function getSubscriptions(userId: string) {
   const { data, error } = await supabase
     .from("streamer_subscriptions")
@@ -53,7 +112,7 @@ async function getSubscriptions(userId: string) {
     throw error;
   }
 
-  const ids = ((data ?? []) as Array<{ streamer_id: string }>).map((row) => row.streamer_id);
+  const ids = Array.from(new Set(((data ?? []) as Array<{ streamer_id: string }>).map((row) => row.streamer_id)));
 
   if (ids.length === 0) {
     return [];
@@ -87,17 +146,18 @@ async function getCount(table: "task_completions" | "boosts", column: string, va
 }
 
 export async function loadViewerProfileData(user: AppUser): Promise<ViewerProfileData> {
-  const [profile, subscriptions, completedTasks, boostsJoined] = await Promise.all([
+  const [profile, subscriptions, completedTasks, boostsJoined, liveStreak] = await Promise.all([
     getViewerProfile(user.id),
     getSubscriptions(user.id),
     getCount("task_completions", "user_id", user.id),
     getCount("boosts", "user_id", user.id),
+    getStreamerLiveStreak(user).catch(() => 0),
   ]);
 
   return {
     points: profile?.points ?? 0,
     level: profile?.level ?? 1,
-    streakDays: profile?.streak_days ?? 0,
+    streakDays: Math.max(profile?.streak_days ?? 0, liveStreak),
     completedTasks,
     boostsJoined,
     subscriptions,

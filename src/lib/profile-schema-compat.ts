@@ -13,7 +13,42 @@ export type ViewerProfileStatsCompat = {
   points: number;
   level: number;
   streak_days: number;
+  last_activity_at?: string | null;
 };
+
+function getIsoDay(value: string) {
+  return value.slice(0, 10);
+}
+
+function addUtcDays(day: string, offset: number) {
+  const date = new Date(`${day}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + offset);
+  return date.toISOString().slice(0, 10);
+}
+
+export function resolveNextActivityStreak(input: {
+  currentStreak?: number | null;
+  lastActivityAt?: string | null;
+  now?: Date;
+}) {
+  const currentStreak = Math.max(0, input.currentStreak ?? 0);
+  const today = (input.now ?? new Date()).toISOString().slice(0, 10);
+  const lastDay = input.lastActivityAt ? getIsoDay(input.lastActivityAt) : null;
+
+  if (!lastDay) {
+    return 1;
+  }
+
+  if (lastDay === today) {
+    return Math.max(1, currentStreak);
+  }
+
+  if (lastDay === addUtcDays(today, -1)) {
+    return Math.max(1, currentStreak) + 1;
+  }
+
+  return 1;
+}
 
 function isSchemaMismatch(error: unknown) {
   if (!error || typeof error !== "object") {
@@ -109,12 +144,12 @@ export async function upsertAuthProfileCompat(input: {
 export async function getViewerProfileStatsCompat(userId: string) {
   const full = await supabase
     .from("profiles")
-    .select("points, level, streak_days")
+    .select("points, level, streak_days, last_activity_at")
     .eq("id", userId)
     .maybeSingle();
 
   if (!full.error) {
-    return (full.data ?? { points: 0, level: 1, streak_days: 0 }) as ViewerProfileStatsCompat;
+    return (full.data ?? { points: 0, level: 1, streak_days: 0, last_activity_at: null }) as ViewerProfileStatsCompat;
   }
 
   if (!isSchemaMismatch(full.error)) {
@@ -135,6 +170,7 @@ export async function getViewerProfileStatsCompat(userId: string) {
     points: fallback.data?.points ?? 0,
     level: fallback.data?.level ?? 1,
     streak_days: 0,
+    last_activity_at: null,
   } satisfies ViewerProfileStatsCompat;
 }
 

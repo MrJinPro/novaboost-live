@@ -31,7 +31,7 @@ npm run start:backend
 
 1. В backend env установить `LIVE_STORAGE_DRIVER=postgres`
 2. Указать `POSTGRES_URL=...`
-3. Оставить `SUPABASE_URL` и `SUPABASE_PUBLISHABLE_KEY`, если backend должен читать список стримеров из Supabase на переходном этапе
+3. Оставить доступ к Supabase для чтения списка стримеров на переходном этапе: достаточно либо `SUPABASE_URL` + `SUPABASE_PUBLISHABLE_KEY`, либо `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`
 4. После `git pull` на сервере вручную применить SQL-схему из [backend/sql/001_live_tracking_postgres.sql](sql/001_live_tracking_postgres.sql)
 
 Пример применения:

@@ -52,11 +52,11 @@ function mapSessionRow(row: PostgresStreamSessionRow): StreamSessionRow {
 
 export class PostgresTrackingStore implements TrackingStore {
   private readonly pool: Pool;
-  private readonly publicSupabase: SupabaseClient | null;
+  private readonly streamersReader: SupabaseClient | null;
 
-  constructor(env: BackendEnv) {
+  constructor(env: BackendEnv, streamersReader?: SupabaseClient | null) {
     this.pool = new Pool({ connectionString: env.POSTGRES_URL });
-    this.publicSupabase = createPublicSupabaseClient(env);
+    this.streamersReader = streamersReader ?? createPublicSupabaseClient(env);
   }
 
   async getStreamerLiveState(streamerId: string) {
@@ -69,11 +69,11 @@ export class PostgresTrackingStore implements TrackingStore {
       return state.rows[0];
     }
 
-    if (!this.publicSupabase) {
+    if (!this.streamersReader) {
       return null;
     }
 
-    const { data, error } = await this.publicSupabase
+    const { data, error } = await this.streamersReader
       .from("streamers")
       .select("id, tiktok_username, is_live, viewer_count")
       .eq("id", streamerId)
@@ -87,11 +87,11 @@ export class PostgresTrackingStore implements TrackingStore {
   }
 
   async getTrackedStreamers() {
-    if (!this.publicSupabase) {
+    if (!this.streamersReader) {
       return [];
     }
 
-    const { data, error } = await this.publicSupabase
+    const { data, error } = await this.streamersReader
       .from("streamers")
       .select("id, display_name, tiktok_username, is_live, viewer_count, followers_count, tracking_enabled, tracking_source, last_checked_live_at")
       .eq("tracking_enabled", true)

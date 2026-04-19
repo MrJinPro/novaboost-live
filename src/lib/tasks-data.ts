@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { AppUser } from "@/lib/mock-platform";
-import { getViewerProfileStatsCompat, updateViewerProfileProgressCompat } from "./profile-schema-compat";
+import { getViewerProfileStatsCompat, resolveNextActivityStreak, updateViewerProfileProgressCompat } from "./profile-schema-compat";
 import { resolveLinkedStreamer } from "./streamer-profile-linking";
 
 export type LiveTask = {
@@ -116,7 +116,10 @@ export async function completeLiveTask(user: AppUser, task: LiveTask) {
     userId: user.id,
     points: nextPoints,
     level: nextLevel,
-    streak_days: Math.max(1, current.streak_days ?? 0),
+    streak_days: resolveNextActivityStreak({
+      currentStreak: current.streak_days,
+      lastActivityAt: current.last_activity_at,
+    }),
   });
 
   return {

@@ -9,7 +9,7 @@ import type { TrackingStore, ViewerEngagementStore } from "./live-storage.js";
 export function createLiveStorage(env: BackendEnv, supabaseAdmin: SupabaseClient | null) {
   if (env.LIVE_STORAGE_DRIVER === "postgres" && env.POSTGRES_URL) {
     return {
-      trackingStore: new PostgresTrackingStore(env) as TrackingStore,
+      trackingStore: new PostgresTrackingStore(env, supabaseAdmin) as TrackingStore,
       engagementStore: undefined,
     };
   }

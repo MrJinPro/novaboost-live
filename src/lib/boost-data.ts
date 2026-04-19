@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { AppUser } from "@/lib/mock-platform";
-import { getViewerProfileStatsCompat, updateViewerProfileProgressCompat } from "@/lib/profile-schema-compat";
+import { getViewerProfileStatsCompat, resolveNextActivityStreak, updateViewerProfileProgressCompat } from "@/lib/profile-schema-compat";
 
 function resolveBoostDurationMinutes(amount: number) {
   if (amount >= 120) {
@@ -48,7 +48,10 @@ export async function createBoost(user: AppUser, streamerId: string, amount: num
     userId: user.id,
     points: nextPoints,
     level: viewerProfile.level ?? 1,
-    streak_days: viewerProfile.streak_days ?? 0,
+    streak_days: resolveNextActivityStreak({
+      currentStreak: viewerProfile.streak_days,
+      lastActivityAt: viewerProfile.last_activity_at,
+    }),
   });
 
   return {

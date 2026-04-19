@@ -23,6 +23,7 @@ type DbStreamerCard = {
 
 type DbStreamerSubscription = {
   streamer_id: string;
+  user_id: string;
 };
 
 type DbPageSettingsLogo = {
@@ -79,17 +80,30 @@ export async function loadStreamerDirectory() {
   try {
     const { data: subscriptionRows, error: subscriptionError } = await supabase
       .from("streamer_subscriptions")
-      .select("streamer_id")
+      .select("streamer_id, user_id")
       .in("streamer_id", streamers.map((row) => row.id));
 
     if (subscriptionError) {
       throw subscriptionError;
     }
 
+    const uniqueSubscriptions = new Set<string>();
+
     subscriptionCounts = ((subscriptionRows ?? []) as DbStreamerSubscription[]).reduce((map, row) => {
-      map.set(row.streamer_id, (map.get(row.streamer_id) ?? 0) + 1);
+      const key = `${row.streamer_id}:${row.user_id}`;
+
+      if (uniqueSubscriptions.has(key)) {
+        return map;
+      }
+
+      uniqueSubscriptions.add(key);
       return map;
     }, new Map<string, number>());
+
+    for (const key of uniqueSubscriptions) {
+      const [streamerId] = key.split(":", 1);
+      subscriptionCounts.set(streamerId, (subscriptionCounts.get(streamerId) ?? 0) + 1);
+    }
   } catch {
     // Keep follower-based fallbacks when subscription rows are unavailable.
   }
