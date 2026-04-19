@@ -176,8 +176,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Укажи TikTok username для регистрации.");
     }
 
-    const tiktokProfile = await lookupTikTokProfile(normalizedTikTokUsername);
-    const normalizedDisplayName = payload.displayName?.trim() || tiktokProfile.displayName || emailLocalPart;
+    const tiktokProfile = await lookupTikTokProfile(normalizedTikTokUsername).catch(() => null);
+    const normalizedDisplayName = payload.displayName?.trim() || tiktokProfile?.displayName || emailLocalPart;
 
     const { data, error } = await supabase.auth.signUp({
       email: payload.email,
@@ -188,8 +188,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           display_name: normalizedDisplayName,
           tiktok_username: normalizedTikTokUsername,
           account_role: payload.accountRole,
-          avatar_url: tiktokProfile.avatarUrl,
-          bio: tiktokProfile.bio,
+          avatar_url: tiktokProfile?.avatarUrl ?? null,
+          bio: tiktokProfile?.bio ?? null,
           preferred_language: "ru",
         },
       },
