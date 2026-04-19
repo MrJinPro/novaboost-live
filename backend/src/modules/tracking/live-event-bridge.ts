@@ -458,7 +458,7 @@ export class TrackingLiveEventBridge {
 
 function normalizeTikTokUsername(input: string) {
   const normalized = input.trim().replace(/^@+/, "");
-  return normalized ? `@${normalized}` : null;
+  return normalized || null;
 }
 
 function parseNumeric(value: unknown) {
