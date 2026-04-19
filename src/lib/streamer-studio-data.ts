@@ -56,10 +56,102 @@ const DEFAULT_DONATION_OVERLAY: DonationOverlaySettings = {
   goalCurrency: "USD",
 };
 
+const DEFAULT_STREAMER_THEMES = [
+  {
+    accent: "from-cosmic/85 via-magenta/35 to-blast/75",
+    colors: ["#6D28D9", "#EC4899", "#F97316"],
+  },
+  {
+    accent: "from-sky-500/85 via-cyan-400/35 to-emerald-400/75",
+    colors: ["#0284C7", "#22D3EE", "#34D399"],
+  },
+  {
+    accent: "from-amber-500/85 via-rose-400/35 to-fuchsia-500/75",
+    colors: ["#F59E0B", "#FB7185", "#D946EF"],
+  },
+  {
+    accent: "from-indigo-500/85 via-violet-400/35 to-cyan-400/75",
+    colors: ["#6366F1", "#A78BFA", "#22D3EE"],
+  },
+] as const;
+
 function createOverlayAccessKey() {
   const bytes = new Uint8Array(18);
   globalThis.crypto.getRandomValues(bytes);
   return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
+}
+
+function hashString(value: string) {
+  let hash = 0;
+  for (const char of value) {
+    hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  }
+
+  return hash;
+}
+
+function getStreamerThemeSeed(tiktokUsername: string, displayName: string) {
+  const seed = `${tiktokUsername}:${displayName}`.trim().toLowerCase() || "novaboost";
+  return DEFAULT_STREAMER_THEMES[hashString(seed) % DEFAULT_STREAMER_THEMES.length];
+}
+
+function escapeSvgText(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function createDefaultBannerDataUrl(displayName: string, tiktokUsername: string) {
+  const theme = getStreamerThemeSeed(tiktokUsername, displayName);
+  const title = escapeSvgText(displayName || "NovaBoost Live");
+  const username = escapeSvgText(tiktokUsername ? `@${tiktokUsername}` : "TikTok LIVE");
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 520" fill="none">
+      <defs>
+        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="${theme.colors[0]}" />
+          <stop offset="52%" stop-color="${theme.colors[1]}" />
+          <stop offset="100%" stop-color="${theme.colors[2]}" />
+        </linearGradient>
+        <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1280 90) rotate(130) scale(520 380)">
+          <stop stop-color="white" stop-opacity="0.24" />
+          <stop offset="1" stop-color="white" stop-opacity="0" />
+        </radialGradient>
+      </defs>
+      <rect width="1600" height="520" fill="url(#bg)"/>
+      <rect width="1600" height="520" fill="rgba(5,10,20,0.18)"/>
+      <circle cx="1320" cy="90" r="340" fill="url(#glow)" />
+      <circle cx="220" cy="500" r="260" fill="rgba(255,255,255,0.08)" />
+      <path d="M0 420C180 350 320 330 470 360C630 392 780 470 930 476C1080 483 1220 420 1360 392C1460 372 1540 374 1600 386V520H0V420Z" fill="rgba(255,255,255,0.08)"/>
+      <g opacity="0.12">
+        <path d="M1180 40h260v42h-260zM1248 118h192v18h-192zM1124 150h316v18h-316z" fill="white"/>
+      </g>
+      <text x="84" y="184" fill="white" font-size="28" font-family="Arial, sans-serif" opacity="0.78">NovaBoost Live</text>
+      <text x="84" y="276" fill="white" font-size="72" font-weight="700" font-family="Arial, sans-serif">${title}</text>
+      <text x="84" y="334" fill="white" font-size="34" font-family="Arial, sans-serif" opacity="0.86">${username}</text>
+      <text x="84" y="414" fill="white" font-size="26" font-family="Arial, sans-serif" opacity="0.72">LIVE, анонсы, контент между эфирами и внутренняя поддержка сообщества</text>
+    </svg>`;
+
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg.replace(/\s+/g, " ").trim())}`;
+}
+
+function createDefaultHeadline(displayName: string, tiktokUsername: string) {
+  if (displayName && tiktokUsername) {
+    return `${displayName} в NovaBoost Live: эфиры, анонсы и контент между стримами.`;
+  }
+
+  if (displayName) {
+    return `${displayName} в NovaBoost Live: публичная страница для эфиров и комьюнити.`;
+  }
+
+  return "Публичная страница стримера в NovaBoost Live.";
+}
+
+function createDefaultTags(tiktokUsername: string) {
+  return ["live", "creator", tiktokUsername || "novaboost"].join(", ");
 }
 
 function resolveDonationOverlayVariant(value: unknown): DonationOverlayVariant {
@@ -108,16 +200,18 @@ function toPublicDonationOverlaySettings(layout: unknown): DonationOverlaySettin
 }
 
 function createEmptyStudioDraft(tiktokUsername: string, displayName: string): StreamerStudioDraft {
+  const theme = getStreamerThemeSeed(tiktokUsername, displayName);
+
   return {
-    bannerUrl: "",
+    bannerUrl: createDefaultBannerDataUrl(displayName, tiktokUsername),
     logoUrl: "",
-    headline: displayName ? `Публичная страница ${displayName}` : "Публичная страница стримера",
+    headline: createDefaultHeadline(displayName, tiktokUsername),
     bio: tiktokUsername
-      ? `Подписывайся на @${tiktokUsername}, чтобы следить за анонсами и активностью между эфирами.`
+      ? `Подписывайся на @${tiktokUsername}, чтобы следить за live-активностью, анонсами, новостями и движением комьюнити между эфирами.`
       : "Расскажи, зачем зрителю подписываться на тебя внутри платформы и что происходит на твоих эфирах.",
     telegramChannel: "",
-    accent: "from-cosmic/80 via-magenta/30 to-blast/70",
-    tags: "",
+    accent: theme.accent,
+    tags: createDefaultTags(tiktokUsername),
     featuredVideoUrl: "",
     donationOverlayVariant: DEFAULT_DONATION_OVERLAY.variant,
     donationSoundUrl: DEFAULT_DONATION_OVERLAY.soundUrl,
@@ -649,9 +743,9 @@ export async function loadPublicStreamerPage(id: string) {
     display_name: streamer.display_name,
     tiktok_username: streamer.tiktok_username,
     avatar_url: settings?.logo_url ?? streamer.logo_url ?? streamer.avatar_url,
-    banner_url: settings?.banner_url ?? streamer.banner_url ?? "",
+    banner_url: settings?.banner_url ?? streamer.banner_url ?? createDefaultBannerDataUrl(streamer.display_name, streamer.tiktok_username),
     bio: settings?.description ?? streamer.bio ?? "",
-    tagline: settings?.headline ?? streamer.tagline ?? "Публичная страница стримера внутри NovaBoost Live.",
+    tagline: settings?.headline ?? streamer.tagline ?? createDefaultHeadline(streamer.display_name, streamer.tiktok_username),
     featured_video_url: settings?.featured_video_url ?? media[0]?.cover ?? null,
     is_live: liveStatus?.isLive ?? streamer.is_live,
     viewer_count: liveStatus?.viewerCount ?? streamer.viewer_count,
@@ -668,10 +762,12 @@ export async function loadPublicStreamerPage(id: string) {
     peak_viewer_count: resolvedSession?.peak_viewer_count ?? 0,
     current_session_status: resolvedSession?.status ?? null,
     current_session_started_at: resolvedSession?.started_at ?? null,
-    accent: settings?.accent_color ?? "from-cosmic/80 via-magenta/30 to-blast/70",
+    accent: settings?.accent_color ?? getStreamerThemeSeed(streamer.tiktok_username, streamer.display_name).accent,
     tags: (() => {
       const layout = (settings?.layout ?? {}) as { tags?: string[] };
-      return Array.isArray(layout.tags) ? layout.tags : [];
+      return Array.isArray(layout.tags) && layout.tags.length > 0
+        ? layout.tags
+        : createDefaultTags(streamer.tiktok_username).split(", ");
     })(),
     perks: ["ранний доступ к анонсам", "сигналы по эфирам"],
     donation_link_slug: donationLink?.slug ?? null,

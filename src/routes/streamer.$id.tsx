@@ -7,6 +7,7 @@ import { CurrencySwitcher } from "@/components/CurrencySwitcher";
 import { LocalizedPrice } from "@/components/LocalizedPrice";
 import { BoostBadge } from "@/components/BoostBadge";
 import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
+import { AppAvatar } from "@/components/AppAvatar";
 import { usePaymentComingSoonSurvey } from "@/components/PaymentComingSoonDialog";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Bell, ChevronDown, Crown, Eye, ExternalLink, Play, Send, Sparkles, Users, Wallet, Zap, TrendingUp } from "lucide-react";
@@ -343,14 +344,20 @@ function StreamerProfile() {
         </Button>
 
         <div className="mt-6 overflow-hidden rounded-3xl border border-border/50 bg-surface/70">
-          <div className={`h-36 w-full bg-linear-to-r sm:h-44 ${streamer.accent}`} style={{ backgroundImage: `linear-gradient(135deg, rgba(255,255,255,0.05), transparent), url(${streamer.banner_url})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+          <div className={`relative h-36 w-full overflow-hidden bg-linear-to-r sm:h-44 ${streamer.accent}`} style={{ backgroundImage: `linear-gradient(135deg, rgba(255,255,255,0.08), rgba(8,12,20,0.22)), url(${streamer.banner_url})`, backgroundSize: "cover", backgroundPosition: "center" }}>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_36%)]" />
+            <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-background/45 to-transparent" />
+            <div className="absolute right-4 top-4 hidden rounded-full border border-white/15 bg-black/20 px-3 py-1 text-[10px] uppercase tracking-[0.25em] text-white/75 sm:block">
+              NovaBoost Live
+            </div>
+          </div>
 
           <div className={`relative px-4 pb-5 sm:px-6 sm:pb-6 md:px-10 md:pb-10 ${boosted ? "shadow-glow" : ""}`}>
             <div className="relative -mt-12 flex flex-col gap-5 md:-mt-14 md:flex-row md:items-end md:gap-6">
               <div className="relative shrink-0">
-                <img
+                <AppAvatar
                   src={streamer.avatar_url ?? ""}
-                  alt={streamer.display_name}
+                  name={streamer.display_name}
                   className={`h-24 w-24 rounded-full bg-surface-2 object-cover ring-4 sm:h-28 sm:w-28 ${boosted ? "ring-blast/60" : "ring-border"}`}
                 />
                 {streamer.is_live && (

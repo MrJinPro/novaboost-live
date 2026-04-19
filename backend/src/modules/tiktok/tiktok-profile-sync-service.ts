@@ -14,7 +14,7 @@ type StreamerProfileRow = {
   bio: string | null;
 };
 
-const PROFILE_SYNC_BATCH_SIZE = 25;
+const PROFILE_SYNC_BATCH_SIZE = 250;
 
 export class TikTokProfileSyncService {
   private poller: NodeJS.Timeout | null = null;
