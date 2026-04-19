@@ -90,7 +90,7 @@ function StreamerProfile() {
   useEffect(() => {
     let active = true;
 
-    if (!user || user.role !== "viewer") {
+    if (!user || streamer.owner_user_id === user.id) {
       setSubscribed(false);
       return;
     }
@@ -113,7 +113,7 @@ function StreamerProfile() {
     return () => {
       active = false;
     };
-  }, [id, user]);
+  }, [id, streamer.owner_user_id, user]);
 
   useEffect(() => {
     let active = true;
@@ -247,13 +247,13 @@ function StreamerProfile() {
 
   const handleSubscription = async () => {
     if (!user) {
-      toast.error("Войди как зритель, чтобы подписываться на стримеров");
+      toast.error("Войди в аккаунт, чтобы подписываться на стримеров");
       navigate({ to: "/auth" });
       return;
     }
 
-    if (user.role !== "viewer") {
-      toast.error("Подписка доступна из профиля зрителя");
+    if (streamer.owner_user_id === user.id) {
+      toast.error("Нельзя подписаться на собственную страницу");
       return;
     }
 

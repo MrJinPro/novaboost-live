@@ -646,6 +646,7 @@ export async function loadPublicStreamerPage(id: string) {
 
   return {
     id: streamer.id,
+    owner_user_id: streamer.user_id,
     display_name: streamer.display_name,
     tiktok_username: streamer.tiktok_username,
     avatar_url: settings?.logo_url ?? streamer.logo_url ?? streamer.avatar_url,

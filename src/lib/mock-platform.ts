@@ -113,6 +113,7 @@ export interface DonationEventSummary {
 }
 
 export interface StreamerPageData extends StreamerCardData {
+  owner_user_id?: string | null;
   banner_url: string;
   accent: string;
   tagline: string;
