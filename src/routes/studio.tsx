@@ -5,6 +5,7 @@ import { PlatformDisclaimer } from "@/components/PlatformDisclaimer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/auth-context";
 import type { DonationOverlayDisplayMode, DonationOverlayVariant } from "@/lib/mock-platform";
@@ -362,6 +363,421 @@ function StreamerStudioPage() {
     }
   };
 
+  const pageSettingsSection = (
+    <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+      <div className="flex items-center gap-2">
+        <LayoutPanelTop className="h-5 w-5 text-cosmic" />
+        <h2 className="font-display text-2xl font-bold">Настройка публичной страницы</h2>
+      </div>
+      <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <Field label="Баннер страницы">
+          <Input value={pageDraft.bannerUrl} onChange={(e) => setPageDraft((current) => ({ ...current, bannerUrl: e.target.value }))} placeholder="Ссылка на баннер" />
+        </Field>
+        <Field label="Логотип или аватар">
+          <Input value={pageDraft.logoUrl} onChange={(e) => setPageDraft((current) => ({ ...current, logoUrl: e.target.value }))} placeholder="Ссылка на логотип" />
+        </Field>
+      </div>
+
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <Field label="Главный слоган">
+          <Input value={pageDraft.headline} onChange={(e) => setPageDraft((current) => ({ ...current, headline: e.target.value }))} placeholder="Короткая фраза над лентой" />
+        </Field>
+        <Field label="Telegram-канал">
+          <Input value={pageDraft.telegramChannel} onChange={(e) => setPageDraft((current) => ({ ...current, telegramChannel: e.target.value }))} placeholder="@channel_name" />
+        </Field>
+      </div>
+
+      <div className="mt-4">
+        <Field label="Описание страницы">
+          <Textarea value={pageDraft.bio} onChange={(e) => setPageDraft((current) => ({ ...current, bio: e.target.value }))} placeholder="Объясни, зачем зрителю подписываться на тебя внутри платформы" className="min-h-28 bg-background" />
+        </Field>
+      </div>
+
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <Field label="Accent / фон страницы">
+          <Input value={pageDraft.accent} onChange={(e) => setPageDraft((current) => ({ ...current, accent: e.target.value }))} placeholder="from-cosmic/80 via-magenta/30 to-blast/70" />
+        </Field>
+        <Field label="Теги страницы">
+          <Input value={pageDraft.tags} onChange={(e) => setPageDraft((current) => ({ ...current, tags: e.target.value }))} placeholder="live, анонсы, комьюнити" />
+        </Field>
+      </div>
+
+      <div className="mt-4">
+        <Field label="Превью видео / тизер">
+          <Input value={pageDraft.featuredVideoUrl} onChange={(e) => setPageDraft((current) => ({ ...current, featuredVideoUrl: e.target.value }))} placeholder="Ссылка на превью или обложку" />
+        </Field>
+      </div>
+
+      <div className="mt-6 flex flex-wrap gap-3">
+        <Button onClick={savePage} disabled={savingPage || studioLoading} className="bg-gradient-cosmic font-bold text-foreground">{savingPage ? "Сохраняю…" : "Сохранить настройки страницы"}</Button>
+        <Button variant="outline" className="gap-2"><ImagePlus className="h-4 w-4" /> Загрузить медиа позже</Button>
+      </div>
+    </section>
+  );
+
+  const postsComposerSection = (
+    <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+      <div className="flex items-center gap-2">
+        <PencilLine className="h-5 w-5 text-blast" />
+        <h2 className="font-display text-2xl font-bold">Публикация постов</h2>
+      </div>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Именно здесь публикуются новости, анонсы и короткий контент, который потом виден на публичной странице стримера и может идти в Telegram-контур.
+      </p>
+      {studioLoading && <p className="mt-3 text-xs text-muted-foreground">Загружаю сохранённые посты и настройки…</p>}
+
+      <div className="mt-5 flex flex-wrap gap-2">
+        {(["announcement", "news", "clip"] as const).map((type) => (
+          <button
+            key={type}
+            type="button"
+            onClick={() => setPostType(type)}
+            className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${postType === type ? "border-blast bg-blast/10 text-foreground" : "border-border/50 bg-background/30 text-muted-foreground"}`}
+          >
+            {type === "announcement" ? "Анонс" : type === "news" ? "Новость" : "Клип"}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-4 space-y-4">
+        <Field label="Заголовок поста">
+          <Input value={postTitle} onChange={(e) => setPostTitle(e.target.value)} placeholder="Например: Через час стартую эфир" />
+        </Field>
+        <Field label="Текст поста">
+          <Textarea value={postBody} onChange={(e) => setPostBody(e.target.value)} placeholder="Расскажи, что увидит аудитория, какой будет сигнал или зачем заходить на эфир" className="min-h-28 bg-background" />
+        </Field>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="Доступ к посту">
+            <select
+              value={postRequiredPlan}
+              onChange={(e) => setPostRequiredPlan(e.target.value as StreamerPost["requiredPlan"])}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              {SUBSCRIPTION_PLANS.map((plan) => (
+                <option key={plan.key} value={plan.key}>{getSubscriptionPlanLabel(plan.key)}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Срок жизни поста">
+            <Input type="datetime-local" value={postExpiresAt} onChange={(e) => setPostExpiresAt(e.target.value)} />
+          </Field>
+        </div>
+        <button
+          type="button"
+          onClick={() => setPostBlurPreview((current) => !current)}
+          className={`rounded-2xl border px-4 py-3 text-left text-sm transition-colors ${postBlurPreview ? "border-crown/50 bg-crown/10 text-foreground" : "border-border/50 bg-background/30 text-muted-foreground"}`}
+        >
+          <div className="font-medium">Blur preview для обычных зрителей</div>
+          <div className="mt-1 text-xs">Если включено, free-зритель увидит только превью и CTA на тариф.</div>
+        </button>
+      </div>
+
+      <div className="mt-5 flex flex-wrap gap-3">
+        <Button onClick={publishPost} disabled={publishingPost || studioLoading} className="bg-gradient-blast text-blast-foreground font-bold">{publishingPost ? "Публикую…" : "Опубликовать пост"}</Button>
+        <Button variant="outline" className="gap-2"><Send className="h-4 w-4" /> Отправить в Telegram позже</Button>
+      </div>
+    </section>
+  );
+
+  const codeWordSection = (
+    <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+      <div className="flex items-center gap-2">
+        <ShieldCheck className="h-5 w-5 text-crown" />
+        <h2 className="font-display text-2xl font-bold">Кодовое слово эфира</h2>
+      </div>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Стример задаёт слово до эфира или прямо во время лайва. Зритель узнаёт его на трансляции, вводит в приложении и получает очки один раз.
+      </p>
+
+      <div className="mt-5 space-y-4">
+        <Field label="Заголовок задания">
+          <Input value={codeTaskTitle} onChange={(e) => setCodeTaskTitle(e.target.value)} placeholder="Например: Кодовое слово сегодняшнего эфира" />
+        </Field>
+        <Field label="Описание для зрителя">
+          <Textarea value={codeTaskDescription} onChange={(e) => setCodeTaskDescription(e.target.value)} placeholder="Где искать слово и что получит зритель" className="min-h-24 bg-background" />
+        </Field>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="Кодовое слово">
+            <Input value={codeTaskWord} onChange={(e) => setCodeTaskWord(e.target.value.toUpperCase())} placeholder="Например: NOVA" />
+          </Field>
+          <Field label="Очки за ввод">
+            <Input value={codeTaskReward} onChange={(e) => setCodeTaskReward(e.target.value)} inputMode="numeric" placeholder="50" />
+          </Field>
+        </div>
+      </div>
+
+      <div className="mt-5 flex flex-wrap gap-3">
+        <Button onClick={publishCodeTask} disabled={publishingCodeTask || studioLoading} className="bg-gradient-blast text-blast-foreground font-bold">
+          {publishingCodeTask ? "Публикую код…" : "Опубликовать кодовое слово"}
+        </Button>
+      </div>
+    </section>
+  );
+
+  const codeHistorySection = (
+    <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+      <h2 className="font-display text-2xl font-bold">Активные и прошлые кодовые слова</h2>
+      <div className="mt-5 space-y-3">
+        {codeTasks.length === 0 && (
+          <div className="rounded-2xl border border-dashed border-border/50 bg-background/20 p-4 text-sm text-muted-foreground">
+            Пока ни одного кодового слова не опубликовано.
+          </div>
+        )}
+        {codeTasks.map((task) => (
+          <article key={task.id} className={`rounded-2xl border p-4 ${task.active ? "border-crown/40 bg-crown/5" : "border-border/50 bg-background/30"}`}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="font-display text-lg font-bold">{task.title}</h3>
+                <div className="mt-1 text-xs text-muted-foreground">{new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }).format(new Date(task.created_at))}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${task.active ? "bg-crown/15 text-crown" : "bg-surface text-muted-foreground"}`}>{task.active ? "Активно" : "Отключено"}</span>
+                <span className="rounded-full bg-blast/15 px-3 py-1 text-xs font-semibold text-blast">+{task.reward_points} очков</span>
+              </div>
+            </div>
+            {task.description && <p className="mt-3 text-sm text-muted-foreground">{task.description}</p>}
+            <div className="mt-3 rounded-xl border border-border/50 bg-surface/60 px-4 py-3 font-mono text-sm tracking-[0.2em] text-foreground">{task.code}</div>
+            {task.auto_disable_on_live_end && (
+              <div className="mt-3 text-xs text-crown">Этот код привязан к текущему live и отключится после завершения эфира.</div>
+            )}
+            {task.active && (
+              <Button variant="outline" className="mt-4" disabled={deactivatingTaskId === task.id} onClick={() => deactivateCodeTask(task.id)}>
+                {deactivatingTaskId === task.id ? "Отключаю…" : "Отключить кодовое слово"}
+              </Button>
+            )}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+
+  const donationSection = (
+    <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+      <div className="flex items-center gap-2">
+        <Wallet className="h-5 w-5 text-cosmic" />
+        <h2 className="font-display text-2xl font-bold">Страница поддержки и OBS</h2>
+      </div>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Здесь живут публичная ссылка для зрителей, alert-анимация и весь комплект donation widget overlays для OBS.
+      </p>
+
+      <div className="mt-5 space-y-4">
+        <Field label="Короткий адрес страницы">
+          <Input value={donationLinkDraft.slug} onChange={(e) => setDonationLinkDraft((current) => ({ ...current, slug: e.target.value }))} placeholder="alina-luna-support" />
+        </Field>
+        <Field label="Заголовок страницы поддержки">
+          <Input value={donationLinkDraft.title} onChange={(e) => setDonationLinkDraft((current) => ({ ...current, title: e.target.value }))} placeholder="Поддержать эфир" />
+        </Field>
+        <Field label="Описание">
+          <Textarea value={donationLinkDraft.description} onChange={(e) => setDonationLinkDraft((current) => ({ ...current, description: e.target.value }))} className="min-h-24 bg-background" placeholder="Короткое описание, зачем поддерживать именно этот эфир" />
+        </Field>
+        <Field label="Минимальная сумма">
+          <Input type="number" min={10} value={String(donationLinkDraft.minimumAmount)} onChange={(e) => setDonationLinkDraft((current) => ({ ...current, minimumAmount: Number(e.target.value) || 10 }))} />
+        </Field>
+        <button
+          type="button"
+          onClick={() => setDonationLinkDraft((current) => ({ ...current, isActive: !current.isActive }))}
+          className={`rounded-2xl border px-4 py-3 text-left text-sm transition-colors ${donationLinkDraft.isActive ? "border-blast/40 bg-blast/10 text-foreground" : "border-border/50 bg-background/30 text-muted-foreground"}`}
+        >
+          <div className="font-medium">{donationLinkDraft.isActive ? "Ссылка активна" : "Ссылка отключена"}</div>
+          <div className="mt-1 text-xs">Отключённая ссылка перестаёт быть доступной публично.</div>
+        </button>
+
+        <div className="rounded-2xl border border-border/50 bg-background/20 p-4">
+          <div className="font-medium text-foreground">OBS donation overlay</div>
+          <p className="mt-1 text-xs text-muted-foreground">Здесь формируется отдельная приватная OBS-ссылка стримера. В постоянный URL не зашиваются тестовые сумма и текст, они отправляются отдельно как payload.</p>
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            {DONATION_OVERLAY_VARIANTS.map((variant) => (
+              <button
+                key={variant.key}
+                type="button"
+                onClick={() => setPageDraft((current) => ({ ...current, donationOverlayVariant: variant.key }))}
+                className={`rounded-2xl border p-4 text-left transition-colors ${pageDraft.donationOverlayVariant === variant.key ? "border-blast bg-blast/10 text-foreground" : "border-border/50 bg-background/30 text-muted-foreground"}`}
+              >
+                <div className="font-display text-lg font-bold">{variant.title}</div>
+                <div className="mt-2 text-xs leading-5">{variant.description}</div>
+              </button>
+            ))}
+          </div>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <Field label="Sound URL">
+              <Input value={pageDraft.donationSoundUrl} onChange={(e) => setPageDraft((current) => ({ ...current, donationSoundUrl: e.target.value }))} placeholder="https://.../donation.mp3" />
+            </Field>
+            <Field label="GIF URL / overlay sticker">
+              <Input value={pageDraft.donationGifUrl} onChange={(e) => setPageDraft((current) => ({ ...current, donationGifUrl: e.target.value }))} placeholder="https://.../nova.gif" />
+            </Field>
+          </div>
+          <div className="mt-4 rounded-xl border border-border/50 bg-background/30 p-4 text-sm text-muted-foreground">
+            <div className="font-medium text-foreground">Валюта алерта в OBS</div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {([
+                { value: "original", label: "Показывать как отправили" },
+                { value: "preferred", label: "Показывать в валюте стримера" },
+              ] as Array<{ value: DonationOverlayDisplayMode; label: string }>).map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setPageDraft((current) => ({ ...current, donationOverlayDisplayMode: option.value }))}
+                  className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${pageDraft.donationOverlayDisplayMode === option.value ? "border-blast bg-blast/10 text-foreground" : "border-border/50 bg-background/30 text-muted-foreground"}`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            {pageDraft.donationOverlayDisplayMode === "preferred" && (
+              <div className="mt-3">
+                <Field label="Валюта стримера по умолчанию">
+                  <select
+                    value={pageDraft.donationOverlayDisplayCurrency}
+                    onChange={(e) => setPageDraft((current) => ({ ...current, donationOverlayDisplayCurrency: e.target.value as typeof DONATION_DISPLAY_CURRENCIES[number] }))}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    {DONATION_DISPLAY_CURRENCIES.map((currency) => (
+                      <option key={currency} value={currency}>{currency}</option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+            )}
+          </div>
+          <div className="mt-4 rounded-xl border border-border/50 bg-background/30 p-4 text-sm text-muted-foreground">
+            <div className="font-medium text-foreground">Цель по донатам</div>
+            <div className="mt-3 grid gap-4 md:grid-cols-[1.4fr_0.8fr_0.8fr]">
+              <Field label="Название цели">
+                <Input value={pageDraft.donationGoalTitle} onChange={(e) => setPageDraft((current) => ({ ...current, donationGoalTitle: e.target.value }))} placeholder="Например: Новый микрофон для стрима" />
+              </Field>
+              <Field label="Сумма цели">
+                <Input type="number" min={1} value={pageDraft.donationGoalTarget} onChange={(e) => setPageDraft((current) => ({ ...current, donationGoalTarget: e.target.value }))} />
+              </Field>
+              <Field label="Валюта цели">
+                <select
+                  value={pageDraft.donationGoalCurrency}
+                  onChange={(e) => setPageDraft((current) => ({ ...current, donationGoalCurrency: e.target.value as typeof DONATION_DISPLAY_CURRENCIES[number] }))}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  {DONATION_DISPLAY_CURRENCIES.map((currency) => (
+                    <option key={currency} value={currency}>{currency}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+          </div>
+          <div className="mt-4 rounded-xl border border-border/50 bg-background/30 p-3 text-xs text-muted-foreground">
+            Переменные для alert payload: `username`, `amount`, `currency`, `message`.
+          </div>
+          {!pageDraft.donationOverlayAccessKey && (
+            <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-100">
+              Сохрани страницу поддержки один раз, чтобы сгенерировать приватный OBS key.
+            </div>
+          )}
+          {donationPreviewUrl && (
+            <div className="mt-4 rounded-xl border border-border/50 bg-background/30 p-3 text-xs text-muted-foreground break-all">
+              {donationPreviewUrl}
+            </div>
+          )}
+          {donationWidgetUrls && (
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              {[
+                { label: "Последний донат", url: donationWidgetUrls.latest },
+                { label: "Топ дня", url: donationWidgetUrls.topDay },
+                { label: "Топ за всё время", url: donationWidgetUrls.topAllTime },
+                { label: "Цель по донатам", url: donationWidgetUrls.goal },
+              ].map((widget) => (
+                <div key={widget.label} className="rounded-xl border border-border/50 bg-background/30 p-3">
+                  <div className="text-xs font-medium text-foreground">{widget.label}</div>
+                  <div className="mt-2 break-all text-[11px] text-muted-foreground">{widget.url}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Button type="button" variant="outline" className="gap-2" onClick={() => void copyDonationOverlayUrl()}>
+              <Copy className="h-4 w-4" /> Скопировать OBS URL
+            </Button>
+            {donationLinkDraft.slug && (
+              <Button type="button" variant="outline" className="gap-2" onClick={sendDonationOverlayTest}>
+                <ExternalLink className="h-4 w-4" /> Тест анимации
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-5 flex flex-wrap gap-3">
+        <Button onClick={saveDonationLink} disabled={savingDonationLink || studioLoading} className="bg-gradient-cosmic font-bold text-foreground">
+          {savingDonationLink ? "Сохраняю страницу…" : "Сохранить страницу поддержки"}
+        </Button>
+        {donationLinkDraft.slug && (
+          <Link to="/support/$slug" params={{ slug: donationLinkDraft.slug }}>
+            <Button variant="outline" className="gap-2">
+              <ExternalLink className="h-4 w-4" /> Открыть страницу поддержки
+            </Button>
+          </Link>
+        )}
+      </div>
+    </section>
+  );
+
+  const previewSection = (
+    <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+      <div className="flex items-center gap-2">
+        <Bell className="h-5 w-5 text-crown" />
+        <h2 className="font-display text-2xl font-bold">Как выглядит страница для зрителя</h2>
+      </div>
+
+      <div className="mt-5 overflow-hidden rounded-3xl border border-border/50 bg-background/40">
+        <div className={`h-40 w-full bg-linear-to-r ${pageDraft.accent}`} style={{ backgroundImage: pageDraft.bannerUrl ? `linear-gradient(135deg, rgba(255,255,255,0.04), transparent), url(${pageDraft.bannerUrl})` : undefined, backgroundSize: "cover", backgroundPosition: "center" }} />
+        <div className="px-5 pb-5">
+          <div className="-mt-10 flex items-end gap-4">
+            <div className="h-20 w-20 overflow-hidden rounded-full border-4 border-background bg-surface-2">
+              {pageDraft.logoUrl ? <img src={pageDraft.logoUrl} alt={user.displayName} className="h-full w-full object-cover" /> : null}
+            </div>
+            <div className="pb-2">
+              <div className="font-display text-2xl font-bold">{user.displayName}</div>
+              <div className="text-sm text-muted-foreground">@{user.tiktokUsername}</div>
+            </div>
+          </div>
+
+          <p className="mt-4 text-sm text-foreground/90">{pageDraft.headline}</p>
+          <p className="mt-3 text-sm text-muted-foreground">{pageDraft.bio}</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {previewTags.map((tag) => (
+              <span key={tag} className="rounded-full border border-border/50 bg-surface/60 px-3 py-1 text-xs text-muted-foreground">#{tag}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+
+  const postsFeedSection = (
+    <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+      <h2 className="font-display text-2xl font-bold">Лента постов на публичной странице</h2>
+      <div className="mt-5 space-y-3">
+        {posts.length === 0 && (
+          <div className="rounded-2xl border border-dashed border-border/50 bg-background/20 p-4 text-sm text-muted-foreground">
+            Здесь появятся публикации после первого сохранённого поста.
+          </div>
+        )}
+        {posts.map((post) => (
+          <article key={post.id} className="rounded-2xl border border-border/50 bg-background/30 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <span className="rounded-full bg-surface px-2.5 py-1 text-[11px] uppercase tracking-wider text-muted-foreground">{post.type}</span>
+              <span className="text-xs text-muted-foreground">{post.createdAt}</span>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
+              <span className="rounded-full border border-border/50 px-2.5 py-1">{post.requiredPlan}</span>
+              {post.blurPreview && <span className="rounded-full border border-crown/40 px-2.5 py-1 text-crown">blur preview</span>}
+              {post.expiresAt && <span className="rounded-full border border-blast/40 px-2.5 py-1 text-blast">до {toLocalDateTimeValue(post.expiresAt).replace("T", " ")}</span>}
+            </div>
+            <h3 className="mt-3 font-display text-lg font-bold">{post.title}</h3>
+            <p className="mt-2 text-sm text-muted-foreground">{post.body}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+
   return (
     <div className="min-h-screen">
       <Header />
@@ -392,412 +808,39 @@ function StreamerStudioPage() {
           <PlatformDisclaimer compact />
         </div>
 
-        <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-          <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
-            <div className="flex items-center gap-2">
-              <LayoutPanelTop className="h-5 w-5 text-cosmic" />
-              <h2 className="font-display text-2xl font-bold">Настройка публичной страницы</h2>
-            </div>
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              <Field label="Баннер страницы">
-                <Input value={pageDraft.bannerUrl} onChange={(e) => setPageDraft((current) => ({ ...current, bannerUrl: e.target.value }))} placeholder="Ссылка на баннер" />
-              </Field>
-              <Field label="Логотип или аватар">
-                <Input value={pageDraft.logoUrl} onChange={(e) => setPageDraft((current) => ({ ...current, logoUrl: e.target.value }))} placeholder="Ссылка на логотип" />
-              </Field>
-            </div>
+        <Tabs defaultValue="page" className="mt-6">
+          <TabsList className="h-auto flex-wrap justify-start gap-2 rounded-2xl border border-border/50 bg-surface/60 p-2">
+            <TabsTrigger value="page">Страница</TabsTrigger>
+            <TabsTrigger value="content">Контент</TabsTrigger>
+            <TabsTrigger value="engagement">Активности</TabsTrigger>
+            <TabsTrigger value="donations">Донаты и OBS</TabsTrigger>
+          </TabsList>
 
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <Field label="Главный слоган">
-                <Input value={pageDraft.headline} onChange={(e) => setPageDraft((current) => ({ ...current, headline: e.target.value }))} placeholder="Короткая фраза над лентой" />
-              </Field>
-              <Field label="Telegram-канал">
-                <Input value={pageDraft.telegramChannel} onChange={(e) => setPageDraft((current) => ({ ...current, telegramChannel: e.target.value }))} placeholder="@channel_name" />
-              </Field>
+          <TabsContent value="page" className="mt-6">
+            <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+              {pageSettingsSection}
+              {previewSection}
             </div>
+          </TabsContent>
 
-            <div className="mt-4">
-              <Field label="Описание страницы">
-                <Textarea value={pageDraft.bio} onChange={(e) => setPageDraft((current) => ({ ...current, bio: e.target.value }))} placeholder="Объясни, зачем зрителю подписываться на тебя внутри платформы" className="min-h-28 bg-background" />
-              </Field>
+          <TabsContent value="content" className="mt-6">
+            <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+              {postsComposerSection}
+              {postsFeedSection}
             </div>
+          </TabsContent>
 
-            <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <Field label="Accent / фон страницы">
-                <Input value={pageDraft.accent} onChange={(e) => setPageDraft((current) => ({ ...current, accent: e.target.value }))} placeholder="from-cosmic/80 via-magenta/30 to-blast/70" />
-              </Field>
-              <Field label="Теги страницы">
-                <Input value={pageDraft.tags} onChange={(e) => setPageDraft((current) => ({ ...current, tags: e.target.value }))} placeholder="live, анонсы, комьюнити" />
-              </Field>
+          <TabsContent value="engagement" className="mt-6">
+            <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+              {codeWordSection}
+              {codeHistorySection}
             </div>
+          </TabsContent>
 
-            <div className="mt-4">
-              <Field label="Превью видео / тизер">
-                <Input value={pageDraft.featuredVideoUrl} onChange={(e) => setPageDraft((current) => ({ ...current, featuredVideoUrl: e.target.value }))} placeholder="Ссылка на превью или обложку" />
-              </Field>
-            </div>
-
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Button onClick={savePage} disabled={savingPage || studioLoading} className="bg-gradient-cosmic font-bold text-foreground">{savingPage ? "Сохраняю…" : "Сохранить настройки страницы"}</Button>
-              <Button variant="outline" className="gap-2"><ImagePlus className="h-4 w-4" /> Загрузить медиа позже</Button>
-            </div>
-          </section>
-
-          <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
-            <div className="flex items-center gap-2">
-              <PencilLine className="h-5 w-5 text-blast" />
-              <h2 className="font-display text-2xl font-bold">Публикация постов</h2>
-            </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Именно здесь публикуются новости, анонсы и короткий контент, который потом виден на публичной странице стримера и может идти в Telegram-контур.
-            </p>
-            {studioLoading && <p className="mt-3 text-xs text-muted-foreground">Загружаю сохранённые посты и настройки…</p>}
-
-            <div className="mt-5 flex flex-wrap gap-2">
-              {(["announcement", "news", "clip"] as const).map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => setPostType(type)}
-                  className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${postType === type ? "border-blast bg-blast/10 text-foreground" : "border-border/50 bg-background/30 text-muted-foreground"}`}
-                >
-                  {type === "announcement" ? "Анонс" : type === "news" ? "Новость" : "Клип"}
-                </button>
-              ))}
-            </div>
-
-            <div className="mt-4 space-y-4">
-              <Field label="Заголовок поста">
-                <Input value={postTitle} onChange={(e) => setPostTitle(e.target.value)} placeholder="Например: Через час стартую эфир" />
-              </Field>
-              <Field label="Текст поста">
-                <Textarea value={postBody} onChange={(e) => setPostBody(e.target.value)} placeholder="Расскажи, что увидит аудитория, какой будет сигнал или зачем заходить на эфир" className="min-h-28 bg-background" />
-              </Field>
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Доступ к посту">
-                  <select
-                    value={postRequiredPlan}
-                    onChange={(e) => setPostRequiredPlan(e.target.value as StreamerPost["requiredPlan"])}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    {SUBSCRIPTION_PLANS.map((plan) => (
-                      <option key={plan.key} value={plan.key}>{getSubscriptionPlanLabel(plan.key)}</option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Срок жизни поста">
-                  <Input type="datetime-local" value={postExpiresAt} onChange={(e) => setPostExpiresAt(e.target.value)} />
-                </Field>
-              </div>
-              <button
-                type="button"
-                onClick={() => setPostBlurPreview((current) => !current)}
-                className={`rounded-2xl border px-4 py-3 text-left text-sm transition-colors ${postBlurPreview ? "border-crown/50 bg-crown/10 text-foreground" : "border-border/50 bg-background/30 text-muted-foreground"}`}
-              >
-                <div className="font-medium">Blur preview для обычных зрителей</div>
-                <div className="mt-1 text-xs">Если включено, free-зритель увидит только превью и CTA на тариф.</div>
-              </button>
-            </div>
-
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Button onClick={publishPost} disabled={publishingPost || studioLoading} className="bg-gradient-blast text-blast-foreground font-bold">{publishingPost ? "Публикую…" : "Опубликовать пост"}</Button>
-              <Button variant="outline" className="gap-2"><Send className="h-4 w-4" /> Отправить в Telegram позже</Button>
-            </div>
-          </section>
-        </div>
-
-        <div className="mt-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-          <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-crown" />
-              <h2 className="font-display text-2xl font-bold">Кодовое слово эфира</h2>
-            </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Стример задаёт слово до эфира или прямо во время лайва. Зритель узнаёт его на трансляции, вводит в приложении и получает очки один раз.
-            </p>
-
-            <div className="mt-5 space-y-4">
-              <Field label="Заголовок задания">
-                <Input value={codeTaskTitle} onChange={(e) => setCodeTaskTitle(e.target.value)} placeholder="Например: Кодовое слово сегодняшнего эфира" />
-              </Field>
-              <Field label="Описание для зрителя">
-                <Textarea value={codeTaskDescription} onChange={(e) => setCodeTaskDescription(e.target.value)} placeholder="Где искать слово и что получит зритель" className="min-h-24 bg-background" />
-              </Field>
-              <div className="grid gap-4 md:grid-cols-2">
-                <Field label="Кодовое слово">
-                  <Input value={codeTaskWord} onChange={(e) => setCodeTaskWord(e.target.value.toUpperCase())} placeholder="Например: NOVA" />
-                </Field>
-                <Field label="Очки за ввод">
-                  <Input value={codeTaskReward} onChange={(e) => setCodeTaskReward(e.target.value)} inputMode="numeric" placeholder="50" />
-                </Field>
-              </div>
-            </div>
-
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Button onClick={publishCodeTask} disabled={publishingCodeTask || studioLoading} className="bg-gradient-blast text-blast-foreground font-bold">
-                {publishingCodeTask ? "Публикую код…" : "Опубликовать кодовое слово"}
-              </Button>
-            </div>
-          </section>
-
-          <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
-            <h2 className="font-display text-2xl font-bold">Активные и прошлые кодовые слова</h2>
-            <div className="mt-5 space-y-3">
-              {codeTasks.length === 0 && (
-                <div className="rounded-2xl border border-dashed border-border/50 bg-background/20 p-4 text-sm text-muted-foreground">
-                  Пока ни одного кодового слова не опубликовано.
-                </div>
-              )}
-              {codeTasks.map((task) => (
-                <article key={task.id} className={`rounded-2xl border p-4 ${task.active ? "border-crown/40 bg-crown/5" : "border-border/50 bg-background/30"}`}>
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <h3 className="font-display text-lg font-bold">{task.title}</h3>
-                      <div className="mt-1 text-xs text-muted-foreground">{new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }).format(new Date(task.created_at))}</div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${task.active ? "bg-crown/15 text-crown" : "bg-surface text-muted-foreground"}`}>{task.active ? "Активно" : "Отключено"}</span>
-                      <span className="rounded-full bg-blast/15 px-3 py-1 text-xs font-semibold text-blast">+{task.reward_points} очков</span>
-                    </div>
-                  </div>
-                  {task.description && <p className="mt-3 text-sm text-muted-foreground">{task.description}</p>}
-                  <div className="mt-3 rounded-xl border border-border/50 bg-surface/60 px-4 py-3 font-mono text-sm tracking-[0.2em] text-foreground">{task.code}</div>
-                  {task.auto_disable_on_live_end && (
-                    <div className="mt-3 text-xs text-crown">Этот код привязан к текущему live и отключится после завершения эфира.</div>
-                  )}
-                  {task.active && (
-                    <Button variant="outline" className="mt-4" disabled={deactivatingTaskId === task.id} onClick={() => deactivateCodeTask(task.id)}>
-                      {deactivatingTaskId === task.id ? "Отключаю…" : "Отключить кодовое слово"}
-                    </Button>
-                  )}
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
-            <div className="flex items-center gap-2">
-              <Wallet className="h-5 w-5 text-cosmic" />
-              <h2 className="font-display text-2xl font-bold">Страница поддержки внутри платформы</h2>
-            </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Это ссылка NovaBoost Live, которую можно дать зрителям на эфире. После доната событие появится в блоке последних поддержек на публичной странице.
-            </p>
-
-            <div className="mt-5 space-y-4">
-              <Field label="Короткий адрес страницы">
-                <Input value={donationLinkDraft.slug} onChange={(e) => setDonationLinkDraft((current) => ({ ...current, slug: e.target.value }))} placeholder="alina-luna-support" />
-              </Field>
-              <Field label="Заголовок страницы поддержки">
-                <Input value={donationLinkDraft.title} onChange={(e) => setDonationLinkDraft((current) => ({ ...current, title: e.target.value }))} placeholder="Поддержать эфир" />
-              </Field>
-              <Field label="Описание">
-                <Textarea value={donationLinkDraft.description} onChange={(e) => setDonationLinkDraft((current) => ({ ...current, description: e.target.value }))} className="min-h-24 bg-background" placeholder="Короткое описание, зачем поддерживать именно этот эфир" />
-              </Field>
-              <Field label="Минимальная сумма">
-                <Input type="number" min={10} value={String(donationLinkDraft.minimumAmount)} onChange={(e) => setDonationLinkDraft((current) => ({ ...current, minimumAmount: Number(e.target.value) || 10 }))} />
-              </Field>
-              <button
-                type="button"
-                onClick={() => setDonationLinkDraft((current) => ({ ...current, isActive: !current.isActive }))}
-                className={`rounded-2xl border px-4 py-3 text-left text-sm transition-colors ${donationLinkDraft.isActive ? "border-blast/40 bg-blast/10 text-foreground" : "border-border/50 bg-background/30 text-muted-foreground"}`}
-              >
-                <div className="font-medium">{donationLinkDraft.isActive ? "Ссылка активна" : "Ссылка отключена"}</div>
-                <div className="mt-1 text-xs">Отключённая ссылка перестаёт быть доступной публично.</div>
-              </button>
-
-              <div className="rounded-2xl border border-border/50 bg-background/20 p-4">
-                <div className="font-medium text-foreground">OBS donation overlay</div>
-                <p className="mt-1 text-xs text-muted-foreground">Здесь формируется отдельная приватная OBS-ссылка стримера. В постоянный URL больше не зашиваются тестовые сумма и текст, они отправляются отдельно как payload.</p>
-                <div className="mt-4 grid gap-3 md:grid-cols-3">
-                  {DONATION_OVERLAY_VARIANTS.map((variant) => (
-                    <button
-                      key={variant.key}
-                      type="button"
-                      onClick={() => setPageDraft((current) => ({ ...current, donationOverlayVariant: variant.key }))}
-                      className={`rounded-2xl border p-4 text-left transition-colors ${pageDraft.donationOverlayVariant === variant.key ? "border-blast bg-blast/10 text-foreground" : "border-border/50 bg-background/30 text-muted-foreground"}`}
-                    >
-                      <div className="font-display text-lg font-bold">{variant.title}</div>
-                      <div className="mt-2 text-xs leading-5">{variant.description}</div>
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
-                  <Field label="Sound URL">
-                    <Input value={pageDraft.donationSoundUrl} onChange={(e) => setPageDraft((current) => ({ ...current, donationSoundUrl: e.target.value }))} placeholder="https://.../donation.mp3" />
-                  </Field>
-                  <Field label="GIF URL / overlay sticker">
-                    <Input value={pageDraft.donationGifUrl} onChange={(e) => setPageDraft((current) => ({ ...current, donationGifUrl: e.target.value }))} placeholder="https://.../nova.gif" />
-                  </Field>
-                </div>
-                <div className="mt-4 rounded-xl border border-border/50 bg-background/30 p-4 text-sm text-muted-foreground">
-                  <div className="font-medium text-foreground">Валюта алерта в OBS</div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {([
-                      { value: "original", label: "Показывать как отправили" },
-                      { value: "preferred", label: "Показывать в валюте стримера" },
-                    ] as Array<{ value: DonationOverlayDisplayMode; label: string }>).map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => setPageDraft((current) => ({ ...current, donationOverlayDisplayMode: option.value }))}
-                        className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${pageDraft.donationOverlayDisplayMode === option.value ? "border-blast bg-blast/10 text-foreground" : "border-border/50 bg-background/30 text-muted-foreground"}`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                  {pageDraft.donationOverlayDisplayMode === "preferred" && (
-                    <div className="mt-3">
-                      <Field label="Валюта стримера по умолчанию">
-                        <select
-                          value={pageDraft.donationOverlayDisplayCurrency}
-                          onChange={(e) => setPageDraft((current) => ({ ...current, donationOverlayDisplayCurrency: e.target.value as typeof DONATION_DISPLAY_CURRENCIES[number] }))}
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                        >
-                          {DONATION_DISPLAY_CURRENCIES.map((currency) => (
-                            <option key={currency} value={currency}>{currency}</option>
-                          ))}
-                        </select>
-                      </Field>
-                    </div>
-                  )}
-                </div>
-                <div className="mt-4 rounded-xl border border-border/50 bg-background/30 p-4 text-sm text-muted-foreground">
-                  <div className="font-medium text-foreground">Цель по донатам</div>
-                  <div className="mt-3 grid gap-4 md:grid-cols-[1.4fr_0.8fr_0.8fr]">
-                    <Field label="Название цели">
-                      <Input value={pageDraft.donationGoalTitle} onChange={(e) => setPageDraft((current) => ({ ...current, donationGoalTitle: e.target.value }))} placeholder="Например: Новый микрофон для стрима" />
-                    </Field>
-                    <Field label="Сумма цели">
-                      <Input type="number" min={1} value={pageDraft.donationGoalTarget} onChange={(e) => setPageDraft((current) => ({ ...current, donationGoalTarget: e.target.value }))} />
-                    </Field>
-                    <Field label="Валюта цели">
-                      <select
-                        value={pageDraft.donationGoalCurrency}
-                        onChange={(e) => setPageDraft((current) => ({ ...current, donationGoalCurrency: e.target.value as typeof DONATION_DISPLAY_CURRENCIES[number] }))}
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      >
-                        {DONATION_DISPLAY_CURRENCIES.map((currency) => (
-                          <option key={currency} value={currency}>{currency}</option>
-                        ))}
-                      </select>
-                    </Field>
-                  </div>
-                </div>
-                <div className="mt-4 rounded-xl border border-border/50 bg-background/30 p-3 text-xs text-muted-foreground">
-                  Переменные для alert payload: `username`, `amount`, `currency`, `message`.
-                </div>
-                {!pageDraft.donationOverlayAccessKey && (
-                  <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-100">
-                    Сохрани страницу поддержки один раз, чтобы сгенерировать приватный OBS key.
-                  </div>
-                )}
-                {donationPreviewUrl && (
-                  <div className="mt-4 rounded-xl border border-border/50 bg-background/30 p-3 text-xs text-muted-foreground break-all">
-                    {donationPreviewUrl}
-                  </div>
-                )}
-                {donationWidgetUrls && (
-                  <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    {[
-                      { label: "Последний донат", url: donationWidgetUrls.latest },
-                      { label: "Топ дня", url: donationWidgetUrls.topDay },
-                      { label: "Топ за всё время", url: donationWidgetUrls.topAllTime },
-                      { label: "Цель по донатам", url: donationWidgetUrls.goal },
-                    ].map((widget) => (
-                      <div key={widget.label} className="rounded-xl border border-border/50 bg-background/30 p-3">
-                        <div className="text-xs font-medium text-foreground">{widget.label}</div>
-                        <div className="mt-2 break-all text-[11px] text-muted-foreground">{widget.url}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <Button type="button" variant="outline" className="gap-2" onClick={() => void copyDonationOverlayUrl()}>
-                    <Copy className="h-4 w-4" /> Скопировать OBS URL
-                  </Button>
-                  {donationLinkDraft.slug && (
-                    <Button type="button" variant="outline" className="gap-2" onClick={sendDonationOverlayTest}>
-                      <ExternalLink className="h-4 w-4" /> Тест анимации
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Button onClick={saveDonationLink} disabled={savingDonationLink || studioLoading} className="bg-gradient-cosmic font-bold text-foreground">
-                {savingDonationLink ? "Сохраняю страницу…" : "Сохранить страницу поддержки"}
-              </Button>
-              {donationLinkDraft.slug && (
-                <Link to="/support/$slug" params={{ slug: donationLinkDraft.slug }}>
-                  <Button variant="outline" className="gap-2">
-                    <ExternalLink className="h-4 w-4" /> Открыть страницу поддержки
-                  </Button>
-                </Link>
-              )}
-            </div>
-          </section>
-        </div>
-
-        <div className="mt-6 grid gap-6 xl:grid-cols-[1fr_1fr]">
-          <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
-            <div className="flex items-center gap-2">
-              <Bell className="h-5 w-5 text-crown" />
-              <h2 className="font-display text-2xl font-bold">Как выглядит страница для зрителя</h2>
-            </div>
-
-            <div className="mt-5 overflow-hidden rounded-3xl border border-border/50 bg-background/40">
-              <div className={`h-40 w-full bg-linear-to-r ${pageDraft.accent}`} style={{ backgroundImage: pageDraft.bannerUrl ? `linear-gradient(135deg, rgba(255,255,255,0.04), transparent), url(${pageDraft.bannerUrl})` : undefined, backgroundSize: "cover", backgroundPosition: "center" }} />
-              <div className="px-5 pb-5">
-                <div className="-mt-10 flex items-end gap-4">
-                  <div className="h-20 w-20 overflow-hidden rounded-full border-4 border-background bg-surface-2">
-                    {pageDraft.logoUrl ? <img src={pageDraft.logoUrl} alt={user.displayName} className="h-full w-full object-cover" /> : null}
-                  </div>
-                  <div className="pb-2">
-                    <div className="font-display text-2xl font-bold">{user.displayName}</div>
-                    <div className="text-sm text-muted-foreground">@{user.tiktokUsername}</div>
-                  </div>
-                </div>
-
-                <p className="mt-4 text-sm text-foreground/90">{pageDraft.headline}</p>
-                <p className="mt-3 text-sm text-muted-foreground">{pageDraft.bio}</p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {previewTags.map((tag) => (
-                    <span key={tag} className="rounded-full border border-border/50 bg-surface/60 px-3 py-1 text-xs text-muted-foreground">#{tag}</span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
-            <h2 className="font-display text-2xl font-bold">Лента постов на публичной странице</h2>
-            <div className="mt-5 space-y-3">
-              {posts.length === 0 && (
-                <div className="rounded-2xl border border-dashed border-border/50 bg-background/20 p-4 text-sm text-muted-foreground">
-                  Здесь появятся публикации после первого сохранённого поста.
-                </div>
-              )}
-              {posts.map((post) => (
-                <article key={post.id} className="rounded-2xl border border-border/50 bg-background/30 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="rounded-full bg-surface px-2.5 py-1 text-[11px] uppercase tracking-wider text-muted-foreground">{post.type}</span>
-                    <span className="text-xs text-muted-foreground">{post.createdAt}</span>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2 text-[11px] uppercase tracking-wider text-muted-foreground">
-                    <span className="rounded-full border border-border/50 px-2.5 py-1">{post.requiredPlan}</span>
-                    {post.blurPreview && <span className="rounded-full border border-crown/40 px-2.5 py-1 text-crown">blur preview</span>}
-                    {post.expiresAt && <span className="rounded-full border border-blast/40 px-2.5 py-1 text-blast">до {toLocalDateTimeValue(post.expiresAt).replace("T", " ")}</span>}
-                  </div>
-                  <h3 className="mt-3 font-display text-lg font-bold">{post.title}</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">{post.body}</p>
-                </article>
-              ))}
-            </div>
-          </section>
-        </div>
+          <TabsContent value="donations" className="mt-6">
+            {donationSection}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
