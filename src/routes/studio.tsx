@@ -450,11 +450,21 @@ function StreamerStudioPage() {
       </div>
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         <Field label="Баннер страницы">
-          <Input value={pageDraft.bannerUrl} onChange={(e) => setPageDraft((current) => ({ ...current, bannerUrl: e.target.value }))} placeholder="Ссылка на баннер" />
+          <div className="rounded-2xl border border-border/50 bg-background/30 px-4 py-3 text-sm text-muted-foreground">
+            Баннер теперь загружается в настройках профиля как файл. Здесь он только используется в превью публичной страницы.
+          </div>
         </Field>
         <Field label="Логотип или аватар">
-          <Input value={pageDraft.logoUrl} onChange={(e) => setPageDraft((current) => ({ ...current, logoUrl: e.target.value }))} placeholder="Ссылка на логотип" />
+          <div className="rounded-2xl border border-border/50 bg-background/30 px-4 py-3 text-sm text-muted-foreground">
+            Аватар стримера тоже загружается в настройках профиля. Прямая вставка image URL больше не используется.
+          </div>
         </Field>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-3">
+        <Link to="/profile">
+          <Button variant="outline" className="gap-2"><ImagePlus className="h-4 w-4" /> Открыть настройки профиля</Button>
+        </Link>
       </div>
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">

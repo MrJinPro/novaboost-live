@@ -43,6 +43,8 @@ const envSchema = z.object({
   PRMOTION_API_URL: z.string().url().default("https://api.prmotion.me/v1"),
   PRMOTION_API_KEY: optionalString(),
   PRMOTION_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(30_000).default(10_000),
+  MEDIA_UPLOAD_DIR: optionalString(),
+  MEDIA_PUBLIC_BASE_URL: optionalUrl(),
 });
 
 export type BackendEnv = z.infer<typeof envSchema>;

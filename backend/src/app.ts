@@ -53,7 +53,7 @@ export function bootstrapBackend() {
     notifications,
     telegram,
     prmotion,
-  });
+  }, supabaseAdmin);
 
   tracking.attachSocketHub(trackingSocketHub);
 

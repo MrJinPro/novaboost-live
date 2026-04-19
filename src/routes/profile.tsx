@@ -4,10 +4,13 @@ import { useAuth } from "@/lib/auth-context";
 import { Header } from "@/components/Header";
 import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
 import { Button } from "@/components/ui/button";
-import { Award, Crown, ExternalLink, LogOut, Sparkles, Trophy } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Award, Camera, Crown, ExternalLink, ImagePlus, LogOut, Save, Sparkles, Trophy, UserRound, Wallpaper, Zap } from "lucide-react";
 import { formatNumber } from "@/lib/format";
 import { loadViewerProfileData, type ViewerProfileData } from "@/lib/user-profile-data";
 import { getOwnedStreamerPublicPage } from "@/lib/streamer-studio-data";
+import { loadProfileSettings, saveProfileSettings, uploadProfileMedia, type ProfileSettingsDraft } from "@/lib/profile-settings-data";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/profile")({
@@ -22,10 +25,48 @@ export const Route = createFileRoute("/profile")({
 });
 
 function ProfilePage() {
-  const { user, loading, signOut } = useAuth();
+  const { user, session, loading, refreshUser, signOut } = useAuth();
   const [viewerProfile, setViewerProfile] = useState<ViewerProfileData | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
   const [publicPageId, setPublicPageId] = useState<string | null>(null);
+  const [settings, setSettings] = useState<ProfileSettingsDraft | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    if (!user) {
+      setSettings(null);
+      return;
+    }
+
+    const syncSettings = async () => {
+      setSettingsLoading(true);
+      try {
+        const nextSettings = await loadProfileSettings(user);
+        if (active) {
+          setSettings(nextSettings);
+          setPublicPageId(nextSettings.publicPageId);
+        }
+      } catch (error) {
+        if (active) {
+          toast.error(error instanceof Error ? error.message : "Не удалось загрузить настройки профиля");
+        }
+      } finally {
+        if (active) {
+          setSettingsLoading(false);
+        }
+      }
+    };
+
+    void syncSettings();
+
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   useEffect(() => {
     let active = true;
@@ -35,7 +76,7 @@ function ProfilePage() {
       return;
     }
 
-    const syncProfile = async () => {
+    const syncViewerProfile = async () => {
       setProfileLoading(true);
       try {
         const data = await loadViewerProfileData(user);
@@ -53,7 +94,7 @@ function ProfilePage() {
       }
     };
 
-    void syncProfile();
+    void syncViewerProfile();
 
     return () => {
       active = false;
@@ -64,15 +105,14 @@ function ProfilePage() {
     let active = true;
 
     if (!user || user.role !== "streamer") {
-      setPublicPageId(null);
       return;
     }
 
     const syncPublicPage = async () => {
       try {
         const page = await getOwnedStreamerPublicPage(user.id);
-        if (active) {
-          setPublicPageId(page?.id ?? null);
+        if (active && page?.id) {
+          setPublicPageId(page.id);
         }
       } catch {
         if (active) {
@@ -95,55 +135,135 @@ function ProfilePage() {
   if (!user) {
     return (
       <div className="min-h-screen"><Header />
-        <div className="container mx-auto px-4 py-16 text-center max-w-md">
+        <div className="container mx-auto max-w-md px-4 py-16 text-center">
           <h1 className="font-display text-2xl font-bold">Нужна авторизация</h1>
           <p className="mt-2 text-muted-foreground">Чтобы увидеть профиль, войди или создай аккаунт.</p>
-          <Link to="/auth"><Button className="mt-4 bg-gradient-blast text-blast-foreground font-bold shadow-glow">Войти</Button></Link>
+          <Link to="/auth"><Button className="mt-4 bg-gradient-blast font-bold text-blast-foreground shadow-glow">Войти</Button></Link>
         </div>
       </div>
     );
   }
 
+  const isStreamer = user.role === "streamer";
   const points = viewerProfile?.points ?? 0;
   const level = viewerProfile?.level ?? 1;
   const progress = points % 100;
   const favoriteStreamers = viewerProfile?.subscriptions ?? [];
-  const isStreamer = user.role === "streamer";
+  const avatarPreview = settings?.avatarUrl.trim() ?? "";
+  const bannerPreview = settings?.streamerBannerUrl.trim() ?? "";
+
+  const updateSettings = <K extends keyof ProfileSettingsDraft>(key: K, value: ProfileSettingsDraft[K]) => {
+    setSettings((current) => current ? { ...current, [key]: value } : current);
+  };
+
+  const handleAvatarUpload = async (file: File | null) => {
+    if (!file || !session) {
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const uploaded = await uploadProfileMedia(session, isStreamer ? "streamer-avatar" : "viewer-avatar", file);
+      updateSettings("avatarUrl", uploaded.url);
+      toast.success("Аватар загружен локально на backend.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось загрузить аватар");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleBannerUpload = async (file: File | null) => {
+    if (!file || !session || !isStreamer) {
+      return;
+    }
+
+    setUploadingBanner(true);
+    try {
+      const uploaded = await uploadProfileMedia(session, "streamer-banner", file);
+      updateSettings("streamerBannerUrl", uploaded.url);
+      toast.success("Баннер загружен локально на backend.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось загрузить баннер");
+    } finally {
+      setUploadingBanner(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!settings) {
+      return;
+    }
+
+    setSettingsSaving(true);
+    try {
+      const result = await saveProfileSettings(user, settings);
+      await refreshUser();
+      if (result.publicPageId) {
+        setPublicPageId(result.publicPageId);
+      }
+      toast.success(isStreamer ? "Настройки стримера сохранены." : "Настройки профиля сохранены.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось сохранить профиль");
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
 
   return (
     <div className="min-h-screen">
       <Header />
-      <div className="container mx-auto px-4 py-6 max-w-3xl">
+      <div className="container mx-auto max-w-6xl px-4 py-6">
         <div className="rounded-3xl border border-border/50 bg-surface/60 p-6 md:p-8">
-          <div className="flex flex-col sm:flex-row gap-5 items-start">
-            <div className="h-20 w-20 rounded-full bg-gradient-cosmic shrink-0 flex items-center justify-center text-2xl font-display font-bold shadow-glow-cosmic">
-              {(user.displayName ?? user.username ?? "?").charAt(0).toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h1 className="font-display font-bold text-2xl md:text-3xl">{user.displayName}</h1>
-              <div className="text-muted-foreground text-sm">@{user.username} · TikTok: @{user.tiktokUsername}</div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <div className="inline-flex items-center gap-2 rounded-full bg-gradient-cosmic px-3 py-1 text-sm font-bold shadow-glow-cosmic">
-                  <Sparkles className="h-4 w-4" /> {isStreamer ? "Стримерский кабинет" : `Уровень ${level}`}
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+              <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full border border-border/60 bg-surface-2">
+                {avatarPreview ? (
+                  <img src={avatarPreview} alt={settings?.displayName ?? user.displayName} className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-gradient-cosmic text-3xl font-display font-bold shadow-glow-cosmic">
+                    {(settings?.displayName ?? user.displayName ?? user.username).charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <h1 className="font-display text-2xl font-bold md:text-3xl">{settings?.displayName ?? user.displayName}</h1>
+                <div className="text-sm text-muted-foreground">@{settings?.username ?? user.username} · TikTok: @{settings?.tiktokUsername ?? user.tiktokUsername}</div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-gradient-cosmic px-3 py-1 text-sm font-bold shadow-glow-cosmic">
+                    <Sparkles className="h-4 w-4" /> {isStreamer ? "Настройки стримера" : `Уровень ${level}`}
+                  </div>
+                  <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/40 px-3 py-1 text-sm text-muted-foreground">
+                    {isStreamer ? <Crown className="h-4 w-4 text-crown" /> : <Award className="h-4 w-4 text-blast" />}
+                    {isStreamer ? "Профиль и публичная страница синхронизированы" : `Серия активности: ${viewerProfile?.streakDays ?? 0} дней`}
+                  </div>
                 </div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/40 px-3 py-1 text-sm text-muted-foreground">
-                  {isStreamer ? <Crown className="h-4 w-4 text-crown" /> : <Award className="h-4 w-4 text-blast" />}
-                  {isStreamer ? "Автотрекинг: запланирован" : `Серия активности: ${viewerProfile?.streakDays ?? 0} дней`}
-                </div>
+                <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
+                  {isStreamer
+                    ? "Здесь живут реальные аккаунтные настройки стримера: имя, TikTok, аватар, баннер и короткое позиционирование. Всё это уходит в публичную страницу и студию без ручных ссылок на картинки."
+                    : "Здесь живут реальные настройки зрителя: имя, username, TikTok, био и локально загружаемый аватар внутри платформы."}
+                </p>
               </div>
             </div>
-            <Button variant="outline" size="sm" onClick={signOut} className="gap-2">
-              <LogOut className="h-4 w-4" /> Выйти
-            </Button>
+
+            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+              <Button variant="outline" size="sm" onClick={signOut} className="gap-2">
+                <LogOut className="h-4 w-4" /> Выйти
+              </Button>
+              <Button onClick={handleSave} disabled={settingsSaving || settingsLoading || !settings} className="gap-2 bg-gradient-cosmic text-foreground">
+                <Save className="h-4 w-4" /> {settingsSaving ? "Сохраняю…" : "Сохранить настройки"}
+              </Button>
+            </div>
           </div>
 
           {!isStreamer && (
             <div className="mt-6">
-              <div className="flex items-center justify-between text-sm mb-2">
+              <div className="mb-2 flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">До уровня {level + 1}</span>
                 <span className="font-bold">{progress}/100</span>
               </div>
-              <div className="h-3 rounded-full bg-surface-2 overflow-hidden">
+              <div className="h-3 overflow-hidden rounded-full bg-surface-2">
                 <div className="h-full bg-gradient-blast transition-all" style={{ width: `${progress}%` }} />
               </div>
             </div>
@@ -156,106 +276,246 @@ function ProfilePage() {
           <StatBox icon={<Sparkles className="h-5 w-5" />} label={isStreamer ? "Telegram-связки" : "Бустов"} value={String(isStreamer ? 1 : viewerProfile?.boostsJoined ?? 0)} accent="cosmic" />
         </div>
 
-        <div className="mt-6">
-          <ProjectHelpPanel
-            badge="Что показывает профиль"
-            title={isStreamer ? "Как читать кабинет стримера" : "Как читать профиль зрителя"}
-            description={isStreamer
-              ? "Профиль стримера в NovaBoost Live - это короткая сводка о твоём статусе в платформе и вход в основные инструменты роста."
-              : "Профиль зрителя показывает твой прогресс внутри платформы: очки, уровень, задания и участие в бустах."}
-            items={isStreamer
-              ? [
-                  {
-                    key: "streamer-profile-purpose",
-                    title: "Зачем нужен этот кабинет",
-                    body: "Это стартовая точка для стримера: отсюда можно перейти в студию, на публичную страницу и к инструментам продвижения внутри NovaBoost Live.",
-                  },
-                  {
-                    key: "streamer-stats",
-                    title: "Что значат показатели сверху",
-                    body: "Показатели дают быстрое представление о присутствии стримера внутри платформы: сколько подписчиков, сколько активностей подключено и какие инструменты уже используются.",
-                  },
-                ]
-              : [
-                  {
-                    key: "viewer-points-profile",
-                    title: "Что такое очки и уровень",
-                    body: "Очки зрителя выдаются за задания и активность. Каждые 100 очков поднимают уровень и показывают, насколько активно пользователь участвует в жизни платформы.",
-                  },
-                  {
-                    key: "viewer-boosts-profile",
-                    title: "Что означает счётчик бустов",
-                    body: "Это число показывает, сколько раз ты уже запускал буст для стримеров внутри NovaBoost Live, помогая им подниматься выше в каталоге и внутренних подборках.",
-                  },
-                ]}
-          />
-        </div>
+        <div className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+          <div className="space-y-6">
+            <ProjectHelpPanel
+              badge="Что изменено"
+              title={isStreamer ? "Теперь профиль стримера это реальные настройки" : "Теперь профиль зрителя это реальные настройки"}
+              description={isStreamer
+                ? "Кабинет больше не просто сводка. Здесь настраивается то, что видят зрители в публичной странице и что использует студия."
+                : "Профиль зрителя теперь можно нормально привести в порядок: аватар, био, username и TikTok внутри платформы."}
+              items={isStreamer
+                ? [
+                    {
+                      key: "streamer-settings-media",
+                      title: "Как теперь работают картинки",
+                      body: "Аватар и баннер загружаются файлами на backend, который сам создаёт локальные папки пользователя. Ввод ссылок на картинки убран из настройки профиля и студии.",
+                    },
+                    {
+                      key: "streamer-settings-sync",
+                      title: "Что именно синхронизируется",
+                      body: "Имя, TikTok username, био, баннер, аватар, tagline и Telegram-канал записываются в streamer-профиль и в настройки публичной страницы, чтобы не было расхождения между экранами.",
+                    },
+                  ]
+                : [
+                    {
+                      key: "viewer-settings-basics",
+                      title: "Что настраивается у зрителя",
+                      body: "Display name, username, TikTok username, био и локальный аватар платформы. Это базовый профиль зрителя, а не просто карточка статистики.",
+                    },
+                    {
+                      key: "viewer-settings-media",
+                      title: "Как теперь работает аватар",
+                      body: "Вместо URL загружается реальный файл. Backend кладёт его в локальную папку пользователя и возвращает готовый URL для платформы.",
+                    },
+                  ]}
+            />
 
-        {!isStreamer && favoriteStreamers.length > 0 && (
-          <div className="mt-6 rounded-3xl border border-border/50 bg-surface/60 p-6">
-            <h2 className="font-display font-bold text-xl">Подписки на стримеров</h2>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {favoriteStreamers.map((streamer) => (
-                <Link key={streamer!.id} to="/streamer/$id" params={{ id: streamer!.id }} className="rounded-2xl border border-border/50 bg-background/30 p-4 hover:border-blast/40 transition-colors">
-                  <div className="font-semibold">{streamer!.display_name}</div>
-                  <div className="mt-1 text-sm text-muted-foreground">@{streamer!.tiktok_username}</div>
-                </Link>
-              ))}
-            </div>
+            <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+              <div className="flex items-center gap-2">
+                <UserRound className="h-5 w-5 text-cosmic" />
+                <h2 className="font-display text-2xl font-bold">Базовые настройки аккаунта</h2>
+              </div>
+              <div className="mt-2 text-sm text-muted-foreground">Общие поля для любого пользователя платформы: имя, username, TikTok, био и аватар.</div>
+
+              <div className="mt-6 grid gap-6 lg:grid-cols-[0.72fr_1.28fr]">
+                <MediaUploadCard
+                  title="Аватар профиля"
+                  description="Файл уходит на backend и попадает в персональную папку пользователя. Ссылкой картинку вставлять больше не нужно."
+                  previewUrl={avatarPreview}
+                  placeholder={settings?.displayName ?? user.displayName}
+                  icon={<Camera className="h-5 w-5" />}
+                  uploading={uploadingAvatar}
+                  inputId="profile-avatar-upload"
+                  buttonLabel={uploadingAvatar ? "Загружаю…" : "Загрузить аватар"}
+                  onFileSelect={handleAvatarUpload}
+                />
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Отображаемое имя" description="Это имя видно в интерфейсе и на публичной странице, если ты стример.">
+                    <Input value={settings?.displayName ?? ""} onChange={(event) => updateSettings("displayName", event.target.value)} disabled={!settings} placeholder="Например, Nova Luna" />
+                  </Field>
+                  <Field label="Username аккаунта" description="Внутренний username NovaBoost. Без @.">
+                    <Input value={settings?.username ?? ""} onChange={(event) => updateSettings("username", event.target.value.replace(/^@+/, ""))} disabled={!settings} placeholder="nova_luna" />
+                  </Field>
+                  <Field label="TikTok username" description="Нужен для связки с TikTok LIVE и публичной страницей.">
+                    <Input value={settings?.tiktokUsername ?? ""} onChange={(event) => updateSettings("tiktokUsername", event.target.value.replace(/^@+/, ""))} disabled={!settings} placeholder="tiktok_username" />
+                  </Field>
+                  <Field label="Telegram username" description="Необязательное поле для viewer-профиля и внутренних контактов.">
+                    <Input value={settings?.telegramUsername ?? ""} onChange={(event) => updateSettings("telegramUsername", event.target.value.replace(/^@+/, ""))} disabled={!settings} placeholder="telegram_username" />
+                  </Field>
+                  <div className="md:col-span-2">
+                    <Field label="Коротко о себе" description={isStreamer ? "Это био стримера и описание для публичной страницы." : "Короткое описание зрителя внутри платформы."}>
+                      <Textarea value={settings?.bio ?? ""} onChange={(event) => updateSettings("bio", event.target.value)} disabled={!settings} placeholder={isStreamer ? "Чем ты интересен зрителю и зачем следить за эфирами" : "Кто ты и чем тебе интересны стримы на платформе"} className="min-h-32" />
+                    </Field>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {isStreamer && (
+              <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+                <div className="flex items-center gap-2">
+                  <Wallpaper className="h-5 w-5 text-blast" />
+                  <h2 className="font-display text-2xl font-bold">Оформление стримера</h2>
+                </div>
+                <div className="mt-2 text-sm text-muted-foreground">Блок для публичной страницы: баннер, tagline и Telegram-канал. Всё хранится централизованно и больше не зависит от внешних image URL.</div>
+
+                <div className="mt-6 grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
+                  <MediaUploadCard
+                    title="Баннер стримера"
+                    description="Загружается локально на backend в отдельную папку стримера внутри аккаунта пользователя."
+                    previewUrl={bannerPreview}
+                    placeholder="Баннер пока не загружен"
+                    icon={<ImagePlus className="h-5 w-5" />}
+                    variant="banner"
+                    uploading={uploadingBanner}
+                    inputId="streamer-banner-upload"
+                    buttonLabel={uploadingBanner ? "Загружаю…" : "Загрузить баннер"}
+                    onFileSelect={handleBannerUpload}
+                  />
+
+                  <div className="grid gap-4">
+                    <Field label="Короткий tagline" description="Короткая фраза в верхней части публичной страницы.">
+                      <Input value={settings?.streamerTagline ?? ""} onChange={(event) => updateSettings("streamerTagline", event.target.value)} disabled={!settings} placeholder="Например, live-разборы, анонсы и клуб подписчиков" />
+                    </Field>
+                    <Field label="Telegram-канал" description="Показывается как контакт и точка входа для аудитории.">
+                      <Input value={settings?.streamerTelegramChannel ?? ""} onChange={(event) => updateSettings("streamerTelegramChannel", event.target.value)} disabled={!settings} placeholder="@novaboost_live" />
+                    </Field>
+                    <div className="rounded-2xl border border-border/50 bg-background/30 p-4 text-sm text-muted-foreground">
+                      Публичная страница, студия и шапка стримера теперь опираются на один источник данных. Баннер и аватар лучше менять здесь, а в студии работать уже с контентом, донатами и публикациями.
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
           </div>
-        )}
 
-        {!isStreamer && !profileLoading && favoriteStreamers.length === 0 && (
-          <div className="mt-6 rounded-3xl border border-border/50 bg-surface/60 p-6 text-sm text-muted-foreground">
-            У тебя пока нет подписок внутри платформы. Открой каталог стримеров и подпишись на интересных тебе авторов.
-          </div>
-        )}
-
-        {isStreamer && (
-          <div className="mt-6 rounded-3xl border border-border/50 bg-surface/60 p-6">
-            <h2 className="font-display font-bold text-xl">Что будет в кабинете стримера</h2>
-            <div className="mt-4 space-y-2 text-sm text-muted-foreground">
-              <p>Отслеживание статуса эфира и быстрый доступ к основным действиям по стриму.</p>
-              <p>Контентный слой: посты, короткие видео, анонсы и оформление страницы.</p>
-              <p>Инструменты роста: бусты, сигналы, Telegram-канал и статистика активности.</p>
-            </div>
-            <div className="mt-5">
-              <div className="flex flex-wrap gap-3">
-                <Link to="/studio">
-                  <Button className="bg-gradient-cosmic text-foreground font-bold">Настроить публичную страницу</Button>
-                </Link>
-                <Link to="/services">
-                  <Button variant="outline">Услуги продвижения</Button>
-                </Link>
-                {publicPageId && (
+          <div className="space-y-6">
+            <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+              <h2 className="font-display text-xl font-bold">Быстрые действия</h2>
+              <div className="mt-4 grid gap-3">
+                <Link to="/tasks"><Button variant="outline" className="w-full justify-start gap-2"><Trophy className="h-4 w-4" /> К заданиям</Button></Link>
+                <Link to="/boost"><Button className="w-full justify-start gap-2 bg-gradient-blast font-bold text-blast-foreground"><Zap className="h-4 w-4" /> Поддержать boost</Button></Link>
+                {isStreamer && <Link to="/studio"><Button variant="outline" className="w-full justify-start gap-2"><Sparkles className="h-4 w-4" /> Открыть студию стримера</Button></Link>}
+                {isStreamer && publicPageId && (
                   <Link to="/streamer/$id" params={{ id: publicPageId }}>
-                    <Button variant="outline" className="gap-2">
-                      <ExternalLink className="h-4 w-4" /> Открыть публичную страницу
-                    </Button>
+                    <Button variant="outline" className="w-full justify-start gap-2"><ExternalLink className="h-4 w-4" /> Открыть публичную страницу</Button>
                   </Link>
                 )}
               </div>
-            </div>
-          </div>
-        )}
+            </section>
 
-        <div className={`mt-6 grid gap-3 ${isStreamer ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
-          <Link to="/tasks"><Button variant="outline" className="w-full gap-2"><Trophy className="h-4 w-4" /> К заданиям</Button></Link>
-          <Link to="/boost"><Button className="w-full gap-2 bg-gradient-blast text-blast-foreground font-bold"><Sparkles className="h-4 w-4" /> Запустить буст</Button></Link>
-          {isStreamer && <Link to="/studio"><Button variant="outline" className="w-full gap-2">Студия стримера</Button></Link>}
+            {!isStreamer && favoriteStreamers.length > 0 && (
+              <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+                <h2 className="font-display text-xl font-bold">Подписки на стримеров</h2>
+                <div className="mt-4 grid gap-3">
+                  {favoriteStreamers.map((streamer) => (
+                    <Link key={streamer.id} to="/streamer/$id" params={{ id: streamer.id }} className="rounded-2xl border border-border/50 bg-background/30 p-4 transition-colors hover:border-blast/40">
+                      <div className="font-semibold">{streamer.display_name}</div>
+                      <div className="mt-1 text-sm text-muted-foreground">@{streamer.tiktok_username}</div>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {!isStreamer && !profileLoading && favoriteStreamers.length === 0 && (
+              <section className="rounded-3xl border border-border/50 bg-surface/60 p-6 text-sm text-muted-foreground">
+                У тебя пока нет подписок внутри платформы. Открой каталог стримеров и подпишись на интересных тебе авторов.
+              </section>
+            )}
+
+            {settingsLoading && (
+              <section className="rounded-3xl border border-border/50 bg-surface/60 p-6 text-sm text-muted-foreground">
+                Загружаю настройки профиля…
+              </section>
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
+function Field({ label, description, children }: { label: string; description: string; children: React.ReactNode }) {
+  return (
+    <label className="block space-y-2">
+      <div>
+        <div className="text-sm font-medium text-foreground">{label}</div>
+        <div className="mt-1 text-xs leading-5 text-muted-foreground">{description}</div>
+      </div>
+      {children}
+    </label>
+  );
+}
+
+function MediaUploadCard({
+  title,
+  description,
+  previewUrl,
+  placeholder,
+  icon,
+  variant = "avatar",
+  uploading,
+  inputId,
+  buttonLabel,
+  onFileSelect,
+}: {
+  title: string;
+  description: string;
+  previewUrl: string;
+  placeholder: string;
+  icon: React.ReactNode;
+  variant?: "avatar" | "banner";
+  uploading: boolean;
+  inputId: string;
+  buttonLabel: string;
+  onFileSelect: (file: File | null) => void;
+}) {
+  const isBanner = variant === "banner";
+
+  return (
+    <div className="rounded-2xl border border-border/50 bg-background/30 p-4">
+      <div className="flex items-center gap-2 text-foreground">
+        {icon}
+        <h3 className="font-semibold">{title}</h3>
+      </div>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p>
+      <div className={`mt-4 overflow-hidden rounded-2xl border border-border/50 bg-surface-2 ${isBanner ? "h-44" : "h-40 w-40"}`}>
+        {previewUrl ? (
+          <img src={previewUrl} alt={title} className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center px-4 text-center text-sm text-muted-foreground">{placeholder}</div>
+        )}
+      </div>
+      <label htmlFor={inputId} className="mt-4 block">
+        <input
+          id={inputId}
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0] ?? null;
+            onFileSelect(file);
+            event.currentTarget.value = "";
+          }}
+        />
+        <span className={`inline-flex h-10 w-full items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium shadow-sm transition-colors ${uploading ? "pointer-events-none opacity-60" : "cursor-pointer hover:bg-accent hover:text-accent-foreground"}`}>
+          {buttonLabel}
+        </span>
+      </label>
+    </div>
+  );
+}
+
 function StatBox({ icon, label, value, accent }: { icon: React.ReactNode; label: string; value: string; accent?: "blast" | "cosmic" }) {
-  const c = accent === "blast" ? "text-blast" : accent === "cosmic" ? "text-cosmic" : "text-foreground";
+  const color = accent === "blast" ? "text-blast" : accent === "cosmic" ? "text-cosmic" : "text-foreground";
   return (
     <div className="rounded-2xl border border-border/50 bg-surface/60 p-4">
-      <div className={`flex h-9 w-9 items-center justify-center rounded-lg bg-surface-2 ${c}`}>{icon}</div>
-      <div className={`mt-3 font-display font-bold text-2xl ${c}`}>{value}</div>
-      <div className="text-xs text-muted-foreground uppercase tracking-wider mt-1">{label}</div>
+      <div className={`flex h-9 w-9 items-center justify-center rounded-lg bg-surface-2 ${color}`}>{icon}</div>
+      <div className={`mt-3 font-display text-2xl font-bold ${color}`}>{value}</div>
+      <div className="mt-1 text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
     </div>
   );
 }

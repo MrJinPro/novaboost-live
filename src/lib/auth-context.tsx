@@ -9,6 +9,7 @@ interface AuthContextValue {
   user: AppUser | null;
   session: Session | null;
   loading: boolean;
+  refreshUser: () => Promise<void>;
   signUp: (payload: {
     role: AppRole;
     email: string;
@@ -104,6 +105,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       subscription.unsubscribe();
     };
   }, []);
+
+  const refreshUser = async () => {
+    if (!session) {
+      setUser(null);
+      return;
+    }
+
+    const nextUser = await buildAppUser(session);
+    setUser(nextUser);
+  };
 
   const signUp = async (payload: {
     role: AppRole;
@@ -233,7 +244,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, refreshUser, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );
