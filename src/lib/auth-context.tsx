@@ -11,18 +11,13 @@ interface AuthContextValue {
   loading: boolean;
   refreshUser: () => Promise<void>;
   signUp: (payload: {
-    role: AppRole;
     email: string;
-    username: string;
-    displayName: string;
-    tiktokUsername: string;
+    displayName?: string;
     password: string;
     referralStreamerId?: string | null;
   }) => Promise<{ emailConfirmationRequired: boolean }>;
   signIn: (payload: {
-    role: AppRole;
     email: string;
-    tiktokUsername?: string;
     password: string;
   }) => Promise<void>;
   signOut: () => Promise<void>;
@@ -40,14 +35,15 @@ async function buildAppUser(session: Session): Promise<AppUser> {
     userId: session.user.id,
     tiktokUsername: profile?.tiktok_username ?? session.user.user_metadata.tiktok_username ?? "",
   });
+  const hasVerifiedStreamerProfile = streamer?.verification_status === "verified";
 
   const username = profile?.username ?? session.user.user_metadata.username ?? session.user.email?.split("@")[0] ?? "user";
-  const displayName = streamer?.display_name ?? profile?.display_name ?? session.user.user_metadata.display_name ?? username;
-  const tiktokUsername = streamer?.tiktok_username ?? profile?.tiktok_username ?? session.user.user_metadata.tiktok_username ?? "";
+  const displayName = (hasVerifiedStreamerProfile ? streamer?.display_name : null) ?? profile?.display_name ?? session.user.user_metadata.display_name ?? username;
+  const tiktokUsername = (hasVerifiedStreamerProfile ? streamer?.tiktok_username : null) ?? profile?.tiktok_username ?? session.user.user_metadata.tiktok_username ?? "";
 
   return {
     id: session.user.id,
-    role: streamer ? "streamer" : "viewer",
+    role: hasVerifiedStreamerProfile ? "streamer" : "viewer",
     email: session.user.email ?? "",
     username,
     displayName,
@@ -117,22 +113,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (payload: {
-    role: AppRole;
     email: string;
-    username: string;
-    displayName: string;
-    tiktokUsername: string;
+    displayName?: string;
     password: string;
     referralStreamerId?: string | null;
   }) => {
+    const emailLocalPart = payload.email.split("@")[0]?.trim() || "user";
+    const normalizedUsername = emailLocalPart.toLowerCase().replace(/[^a-z0-9._-]/g, "") || `user_${Date.now()}`;
+    const normalizedDisplayName = payload.displayName?.trim() || emailLocalPart;
+
     const { data, error } = await supabase.auth.signUp({
       email: payload.email,
       password: payload.password,
       options: {
         data: {
-          username: payload.username,
-          display_name: payload.displayName,
-          tiktok_username: payload.tiktokUsername,
+          username: normalizedUsername,
+          display_name: normalizedDisplayName,
+          tiktok_username: "",
           preferred_language: "ru",
         },
       },
@@ -146,25 +143,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Не удалось создать пользователя в Supabase.");
     }
 
-    const fallbackName = payload.displayName.trim() || payload.username.trim() || payload.tiktokUsername.trim();
-
     if (data.session) {
       await upsertAuthProfileCompat({
         id: data.user.id,
-        username: payload.username,
-        display_name: payload.displayName,
-        tiktok_username: payload.tiktokUsername,
+        username: normalizedUsername,
+        display_name: normalizedDisplayName,
+        tiktok_username: "",
       });
 
-      if (payload.role === "streamer") {
-        await ensureLinkedStreamer({
-          userId: data.user.id,
-          tiktokUsername: payload.tiktokUsername,
-          displayName: fallbackName,
-        });
-      }
-
-      if (payload.role === "viewer" && payload.referralStreamerId) {
+      if (payload.referralStreamerId) {
         const { error: referralError } = await supabase.from("referrals").insert({
           viewer_id: data.user.id,
           streamer_id: payload.referralStreamerId,
@@ -184,9 +171,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (payload: {
-    role: AppRole;
     email: string;
-    tiktokUsername?: string;
     password: string;
   }) => {
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -202,36 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Supabase не вернул активную сессию после входа.");
     }
 
-    const profile = await getProfile(data.user.id);
-    const enteredTikTok = payload.tiktokUsername?.trim() ?? "";
-    const knownTikTokUsername = profile?.tiktok_username?.trim() ?? "";
-
-    if (payload.role === "streamer") {
-      const streamerTikTokUsername = enteredTikTok || knownTikTokUsername;
-
-      if (!streamerTikTokUsername) {
-        await supabase.auth.signOut();
-        throw new Error("Для входа стримера нужен TikTok username, чтобы связать кабинет со страницей.");
-      }
-
-      await ensureLinkedStreamer({
-        userId: data.user.id,
-        tiktokUsername: streamerTikTokUsername,
-        displayName: profile?.display_name ?? profile?.username ?? streamerTikTokUsername,
-      });
-    }
-
     const nextUser = await buildAppUser(data.session);
-
-    if (nextUser.role !== payload.role) {
-      await supabase.auth.signOut();
-      throw new Error(payload.role === "streamer" ? "У этого аккаунта ещё не создан профиль стримера." : "Этот аккаунт относится к кабинету стримера. Выбери вход как стример.");
-    }
-
-    if (enteredTikTok && nextUser.tiktokUsername && nextUser.tiktokUsername.toLowerCase() !== enteredTikTok.toLowerCase()) {
-      await supabase.auth.signOut();
-      throw new Error("TikTok username не совпадает с профилем в базе.");
-    }
 
     setSession(data.session);
     setUser(nextUser);

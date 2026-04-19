@@ -7,7 +7,7 @@ import { PlatformDisclaimer } from "@/components/PlatformDisclaimer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Crown, Search, Users } from "lucide-react";
+import { Eye, EyeOff, Search } from "lucide-react";
 import { toast } from "sonner";
 import type { StreamerCardData } from "@/lib/mock-platform";
 import { loadStreamerDirectory } from "@/lib/streamers-directory-data";
@@ -21,13 +21,12 @@ function AuthPage() {
   const { user, signIn, signUp } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState<"signin" | "signup">("signup");
-  const [role, setRole] = useState<"viewer" | "streamer">("viewer");
   const [email, setEmail] = useState("");
-  const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [tiktokUsername, setTiktokUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [referralQuery, setReferralQuery] = useState("");
   const [directoryStreamers, setDirectoryStreamers] = useState<StreamerCardData[]>([]);
   const [referralStreamer, setReferralStreamer] = useState<StreamerCardData | null>(null);
@@ -72,8 +71,8 @@ function AuthPage() {
 
     try {
       if (mode === "signup") {
-        if (!email || !username || !displayName || !tiktokUsername || !password) {
-          toast.error("Заполни email, имя, отображаемое имя, TikTok username и пароль");
+        if (!email || !password) {
+          toast.error("Заполни email и пароль");
           setSubmitting(false);
           return;
         }
@@ -91,20 +90,15 @@ function AuthPage() {
         }
 
         const result = await signUp({
-          role,
           email,
-          username,
           displayName,
-          tiktokUsername,
           password,
           referralStreamerId: referralStreamer?.id ?? null,
         });
         toast.success(
           result.emailConfirmationRequired
             ? "Аккаунт создан. Подтверди email, затем выполни вход."
-            : role === "streamer"
-              ? "Профиль стримера создан. Можно переходить в кабинет."
-              : `Профиль зрителя создан${referralStreamer ? `, любимый стример: ${referralStreamer.display_name}` : ""}.`
+            : `Аккаунт создан${referralStreamer ? `, любимый стример: ${referralStreamer.display_name}` : ""}.`
         );
 
         if (result.emailConfirmationRequired) {
@@ -114,13 +108,13 @@ function AuthPage() {
         }
       } else {
         if (!email || !password) {
-          toast.error(role === "streamer" ? "Для входа стримера укажи email, пароль и при необходимости TikTok username" : "Для входа укажи email и пароль");
+          toast.error("Для входа укажи email и пароль");
           setSubmitting(false);
           return;
         }
 
-        await signIn({ role, email, tiktokUsername: tiktokUsername || undefined, password });
-        toast.success(role === "streamer" ? "Вход в кабинет стримера выполнен" : "Вход выполнен");
+        await signIn({ email, password });
+        toast.success("Вход выполнен");
       }
       setSubmitting(false);
       navigate({ to: "/profile" });
@@ -138,17 +132,13 @@ function AuthPage() {
           <div className="inline-flex"><Logo size="lg" showText={false} /></div>
           <h1 className="mt-4 font-display font-bold text-3xl">
             {mode === "signup"
-              ? role === "viewer" ? "Регистрация зрителя TikTok LIVE" : "Регистрация стримера TikTok LIVE"
-              : role === "viewer" ? "Вход для зрителя" : "Вход для стримера"}
+              ? "Создание аккаунта NovaBoost Live"
+              : "Вход в NovaBoost Live"}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             {mode === "signup"
-              ? role === "viewer"
-                ? "Сервис для аудитории TikTok-стримеров: подписки, задания, сигналы и участие в росте эфиров."
-                : "Платформа для TikTok-стримеров: рост, бусты, контент и работа с аудиторией."
-              : role === "viewer"
-                ? "Войди в свой профиль зрителя, чтобы продолжить участие в активностях вокруг TikTok-эфиров."
-                : "Войди в кабинет стримера, чтобы управлять страницей и ростом вокруг TikTok LIVE."}
+              ? "Один аккаунт для всех сценариев внутри NovaBoost Live: смотреть, поддерживать, выполнять задания и при необходимости подать заявку на кабинет стримера."
+              : "Для входа нужен только email и пароль. Дополнительные роли и настройки подтягиваются уже внутри профиля."}
           </p>
         </div>
 
@@ -158,19 +148,6 @@ function AuthPage() {
           </button>
           <button type="button" onClick={() => setMode("signin")} className={`rounded-2xl border p-3 text-sm font-semibold ${mode === "signin" ? "border-cosmic bg-cosmic/10 text-foreground" : "border-border/50 bg-surface/40 text-muted-foreground"}`}>
             Вход
-          </button>
-        </div>
-
-        <div className="mb-4 grid grid-cols-2 gap-3">
-          <button type="button" onClick={() => setRole("viewer")} className={`rounded-2xl border p-4 text-left ${role === "viewer" ? "border-blast bg-blast/5 shadow-glow" : "border-border/50 bg-surface/40"}`}>
-            <Users className="h-5 w-5 text-blast" />
-            <div className="mt-3 font-display font-bold">Я зритель</div>
-            <div className="mt-1 text-xs text-muted-foreground">Задания, подписки, очки, сигналы.</div>
-          </button>
-          <button type="button" onClick={() => setRole("streamer")} className={`rounded-2xl border p-4 text-left ${role === "streamer" ? "border-cosmic bg-cosmic/10 shadow-glow-cosmic" : "border-border/50 bg-surface/40"}`}>
-            <Crown className="h-5 w-5 text-cosmic" />
-            <div className="mt-3 font-display font-bold">Я стример</div>
-            <div className="mt-1 text-xs text-muted-foreground">Профиль, буст, контент, автотрекинг live.</div>
           </button>
         </div>
 
@@ -185,36 +162,35 @@ function AuthPage() {
           </div>
 
           {mode === "signup" && (
-            <>
-              <div>
-                <Label htmlFor="username">Username</Label>
-                <Input id="username" required value={username} onChange={(e) => setUsername(e.target.value)} placeholder="nova_user" className="mt-1.5 bg-background" />
-              </div>
-              <div>
-                <Label htmlFor="displayName">Отображаемое имя</Label>
-                <Input id="displayName" required value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Например, Алина Luna" className="mt-1.5 bg-background" />
-              </div>
-            </>
+            <div>
+              <Label htmlFor="displayName">Отображаемое имя</Label>
+              <Input id="displayName" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Например, Алина Luna" className="mt-1.5 bg-background" />
+            </div>
           )}
 
           <div>
-            <Label htmlFor="tiktokUsername">TikTok username</Label>
-            <Input id="tiktokUsername" required={mode === "signup"} value={tiktokUsername} onChange={(e) => setTiktokUsername(e.target.value)} placeholder={mode === "signin" ? role === "streamer" ? "Если профиль стримера ещё не связан, введи username вручную" : "Необязательно для входа зрителя" : "Введите вручную, без автоподстановки"} className="mt-1.5 bg-background" />
-          </div>
-
-          <div>
             <Label htmlFor="password">Пароль</Label>
-            <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder={mode === "signin" ? "Введите пароль профиля" : "Минимум 6 символов"} className="mt-1.5 bg-background" />
+            <div className="relative mt-1.5">
+              <Input id="password" type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} placeholder={mode === "signin" ? "Введите пароль профиля" : "Минимум 6 символов"} className="bg-background pr-11" />
+              <button type="button" onClick={() => setShowPassword((current) => !current)} className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-muted-foreground hover:text-foreground" aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}>
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
 
           {mode === "signup" && (
             <div>
               <Label htmlFor="confirmPassword">Повтори пароль</Label>
-              <Input id="confirmPassword" type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Повторите пароль" className="mt-1.5 bg-background" />
+              <div className="relative mt-1.5">
+                <Input id="confirmPassword" type={showConfirmPassword ? "text" : "password"} required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Повторите пароль" className="bg-background pr-11" />
+                <button type="button" onClick={() => setShowConfirmPassword((current) => !current)} className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-muted-foreground hover:text-foreground" aria-label={showConfirmPassword ? "Скрыть пароль" : "Показать пароль"}>
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
           )}
 
-          {mode === "signup" && role === "viewer" && (
+          {mode === "signup" && (
             <div>
               <Label>Реферальный стример (необязательно)</Label>
               {referralStreamer ? (
@@ -255,20 +231,20 @@ function AuthPage() {
             </div>
           )}
 
-          {mode === "signup" && role === "streamer" && (
+          {mode === "signup" && (
             <div className="rounded-xl border border-cosmic/30 bg-cosmic/10 p-4 text-sm text-muted-foreground">
-              После регистрации ты сможешь оформить страницу, публиковать контент и развивать эфиры внутри кабинета.
+              После регистрации у тебя будет обычный аккаунт NovaBoost Live. Если позже захочешь кабинет стримера, подашь заявку прямо внутри профиля и приложишь доказательства, что реально стримишь.
             </div>
           )}
 
           {mode === "signin" && (
             <div className="rounded-xl border border-border/50 bg-background/30 p-4 text-sm text-muted-foreground">
-              Для входа используй email и пароль. TikTok username нужен стримеру только если профиль ещё не был привязан.
+              Для входа используй только email и пароль. Если у аккаунта уже есть подтверждённый профиль стримера, кабинет подтянется автоматически.
             </div>
           )}
 
           <Button type="submit" disabled={submitting} className="w-full bg-gradient-blast text-blast-foreground font-bold shadow-glow">
-            {submitting ? "Подождите…" : mode === "signup" ? role === "viewer" ? "Создать профиль зрителя" : "Создать профиль стримера" : role === "viewer" ? "Войти как зритель" : "Войти как стример"}
+            {submitting ? "Подождите…" : mode === "signup" ? "Создать аккаунт" : "Войти"}
           </Button>
         </form>
 

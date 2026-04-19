@@ -126,7 +126,7 @@ function StreamerProfile() {
     const syncMembership = async () => {
       setMembershipLoading(true);
       try {
-        const nextState = await loadStreamerMembershipState(streamer.id, user?.role === "viewer" ? user.id : undefined);
+        const nextState = await loadStreamerMembershipState(streamer.id, user?.id);
         if (active) {
           setMembershipState(nextState);
         }
@@ -183,7 +183,7 @@ function StreamerProfile() {
       try {
         const summaries = await loadPostReactionSummaries(
           streamer.posts.map((post) => post.id),
-          user?.role === "viewer" ? user.id : undefined,
+          user?.id,
         );
 
         if (active) {

@@ -33,6 +33,26 @@ type StreamerRow = {
   logo_url: string | null;
   tagline: string | null;
   telegram_channel: string | null;
+  verification_status: "pending" | "verified" | "rejected";
+  verification_method: string | null;
+};
+
+type StreamerVerificationRow = {
+  evidence_type: string | null;
+  evidence_value: string | null;
+  notes: string | null;
+  status: "pending" | "verified" | "rejected";
+  created_at: string;
+};
+
+export type StreamerApplicationState = {
+  streamerId: string | null;
+  tiktokUsername: string;
+  status: "none" | "pending" | "verified" | "rejected";
+  evidenceType: string;
+  evidenceValue: string;
+  notes: string;
+  submittedAt: string | null;
 };
 
 type UploadMediaKind = "viewer-avatar" | "streamer-avatar" | "streamer-banner";
@@ -49,13 +69,11 @@ export async function loadProfileSettings(user: AppUser): Promise<ProfileSetting
       .select("avatar_url, bio, telegram_username")
       .eq("id", user.id)
       .maybeSingle(),
-    user.role === "streamer"
-      ? supabase
-          .from("streamers")
-          .select("id, display_name, tiktok_username, avatar_url, bio, banner_url, logo_url, tagline, telegram_channel")
-          .eq("user_id", user.id)
-          .maybeSingle()
-      : Promise.resolve({ data: null, error: null }),
+    supabase
+      .from("streamers")
+      .select("id, display_name, tiktok_username, avatar_url, bio, banner_url, logo_url, tagline, telegram_channel, verification_status, verification_method")
+      .eq("user_id", user.id)
+      .maybeSingle(),
   ]);
 
   if (profileResult.error) {
@@ -188,4 +206,140 @@ export async function saveProfileSettings(user: AppUser, draft: ProfileSettingsD
   }
 
   return { publicPageId: streamer.id };
+}
+
+export async function loadStreamerApplicationState(user: AppUser): Promise<StreamerApplicationState> {
+  const { data: streamerData, error: streamerError } = await supabase
+    .from("streamers")
+    .select("id, tiktok_username, verification_status, verification_method")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (streamerError) {
+    throw streamerError;
+  }
+
+  const streamer = (streamerData ?? null) as Pick<StreamerRow, "id" | "tiktok_username" | "verification_status" | "verification_method"> | null;
+  if (!streamer) {
+    return {
+      streamerId: null,
+      tiktokUsername: "",
+      status: "none",
+      evidenceType: "live-link",
+      evidenceValue: "",
+      notes: "",
+      submittedAt: null,
+    };
+  }
+
+  const { data: verificationData, error: verificationError } = await supabase
+    .from("streamer_verifications")
+    .select("evidence_type, evidence_value, notes, status, created_at")
+    .eq("streamer_id", streamer.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (verificationError) {
+    throw verificationError;
+  }
+
+  const latestVerification = (verificationData ?? null) as StreamerVerificationRow | null;
+
+  return {
+    streamerId: streamer.id,
+    tiktokUsername: streamer.tiktok_username ?? "",
+    status: streamer.verification_status ?? latestVerification?.status ?? "none",
+    evidenceType: latestVerification?.evidence_type ?? streamer.verification_method ?? "live-link",
+    evidenceValue: latestVerification?.evidence_value ?? "",
+    notes: latestVerification?.notes ?? "",
+    submittedAt: latestVerification?.created_at ?? null,
+  };
+}
+
+export async function submitStreamerApplication(user: AppUser, input: {
+  tiktokUsername: string;
+  evidenceType: string;
+  evidenceValue: string;
+  notes: string;
+}) {
+  const tiktokUsername = normalizeTikTokUsername(input.tiktokUsername);
+  const evidenceType = input.evidenceType.trim();
+  const evidenceValue = input.evidenceValue.trim();
+  const notes = input.notes.trim();
+
+  if (!tiktokUsername) {
+    throw new Error("Укажи TikTok username для заявки на стримера.");
+  }
+
+  if (!evidenceValue) {
+    throw new Error("Добавь ссылку или описание доказательства, что ты реально стримишь.");
+  }
+
+  const { data: existingStreamerData, error: existingStreamerError } = await supabase
+    .from("streamers")
+    .select("id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (existingStreamerError) {
+    throw existingStreamerError;
+  }
+
+  const existingStreamer = existingStreamerData as { id: string } | null;
+  let streamerId = existingStreamer?.id ?? null;
+
+  if (streamerId) {
+    const { error: updateError } = await supabase
+      .from("streamers")
+      .update({
+        display_name: user.displayName,
+        tiktok_username: tiktokUsername,
+        verification_status: "pending",
+        verification_method: evidenceType,
+        tracking_enabled: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", streamerId);
+
+    if (updateError) {
+      throw updateError;
+    }
+  } else {
+    const { data: createdStreamer, error: createError } = await supabase
+      .from("streamers")
+      .insert({
+        user_id: user.id,
+        display_name: user.displayName,
+        tiktok_username: tiktokUsername,
+        verification_status: "pending",
+        verification_method: evidenceType,
+        tracking_enabled: false,
+      })
+      .select("id")
+      .single();
+
+    if (createError) {
+      throw createError;
+    }
+
+    streamerId = createdStreamer.id;
+  }
+
+  const { error: verificationError } = await supabase
+    .from("streamer_verifications")
+    .insert({
+      streamer_id: streamerId,
+      submitted_by: user.id,
+      status: "pending",
+      evidence_type: evidenceType,
+      evidence_value: evidenceValue,
+      notes: notes || null,
+    });
+
+  if (verificationError) {
+    throw verificationError;
+  }
+
+  return { streamerId };
 }

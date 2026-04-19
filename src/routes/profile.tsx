@@ -6,11 +6,11 @@ import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Award, Camera, Crown, ExternalLink, ImagePlus, LogOut, Save, Sparkles, Trophy, UserRound, Wallpaper, Zap } from "lucide-react";
+import { Award, BadgeCheck, Camera, Crown, ExternalLink, ImagePlus, LogOut, Save, Send, Sparkles, Trophy, UserRound, Wallpaper, Zap } from "lucide-react";
 import { formatNumber } from "@/lib/format";
 import { loadViewerProfileData, type ViewerProfileData } from "@/lib/user-profile-data";
 import { getOwnedStreamerPublicPage } from "@/lib/streamer-studio-data";
-import { loadProfileSettings, saveProfileSettings, uploadProfileMedia, type ProfileSettingsDraft } from "@/lib/profile-settings-data";
+import { loadProfileSettings, loadStreamerApplicationState, saveProfileSettings, submitStreamerApplication, uploadProfileMedia, type ProfileSettingsDraft, type StreamerApplicationState } from "@/lib/profile-settings-data";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/profile")({
@@ -32,8 +32,11 @@ function ProfilePage() {
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [applicationLoading, setApplicationLoading] = useState(false);
+  const [applicationSubmitting, setApplicationSubmitting] = useState(false);
   const [publicPageId, setPublicPageId] = useState<string | null>(null);
   const [settings, setSettings] = useState<ProfileSettingsDraft | null>(null);
+  const [streamerApplication, setStreamerApplication] = useState<StreamerApplicationState | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -71,7 +74,7 @@ function ProfilePage() {
   useEffect(() => {
     let active = true;
 
-    if (!user || user.role !== "viewer") {
+    if (!user) {
       setViewerProfile(null);
       return;
     }
@@ -95,6 +98,39 @@ function ProfilePage() {
     };
 
     void syncViewerProfile();
+
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
+  useEffect(() => {
+    let active = true;
+
+    if (!user) {
+      setStreamerApplication(null);
+      return;
+    }
+
+    const syncApplication = async () => {
+      setApplicationLoading(true);
+      try {
+        const nextApplication = await loadStreamerApplicationState(user);
+        if (active) {
+          setStreamerApplication(nextApplication);
+        }
+      } catch (error) {
+        if (active) {
+          toast.error(error instanceof Error ? error.message : "Не удалось загрузить статус заявки стримера");
+        }
+      } finally {
+        if (active) {
+          setApplicationLoading(false);
+        }
+      }
+    };
+
+    void syncApplication();
 
     return () => {
       active = false;
@@ -151,6 +187,7 @@ function ProfilePage() {
   const favoriteStreamers = viewerProfile?.subscriptions ?? [];
   const avatarPreview = settings?.avatarUrl.trim() ?? "";
   const bannerPreview = settings?.streamerBannerUrl.trim() ?? "";
+  const applicationStatus = streamerApplication?.status ?? "none";
 
   const updateSettings = <K extends keyof ProfileSettingsDraft>(key: K, value: ProfileSettingsDraft[K]) => {
     setSettings((current) => current ? { ...current, [key]: value } : current);
@@ -207,6 +244,34 @@ function ProfilePage() {
       toast.error(error instanceof Error ? error.message : "Не удалось сохранить профиль");
     } finally {
       setSettingsSaving(false);
+    }
+  };
+
+  const updateStreamerApplication = <K extends keyof StreamerApplicationState>(key: K, value: StreamerApplicationState[K]) => {
+    setStreamerApplication((current) => current ? { ...current, [key]: value } : current);
+  };
+
+  const handleSubmitStreamerApplication = async () => {
+    if (!streamerApplication) {
+      return;
+    }
+
+    setApplicationSubmitting(true);
+    try {
+      await submitStreamerApplication(user, {
+        tiktokUsername: streamerApplication.tiktokUsername,
+        evidenceType: streamerApplication.evidenceType,
+        evidenceValue: streamerApplication.evidenceValue,
+        notes: streamerApplication.notes,
+      });
+
+      const nextApplication = await loadStreamerApplicationState(user);
+      setStreamerApplication(nextApplication);
+      toast.success("Заявка на профиль стримера отправлена. После проверки кабинет откроется автоматически.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось отправить заявку на стримера");
+    } finally {
+      setApplicationSubmitting(false);
     }
   };
 
@@ -389,6 +454,70 @@ function ProfilePage() {
                 </div>
               </section>
             )}
+
+            {!isStreamer && streamerApplication && (
+              <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+                <div className="flex items-center gap-2">
+                  <BadgeCheck className="h-5 w-5 text-blast" />
+                  <h2 className="font-display text-2xl font-bold">Заявка на профиль стримера</h2>
+                </div>
+                <div className="mt-2 text-sm text-muted-foreground">
+                  Публичную страницу и студию получают только подтверждённые стримеры. Если хочешь кабинет стримера, отправь заявку и приложи доказательство, что реально стримишь.
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-border/50 bg-background/30 p-4 text-sm text-muted-foreground">
+                  {applicationLoading && "Загружаю статус заявки…"}
+                  {!applicationLoading && applicationStatus === "none" && "Заявки пока нет. Заполни TikTok username и приложи ссылку на профиль, live или запись эфира."}
+                  {!applicationLoading && applicationStatus === "pending" && "Заявка уже отправлена и ждёт проверки. Пока аккаунт остаётся обычным user-профилем, а после подтверждения откроется кабинет стримера."}
+                  {!applicationLoading && applicationStatus === "rejected" && "Прошлая заявка была отклонена. Поправь доказательства и отправь новую версию."}
+                </div>
+
+                <div className="mt-6 grid gap-4 md:grid-cols-2">
+                  <Field label="TikTok username" description="Аккаунт, который нужно проверить на наличие стримов.">
+                    <Input value={streamerApplication.tiktokUsername} onChange={(event) => updateStreamerApplication("tiktokUsername", event.target.value.replace(/^@+/, ""))} placeholder="tiktok_username" />
+                  </Field>
+                  <Field label="Тип доказательства" description="Что именно ты прикладываешь модерации.">
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { key: "live-link", label: "LIVE" },
+                        { key: "profile-link", label: "Профиль" },
+                        { key: "clip-link", label: "Клип" },
+                      ].map((option) => (
+                        <button
+                          key={option.key}
+                          type="button"
+                          onClick={() => updateStreamerApplication("evidenceType", option.key)}
+                          className={`rounded-xl border px-3 py-2 text-sm ${streamerApplication.evidenceType === option.key ? "border-blast bg-blast/10 text-foreground" : "border-border/50 bg-background/30 text-muted-foreground"}`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </Field>
+                  <div className="md:col-span-2">
+                    <Field label="Ссылка или доказательство" description="Например, ссылка на TikTok профиль, live-ссылку, клип или другую публичную точку, где видно, что ты стримишь.">
+                      <Input value={streamerApplication.evidenceValue} onChange={(event) => updateStreamerApplication("evidenceValue", event.target.value)} placeholder="https://www.tiktok.com/@username/live" />
+                    </Field>
+                  </div>
+                  <div className="md:col-span-2">
+                    <Field label="Комментарий к заявке" description="Коротко опиши, что именно нужно проверить.">
+                      <Textarea value={streamerApplication.notes} onChange={(event) => updateStreamerApplication("notes", event.target.value)} placeholder="Стримлю несколько раз в неделю, вот профиль и последняя запись эфира" className="min-h-28" />
+                    </Field>
+                  </div>
+                </div>
+
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <Button onClick={handleSubmitStreamerApplication} disabled={applicationSubmitting || applicationLoading} className="gap-2 bg-gradient-blast text-blast-foreground">
+                    <Send className="h-4 w-4" /> {applicationSubmitting ? "Отправляю заявку…" : applicationStatus === "rejected" ? "Отправить заново" : "Подать заявку"}
+                  </Button>
+                  {streamerApplication.submittedAt ? (
+                    <div className="self-center text-sm text-muted-foreground">
+                      Последняя заявка: {new Date(streamerApplication.submittedAt).toLocaleDateString("ru-RU")}
+                    </div>
+                  ) : null}
+                </div>
+              </section>
+            )}
           </div>
 
           <div className="space-y-6">
@@ -406,7 +535,7 @@ function ProfilePage() {
               </div>
             </section>
 
-            {!isStreamer && favoriteStreamers.length > 0 && (
+            {favoriteStreamers.length > 0 && (
               <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
                 <h2 className="font-display text-xl font-bold">Подписки на стримеров</h2>
                 <div className="mt-4 grid gap-3">
@@ -420,7 +549,7 @@ function ProfilePage() {
               </section>
             )}
 
-            {!isStreamer && !profileLoading && favoriteStreamers.length === 0 && (
+            {!profileLoading && favoriteStreamers.length === 0 && (
               <section className="rounded-3xl border border-border/50 bg-surface/60 p-6 text-sm text-muted-foreground">
                 У тебя пока нет подписок внутри платформы. Открой каталог стримеров и подпишись на интересных тебе авторов.
               </section>
