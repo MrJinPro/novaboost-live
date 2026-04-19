@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { loadDonationOverlayBySlug } from "@/lib/monetization-data";
+import { supabase } from "@/integrations/supabase/client";
+import { loadDonationOverlayBySlug, loadLatestDonationOverlayEvent } from "@/lib/monetization-data";
 import type { DonationOverlayVariant } from "@/lib/mock-platform";
 
 const stringFromSearch = z.union([z.string(), z.number()]).transform((value) => String(value));
@@ -56,6 +57,8 @@ function DonationOverlayRoute() {
   const [soundUrl, setSoundUrl] = useState("");
   const [triggerKey, setTriggerKey] = useState(0);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [streamerId, setStreamerId] = useState<string | null>(null);
+  const lastEventIdRef = useRef<string | null>(null);
   const initialPayload = useMemo(
     () => normalizeOverlayPayload({
       username: search.username,
@@ -91,10 +94,12 @@ function DonationOverlayRoute() {
 
         if (!data) {
           setIsAuthorized(false);
+          setStreamerId(null);
           return;
         }
 
         setIsAuthorized(true);
+        setStreamerId(data.streamer_id);
         setVariant(data.overlay.variant);
         setGifUrl(data.overlay.gifUrl);
         setSoundUrl(data.overlay.soundUrl);
@@ -102,6 +107,7 @@ function DonationOverlayRoute() {
       .catch(() => {
         if (active) {
           setIsAuthorized(false);
+          setStreamerId(null);
         }
       });
 
@@ -179,6 +185,94 @@ function DonationOverlayRoute() {
       delete window.triggerNovaBoost;
     };
   }, [hasInitialPayload, initialPayload, isAuthorized, slug]);
+
+  useEffect(() => {
+    if (!isAuthorized || !streamerId) {
+      return;
+    }
+
+    let active = true;
+
+    const pushEvent = (event: {
+      id: string;
+      donorName: string;
+      amount: number;
+      currency: string;
+      message: string;
+    }) => {
+      if (lastEventIdRef.current === event.id) {
+        return;
+      }
+
+      lastEventIdRef.current = event.id;
+      window.NovaBoostOverlay?.showDonation({
+        username: event.donorName,
+        amount: String(event.amount),
+        currency: event.currency,
+        message: event.message,
+      });
+    };
+
+    void loadLatestDonationOverlayEvent(streamerId)
+      .then((event) => {
+        if (active) {
+          lastEventIdRef.current = event?.id ?? null;
+        }
+      })
+      .catch(() => undefined);
+
+    const channel = supabase
+      .channel(`donation-overlay:${streamerId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "donation_events",
+          filter: `streamer_id=eq.${streamerId}`,
+        },
+        (payload) => {
+          const event = payload.new as {
+            id?: string;
+            donor_name?: string;
+            amount?: number;
+            message?: string | null;
+            status?: string;
+          };
+
+          if (event.status !== "succeeded" || !event.id || typeof event.donor_name !== "string" || typeof event.amount !== "number") {
+            return;
+          }
+
+          pushEvent({
+            id: event.id,
+            donorName: event.donor_name,
+            amount: event.amount,
+            currency: "RUB",
+            message: event.message ?? "",
+          });
+        },
+      )
+      .subscribe();
+
+    const poller = window.setInterval(() => {
+      void loadLatestDonationOverlayEvent(streamerId)
+        .then((event) => {
+          if (!active || !event) {
+            return;
+          }
+
+          pushEvent(event);
+        })
+        .catch(() => undefined);
+    }, 5000);
+
+    return () => {
+      active = false;
+      window.clearInterval(poller);
+      void supabase.removeChannel(channel);
+    };
+  }, [isAuthorized, streamerId]);
 
   useEffect(() => {
     if (!soundUrl || !audioRef.current || triggerKey === 0) {

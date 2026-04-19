@@ -46,6 +46,15 @@ type DonationLinkRow = {
   is_active: boolean;
 };
 
+export type DonationOverlayEvent = {
+  id: string;
+  donorName: string;
+  amount: number;
+  currency: string;
+  message: string;
+  createdAt: string;
+};
+
 const DEFAULT_DONATION_OVERLAY: DonationOverlaySettings = {
   variant: "supernova",
   soundUrl: "",
@@ -425,6 +434,34 @@ export async function loadRecentDonationEvents(streamerId: string, limit = 6) {
       }).format(new Date(row.created_at)),
     }),
   );
+}
+
+export async function loadLatestDonationOverlayEvent(streamerId: string): Promise<DonationOverlayEvent | null> {
+  const { data, error } = await supabase
+    .from("donation_events")
+    .select("id, donor_name, amount, message, created_at, status")
+    .eq("streamer_id", streamerId)
+    .eq("status", "succeeded")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return {
+    id: data.id,
+    donorName: data.donor_name,
+    amount: data.amount,
+    currency: "RUB",
+    message: data.message ?? "",
+    createdAt: data.created_at,
+  };
 }
 
 export async function createDonationEvent(input: {
