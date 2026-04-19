@@ -54,6 +54,9 @@ export function AppFooter() {
             <Link to="/legal/content-policy" className="text-muted-foreground transition-colors hover:text-foreground">
               Контент и модерация
             </Link>
+            <Link to="/legal/child-safety" className="text-muted-foreground transition-colors hover:text-foreground">
+              Стандарты безопасности детей
+            </Link>
             <Link to="/legal/delete-account" className="text-muted-foreground transition-colors hover:text-foreground">
               Удаление аккаунта и данных
             </Link>

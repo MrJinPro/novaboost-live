@@ -29,6 +29,7 @@ import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
 import { Route as LegalPaymentsRouteImport } from './routes/legal.payments'
 import { Route as LegalDeleteAccountRouteImport } from './routes/legal.delete-account'
 import { Route as LegalContentPolicyRouteImport } from './routes/legal.content-policy'
+import { Route as LegalChildSafetyRouteImport } from './routes/legal.child-safety'
 import { Route as LegalAcceptableUseRouteImport } from './routes/legal.acceptable-use'
 import { Route as ApiCurrencyPreferenceRouteImport } from './routes/api/currency-preference'
 import { Route as ApiRevealKeyRouteImport } from './routes/api/_reveal-key'
@@ -136,6 +137,11 @@ const LegalContentPolicyRoute = LegalContentPolicyRouteImport.update({
   path: '/legal/content-policy',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LegalChildSafetyRoute = LegalChildSafetyRouteImport.update({
+  id: '/legal/child-safety',
+  path: '/legal/child-safety',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LegalAcceptableUseRoute = LegalAcceptableUseRouteImport.update({
   id: '/legal/acceptable-use',
   path: '/legal/acceptable-use',
@@ -184,6 +190,7 @@ export interface FileRoutesByFullPath {
   '/api': typeof ApiRevealKeyRoute
   '/api/currency-preference': typeof ApiCurrencyPreferenceRoute
   '/legal/acceptable-use': typeof LegalAcceptableUseRoute
+  '/legal/child-safety': typeof LegalChildSafetyRoute
   '/legal/content-policy': typeof LegalContentPolicyRoute
   '/legal/delete-account': typeof LegalDeleteAccountRoute
   '/legal/payments': typeof LegalPaymentsRoute
@@ -212,6 +219,7 @@ export interface FileRoutesByTo {
   '/api': typeof ApiRevealKeyRoute
   '/api/currency-preference': typeof ApiCurrencyPreferenceRoute
   '/legal/acceptable-use': typeof LegalAcceptableUseRoute
+  '/legal/child-safety': typeof LegalChildSafetyRoute
   '/legal/content-policy': typeof LegalContentPolicyRoute
   '/legal/delete-account': typeof LegalDeleteAccountRoute
   '/legal/payments': typeof LegalPaymentsRoute
@@ -241,6 +249,7 @@ export interface FileRoutesById {
   '/api/_reveal-key': typeof ApiRevealKeyRoute
   '/api/currency-preference': typeof ApiCurrencyPreferenceRoute
   '/legal/acceptable-use': typeof LegalAcceptableUseRoute
+  '/legal/child-safety': typeof LegalChildSafetyRoute
   '/legal/content-policy': typeof LegalContentPolicyRoute
   '/legal/delete-account': typeof LegalDeleteAccountRoute
   '/legal/payments': typeof LegalPaymentsRoute
@@ -271,6 +280,7 @@ export interface FileRouteTypes {
     | '/api'
     | '/api/currency-preference'
     | '/legal/acceptable-use'
+    | '/legal/child-safety'
     | '/legal/content-policy'
     | '/legal/delete-account'
     | '/legal/payments'
@@ -299,6 +309,7 @@ export interface FileRouteTypes {
     | '/api'
     | '/api/currency-preference'
     | '/legal/acceptable-use'
+    | '/legal/child-safety'
     | '/legal/content-policy'
     | '/legal/delete-account'
     | '/legal/payments'
@@ -327,6 +338,7 @@ export interface FileRouteTypes {
     | '/api/_reveal-key'
     | '/api/currency-preference'
     | '/legal/acceptable-use'
+    | '/legal/child-safety'
     | '/legal/content-policy'
     | '/legal/delete-account'
     | '/legal/payments'
@@ -356,6 +368,7 @@ export interface RootRouteChildren {
   ApiRevealKeyRoute: typeof ApiRevealKeyRoute
   ApiCurrencyPreferenceRoute: typeof ApiCurrencyPreferenceRoute
   LegalAcceptableUseRoute: typeof LegalAcceptableUseRoute
+  LegalChildSafetyRoute: typeof LegalChildSafetyRoute
   LegalContentPolicyRoute: typeof LegalContentPolicyRoute
   LegalDeleteAccountRoute: typeof LegalDeleteAccountRoute
   LegalPaymentsRoute: typeof LegalPaymentsRoute
@@ -511,6 +524,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LegalContentPolicyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/legal/child-safety': {
+      id: '/legal/child-safety'
+      path: '/legal/child-safety'
+      fullPath: '/legal/child-safety'
+      preLoaderRoute: typeof LegalChildSafetyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/legal/acceptable-use': {
       id: '/legal/acceptable-use'
       path: '/legal/acceptable-use'
@@ -572,6 +592,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiRevealKeyRoute: ApiRevealKeyRoute,
   ApiCurrencyPreferenceRoute: ApiCurrencyPreferenceRoute,
   LegalAcceptableUseRoute: LegalAcceptableUseRoute,
+  LegalChildSafetyRoute: LegalChildSafetyRoute,
   LegalContentPolicyRoute: LegalContentPolicyRoute,
   LegalDeleteAccountRoute: LegalDeleteAccountRoute,
   LegalPaymentsRoute: LegalPaymentsRoute,
