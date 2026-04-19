@@ -27,6 +27,7 @@ import { Route as LegalTermsRouteImport } from './routes/legal.terms'
 import { Route as LegalRefundsRouteImport } from './routes/legal.refunds'
 import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
 import { Route as LegalPaymentsRouteImport } from './routes/legal.payments'
+import { Route as LegalDeleteAccountRouteImport } from './routes/legal.delete-account'
 import { Route as LegalContentPolicyRouteImport } from './routes/legal.content-policy'
 import { Route as LegalAcceptableUseRouteImport } from './routes/legal.acceptable-use'
 import { Route as ApiCurrencyPreferenceRouteImport } from './routes/api/currency-preference'
@@ -125,6 +126,11 @@ const LegalPaymentsRoute = LegalPaymentsRouteImport.update({
   path: '/legal/payments',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LegalDeleteAccountRoute = LegalDeleteAccountRouteImport.update({
+  id: '/legal/delete-account',
+  path: '/legal/delete-account',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LegalContentPolicyRoute = LegalContentPolicyRouteImport.update({
   id: '/legal/content-policy',
   path: '/legal/content-policy',
@@ -179,6 +185,7 @@ export interface FileRoutesByFullPath {
   '/api/currency-preference': typeof ApiCurrencyPreferenceRoute
   '/legal/acceptable-use': typeof LegalAcceptableUseRoute
   '/legal/content-policy': typeof LegalContentPolicyRoute
+  '/legal/delete-account': typeof LegalDeleteAccountRoute
   '/legal/payments': typeof LegalPaymentsRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/refunds': typeof LegalRefundsRoute
@@ -206,6 +213,7 @@ export interface FileRoutesByTo {
   '/api/currency-preference': typeof ApiCurrencyPreferenceRoute
   '/legal/acceptable-use': typeof LegalAcceptableUseRoute
   '/legal/content-policy': typeof LegalContentPolicyRoute
+  '/legal/delete-account': typeof LegalDeleteAccountRoute
   '/legal/payments': typeof LegalPaymentsRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/refunds': typeof LegalRefundsRoute
@@ -234,6 +242,7 @@ export interface FileRoutesById {
   '/api/currency-preference': typeof ApiCurrencyPreferenceRoute
   '/legal/acceptable-use': typeof LegalAcceptableUseRoute
   '/legal/content-policy': typeof LegalContentPolicyRoute
+  '/legal/delete-account': typeof LegalDeleteAccountRoute
   '/legal/payments': typeof LegalPaymentsRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/refunds': typeof LegalRefundsRoute
@@ -263,6 +272,7 @@ export interface FileRouteTypes {
     | '/api/currency-preference'
     | '/legal/acceptable-use'
     | '/legal/content-policy'
+    | '/legal/delete-account'
     | '/legal/payments'
     | '/legal/privacy'
     | '/legal/refunds'
@@ -290,6 +300,7 @@ export interface FileRouteTypes {
     | '/api/currency-preference'
     | '/legal/acceptable-use'
     | '/legal/content-policy'
+    | '/legal/delete-account'
     | '/legal/payments'
     | '/legal/privacy'
     | '/legal/refunds'
@@ -317,6 +328,7 @@ export interface FileRouteTypes {
     | '/api/currency-preference'
     | '/legal/acceptable-use'
     | '/legal/content-policy'
+    | '/legal/delete-account'
     | '/legal/payments'
     | '/legal/privacy'
     | '/legal/refunds'
@@ -345,6 +357,7 @@ export interface RootRouteChildren {
   ApiCurrencyPreferenceRoute: typeof ApiCurrencyPreferenceRoute
   LegalAcceptableUseRoute: typeof LegalAcceptableUseRoute
   LegalContentPolicyRoute: typeof LegalContentPolicyRoute
+  LegalDeleteAccountRoute: typeof LegalDeleteAccountRoute
   LegalPaymentsRoute: typeof LegalPaymentsRoute
   LegalPrivacyRoute: typeof LegalPrivacyRoute
   LegalRefundsRoute: typeof LegalRefundsRoute
@@ -484,6 +497,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LegalPaymentsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/legal/delete-account': {
+      id: '/legal/delete-account'
+      path: '/legal/delete-account'
+      fullPath: '/legal/delete-account'
+      preLoaderRoute: typeof LegalDeleteAccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/legal/content-policy': {
       id: '/legal/content-policy'
       path: '/legal/content-policy'
@@ -553,6 +573,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCurrencyPreferenceRoute: ApiCurrencyPreferenceRoute,
   LegalAcceptableUseRoute: LegalAcceptableUseRoute,
   LegalContentPolicyRoute: LegalContentPolicyRoute,
+  LegalDeleteAccountRoute: LegalDeleteAccountRoute,
   LegalPaymentsRoute: LegalPaymentsRoute,
   LegalPrivacyRoute: LegalPrivacyRoute,
   LegalRefundsRoute: LegalRefundsRoute,

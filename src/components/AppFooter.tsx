@@ -54,6 +54,9 @@ export function AppFooter() {
             <Link to="/legal/content-policy" className="text-muted-foreground transition-colors hover:text-foreground">
               Контент и модерация
             </Link>
+            <Link to="/legal/delete-account" className="text-muted-foreground transition-colors hover:text-foreground">
+              Удаление аккаунта и данных
+            </Link>
           </div>
           <p className="mt-4 text-xs leading-5 text-muted-foreground">
             NovaBoost Live не связан с TikTok, не представляет TikTok и не является официальным продуктом TikTok. Платформа не продаёт трафик TikTok и не обещает внешние метрики вне собственной экосистемы.
