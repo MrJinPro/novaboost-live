@@ -2,6 +2,8 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import {
   type AppUser,
+  type DonationOverlaySettings,
+  type DonationOverlayVariant,
   type StreamerPageData,
   type StreamerPost,
   type StreamerStudioDraft,
@@ -41,6 +43,32 @@ type DbStreamSession = Pick<
 
 type DbStreamEvent = Pick<Tables<"stream_events">, "id" | "event_type" | "event_timestamp" | "normalized_payload">;
 
+const DEFAULT_DONATION_OVERLAY: DonationOverlaySettings = {
+  variant: "supernova",
+  soundUrl: "",
+  gifUrl: "",
+};
+
+function resolveDonationOverlayVariant(value: unknown): DonationOverlayVariant {
+  if (value === "epic-burst" || value === "nova-ring" || value === "supernova") {
+    return value;
+  }
+
+  return DEFAULT_DONATION_OVERLAY.variant;
+}
+
+function parseDonationOverlaySettings(layout: unknown): DonationOverlaySettings {
+  const overlay = layout && typeof layout === "object"
+    ? (layout as { donationOverlay?: Record<string, unknown> }).donationOverlay
+    : null;
+
+  return {
+    variant: resolveDonationOverlayVariant(overlay?.variant),
+    soundUrl: typeof overlay?.soundUrl === "string" ? overlay.soundUrl : DEFAULT_DONATION_OVERLAY.soundUrl,
+    gifUrl: typeof overlay?.gifUrl === "string" ? overlay.gifUrl : DEFAULT_DONATION_OVERLAY.gifUrl,
+  };
+}
+
 function createEmptyStudioDraft(tiktokUsername: string, displayName: string): StreamerStudioDraft {
   return {
     bannerUrl: "",
@@ -53,6 +81,9 @@ function createEmptyStudioDraft(tiktokUsername: string, displayName: string): St
     accent: "from-cosmic/80 via-magenta/30 to-blast/70",
     tags: "",
     featuredVideoUrl: "",
+    donationOverlayVariant: DEFAULT_DONATION_OVERLAY.variant,
+    donationSoundUrl: DEFAULT_DONATION_OVERLAY.soundUrl,
+    donationGifUrl: DEFAULT_DONATION_OVERLAY.gifUrl,
   };
 }
 
@@ -318,6 +349,7 @@ async function getSubscriptionCount(streamerId: string) {
 function buildDraft(base: StreamerStudioDraft, streamer: DbStreamer, settings: DbPageSettings | null): StreamerStudioDraft {
   const layout = (settings?.layout ?? {}) as { tags?: string[] };
   const tags = Array.isArray(layout.tags) ? layout.tags : [];
+  const donationOverlay = parseDonationOverlaySettings(settings?.layout ?? null);
 
   return {
     bannerUrl: settings?.banner_url ?? streamer.banner_url ?? base.bannerUrl,
@@ -328,7 +360,51 @@ function buildDraft(base: StreamerStudioDraft, streamer: DbStreamer, settings: D
     accent: settings?.accent_color ?? base.accent,
     tags: tags.length > 0 ? tags.join(", ") : base.tags,
     featuredVideoUrl: settings?.featured_video_url ?? base.featuredVideoUrl,
+    donationOverlayVariant: donationOverlay.variant,
+    donationSoundUrl: donationOverlay.soundUrl,
+    donationGifUrl: donationOverlay.gifUrl,
   };
+}
+
+export async function saveStreamerDonationOverlaySettings(user: AppUser, input: DonationOverlaySettings) {
+  const streamer = await getManagedStreamer(user);
+
+  if (!streamer) {
+    throw new Error("Профиль стримера в базе ещё не создан.");
+  }
+
+  const existingSettings = await getPageSettings(streamer.id);
+  const currentLayout = existingSettings?.layout && typeof existingSettings.layout === "object"
+    ? (existingSettings.layout as Record<string, unknown>)
+    : {};
+  const nextLayout = {
+    ...currentLayout,
+    donationOverlay: {
+      variant: input.variant,
+      soundUrl: input.soundUrl || null,
+      gifUrl: input.gifUrl || null,
+    },
+  };
+
+  const { error } = await supabase
+    .from("streamer_page_settings")
+    .upsert(
+      {
+        streamer_id: streamer.id,
+        accent_color: existingSettings?.accent_color ?? null,
+        banner_url: existingSettings?.banner_url ?? null,
+        logo_url: existingSettings?.logo_url ?? null,
+        headline: existingSettings?.headline ?? null,
+        description: existingSettings?.description ?? null,
+        featured_video_url: existingSettings?.featured_video_url ?? null,
+        layout: nextLayout,
+      },
+      { onConflict: "streamer_id" },
+    );
+
+  if (error) {
+    throw error;
+  }
 }
 
 export async function loadStreamerStudioData(user: AppUser) {
@@ -523,6 +599,7 @@ export async function loadPublicStreamerPage(id: string) {
     perks: ["ранний доступ к анонсам", "сигналы по эфирам"],
     donation_link_slug: donationLink?.slug ?? null,
     donation_link_title: donationLink?.title ?? null,
+    donation_overlay: parseDonationOverlaySettings(settings?.layout ?? null),
     recent_donations: recentDonations,
     recent_live_events: resolvedEvents,
     posts,

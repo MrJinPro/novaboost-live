@@ -7,12 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/auth-context";
+import type { DonationOverlayVariant } from "@/lib/mock-platform";
 import type { StreamerPost } from "@/lib/mock-platform";
 import { createDonationLinkDraft, getSubscriptionPlanLabel, loadManagedDonationLink, saveManagedDonationLink, SUBSCRIPTION_PLANS } from "@/lib/monetization-data";
-import { loadStreamerStudioData, publishStreamerPost, saveStreamerStudioPage } from "@/lib/streamer-studio-data";
+import { loadStreamerStudioData, publishStreamerPost, saveStreamerDonationOverlaySettings, saveStreamerStudioPage } from "@/lib/streamer-studio-data";
 import { deactivateStreamerCodeWordTask, loadStreamerCodeWordTasks, publishStreamerCodeWordTask, type StreamerCodeWordTask } from "@/lib/tasks-data";
 import { toast } from "sonner";
-import { Bell, ExternalLink, ImagePlus, LayoutPanelTop, PencilLine, Send, Sparkles, ShieldCheck } from "lucide-react";
+import { Bell, Copy, ExternalLink, ImagePlus, LayoutPanelTop, PencilLine, Send, Sparkles, ShieldCheck, Wallet } from "lucide-react";
 
 export const Route = createFileRoute("/studio")({
   head: () => ({
@@ -34,8 +35,17 @@ function createInitialStudioDraft() {
     accent: "from-cosmic/80 via-magenta/30 to-blast/70",
     tags: "",
     featuredVideoUrl: "",
+    donationOverlayVariant: "supernova" as DonationOverlayVariant,
+    donationSoundUrl: "",
+    donationGifUrl: "",
   };
 }
+
+const DONATION_OVERLAY_VARIANTS: Array<{ key: DonationOverlayVariant; title: string; description: string }> = [
+  { key: "supernova", title: "Supernova", description: "Главный космический взрыв NovaBoost с мощной суммой в центре." },
+  { key: "epic-burst", title: "Epic Burst", description: "Короткий неоновый burst с быстрым входом и частицами." },
+  { key: "nova-ring", title: "Nova Ring", description: "Чистый sci-fi ринг с импульсом и читаемым текстом." },
+];
 
 function toLocalDateTimeValue(value: string | null) {
   if (!value) {
@@ -69,6 +79,7 @@ function StreamerStudioPage() {
   const [codeTaskReward, setCodeTaskReward] = useState("50");
   const [donationLinkDraft, setDonationLinkDraft] = useState(() => createDonationLinkDraft("", ""));
   const [savingDonationLink, setSavingDonationLink] = useState(false);
+  const [appOrigin, setAppOrigin] = useState("");
 
   if (loading) {
     return <div className="min-h-screen"><Header /><div className="container mx-auto px-4 py-16 text-center text-muted-foreground">Загрузка…</div></div>;
@@ -144,7 +155,16 @@ function StreamerStudioPage() {
     };
   }, [user]);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setAppOrigin(window.location.origin);
+    }
+  }, []);
+
   const previewTags = pageDraft.tags.split(",").map((tag) => tag.trim()).filter(Boolean);
+  const donationPreviewUrl = donationLinkDraft.slug
+    ? `${appOrigin}/overlay/donation/${donationLinkDraft.slug}?username=${encodeURIComponent(user.displayName || "NovaFan")}&amount=25&currency=USD&message=${encodeURIComponent("Ты зажёг новую звезду на стриме")}`
+    : "";
 
   const savePage = async () => {
     setSavingPage(true);
@@ -244,6 +264,11 @@ function StreamerStudioPage() {
     setSavingDonationLink(true);
     try {
       const savedLink = await saveManagedDonationLink(user, donationLinkDraft);
+      await saveStreamerDonationOverlaySettings(user, {
+        variant: pageDraft.donationOverlayVariant,
+        soundUrl: pageDraft.donationSoundUrl.trim(),
+        gifUrl: pageDraft.donationGifUrl.trim(),
+      });
       setDonationLinkDraft({
         slug: savedLink.slug,
         title: savedLink.title,
@@ -256,6 +281,20 @@ function StreamerStudioPage() {
       toast.error(error instanceof Error ? error.message : "Не удалось сохранить страницу поддержки");
     } finally {
       setSavingDonationLink(false);
+    }
+  };
+
+  const copyDonationOverlayUrl = async () => {
+    if (!donationPreviewUrl) {
+      toast.error("Сначала задай короткий адрес страницы поддержки.");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(donationPreviewUrl);
+      toast.success("OBS overlay URL скопирован.");
+    } catch {
+      toast.error("Не удалось скопировать ссылку в буфер обмена.");
     }
   };
 
@@ -474,7 +513,7 @@ function StreamerStudioPage() {
 
           <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
             <div className="flex items-center gap-2">
-              <Send className="h-5 w-5 text-cosmic" />
+              <Wallet className="h-5 w-5 text-cosmic" />
               <h2 className="font-display text-2xl font-bold">Страница поддержки внутри платформы</h2>
             </div>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -502,6 +541,61 @@ function StreamerStudioPage() {
                 <div className="font-medium">{donationLinkDraft.isActive ? "Ссылка активна" : "Ссылка отключена"}</div>
                 <div className="mt-1 text-xs">Отключённая ссылка перестаёт быть доступной публично.</div>
               </button>
+
+              <div className="rounded-2xl border border-border/50 bg-background/20 p-4">
+                <div className="font-medium text-foreground">OBS donation overlay</div>
+                <p className="mt-1 text-xs text-muted-foreground">Выбери один из 3 шаблонов. По умолчанию используется анимация NovaBoost, а при желании можно добавить свой `sound URL` и `GIF URL`.</p>
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  {DONATION_OVERLAY_VARIANTS.map((variant) => (
+                    <button
+                      key={variant.key}
+                      type="button"
+                      onClick={() => setPageDraft((current) => ({ ...current, donationOverlayVariant: variant.key }))}
+                      className={`rounded-2xl border p-4 text-left transition-colors ${pageDraft.donationOverlayVariant === variant.key ? "border-blast bg-blast/10 text-foreground" : "border-border/50 bg-background/30 text-muted-foreground"}`}
+                    >
+                      <div className="font-display text-lg font-bold">{variant.title}</div>
+                      <div className="mt-2 text-xs leading-5">{variant.description}</div>
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <Field label="Sound URL">
+                    <Input value={pageDraft.donationSoundUrl} onChange={(e) => setPageDraft((current) => ({ ...current, donationSoundUrl: e.target.value }))} placeholder="https://.../donation.mp3" />
+                  </Field>
+                  <Field label="GIF URL / overlay sticker">
+                    <Input value={pageDraft.donationGifUrl} onChange={(e) => setPageDraft((current) => ({ ...current, donationGifUrl: e.target.value }))} placeholder="https://.../nova.gif" />
+                  </Field>
+                </div>
+                <div className="mt-4 rounded-xl border border-border/50 bg-background/30 p-3 text-xs text-muted-foreground">
+                  Переменные для alert payload: `username`, `amount`, `currency`, `message`.
+                </div>
+                {donationPreviewUrl && (
+                  <div className="mt-4 rounded-xl border border-border/50 bg-background/30 p-3 text-xs text-muted-foreground break-all">
+                    {donationPreviewUrl}
+                  </div>
+                )}
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <Button type="button" variant="outline" className="gap-2" onClick={() => void copyDonationOverlayUrl()}>
+                    <Copy className="h-4 w-4" /> Скопировать OBS URL
+                  </Button>
+                  {donationLinkDraft.slug && (
+                    <Link
+                      to="/overlay/donation/$slug"
+                      params={{ slug: donationLinkDraft.slug }}
+                      search={{
+                        username: user.displayName || "NovaFan",
+                        amount: "25",
+                        currency: "USD",
+                        message: "Ты зажёг новую звезду на стриме",
+                      }}
+                    >
+                      <Button type="button" variant="outline" className="gap-2">
+                        <ExternalLink className="h-4 w-4" /> Тест анимации
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="mt-5 flex flex-wrap gap-3">

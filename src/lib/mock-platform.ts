@@ -61,6 +61,17 @@ export interface StreamerStudioDraft {
   accent: string;
   tags: string;
   featuredVideoUrl: string;
+  donationOverlayVariant: DonationOverlayVariant;
+  donationSoundUrl: string;
+  donationGifUrl: string;
+}
+
+export type DonationOverlayVariant = "supernova" | "epic-burst" | "nova-ring";
+
+export interface DonationOverlaySettings {
+  variant: DonationOverlayVariant;
+  soundUrl: string;
+  gifUrl: string;
 }
 
 export interface DonationEventSummary {
@@ -90,6 +101,7 @@ export interface StreamerPageData extends StreamerCardData {
   perks: string[];
   donation_link_slug?: string | null;
   donation_link_title?: string | null;
+  donation_overlay?: DonationOverlaySettings | null;
   recent_donations: DonationEventSummary[];
   recent_live_events?: Array<{
     id: string;

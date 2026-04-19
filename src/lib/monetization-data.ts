@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { AppUser, DonationEventSummary, PostReactionType, SubscriptionPlanKey } from "@/lib/mock-platform";
+import type { AppUser, DonationEventSummary, DonationOverlaySettings, DonationOverlayVariant, PostReactionType, SubscriptionPlanKey } from "@/lib/mock-platform";
 import { resolveLinkedStreamer } from "@/lib/streamer-profile-linking";
 
 export type SubscriptionPlanDefinition = {
@@ -45,6 +45,32 @@ type DonationLinkRow = {
   minimum_amount: number;
   is_active: boolean;
 };
+
+const DEFAULT_DONATION_OVERLAY: DonationOverlaySettings = {
+  variant: "supernova",
+  soundUrl: "",
+  gifUrl: "",
+};
+
+function resolveDonationOverlayVariant(value: unknown): DonationOverlayVariant {
+  if (value === "epic-burst" || value === "nova-ring" || value === "supernova") {
+    return value;
+  }
+
+  return DEFAULT_DONATION_OVERLAY.variant;
+}
+
+function parseDonationOverlaySettings(layout: unknown): DonationOverlaySettings {
+  const overlay = layout && typeof layout === "object"
+    ? (layout as { donationOverlay?: Record<string, unknown> }).donationOverlay
+    : null;
+
+  return {
+    variant: resolveDonationOverlayVariant(overlay?.variant),
+    soundUrl: typeof overlay?.soundUrl === "string" ? overlay.soundUrl : DEFAULT_DONATION_OVERLAY.soundUrl,
+    gifUrl: typeof overlay?.gifUrl === "string" ? overlay.gifUrl : DEFAULT_DONATION_OVERLAY.gifUrl,
+  };
+}
 
 const PLAN_DURATION_DAYS = 30;
 
@@ -325,6 +351,38 @@ export async function loadDonationLinkBySlug(slug: string) {
   }
 
   return data;
+}
+
+export async function loadDonationOverlayBySlug(slug: string) {
+  const { data, error } = await supabase
+    .from("streamer_donation_links")
+    .select("id, streamer_id, slug, title, description, minimum_amount, is_active, streamers(display_name, tiktok_username, avatar_url)")
+    .eq("slug", normalizeSlug(slug))
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  const { data: settings, error: settingsError } = await supabase
+    .from("streamer_page_settings")
+    .select("layout")
+    .eq("streamer_id", data.streamer_id)
+    .maybeSingle();
+
+  if (settingsError) {
+    throw settingsError;
+  }
+
+  return {
+    ...data,
+    overlay: parseDonationOverlaySettings(settings?.layout ?? null),
+  };
 }
 
 export async function loadRecentDonationEvents(streamerId: string, limit = 6) {

@@ -22,6 +22,7 @@ import { Route as SupportSlugRouteImport } from './routes/support.$slug'
 import { Route as StreamerIdRouteImport } from './routes/streamer.$id'
 import { Route as ApiCurrencyPreferenceRouteImport } from './routes/api/currency-preference'
 import { Route as ApiRevealKeyRouteImport } from './routes/api/_reveal-key'
+import { Route as OverlayDonationSlugRouteImport } from './routes/overlay.donation.$slug'
 
 const TasksRoute = TasksRouteImport.update({
   id: '/tasks',
@@ -88,6 +89,11 @@ const ApiRevealKeyRoute = ApiRevealKeyRouteImport.update({
   path: '/api',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OverlayDonationSlugRoute = OverlayDonationSlugRouteImport.update({
+  id: '/overlay/donation/$slug',
+  path: '/overlay/donation/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -103,6 +109,7 @@ export interface FileRoutesByFullPath {
   '/api/currency-preference': typeof ApiCurrencyPreferenceRoute
   '/streamer/$id': typeof StreamerIdRoute
   '/support/$slug': typeof SupportSlugRoute
+  '/overlay/donation/$slug': typeof OverlayDonationSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -118,6 +125,7 @@ export interface FileRoutesByTo {
   '/api/currency-preference': typeof ApiCurrencyPreferenceRoute
   '/streamer/$id': typeof StreamerIdRoute
   '/support/$slug': typeof SupportSlugRoute
+  '/overlay/donation/$slug': typeof OverlayDonationSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -134,6 +142,7 @@ export interface FileRoutesById {
   '/api/currency-preference': typeof ApiCurrencyPreferenceRoute
   '/streamer/$id': typeof StreamerIdRoute
   '/support/$slug': typeof SupportSlugRoute
+  '/overlay/donation/$slug': typeof OverlayDonationSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -151,6 +160,7 @@ export interface FileRouteTypes {
     | '/api/currency-preference'
     | '/streamer/$id'
     | '/support/$slug'
+    | '/overlay/donation/$slug'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -166,6 +176,7 @@ export interface FileRouteTypes {
     | '/api/currency-preference'
     | '/streamer/$id'
     | '/support/$slug'
+    | '/overlay/donation/$slug'
   id:
     | '__root__'
     | '/'
@@ -181,6 +192,7 @@ export interface FileRouteTypes {
     | '/api/currency-preference'
     | '/streamer/$id'
     | '/support/$slug'
+    | '/overlay/donation/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -197,6 +209,7 @@ export interface RootRouteChildren {
   ApiCurrencyPreferenceRoute: typeof ApiCurrencyPreferenceRoute
   StreamerIdRoute: typeof StreamerIdRoute
   SupportSlugRoute: typeof SupportSlugRoute
+  OverlayDonationSlugRoute: typeof OverlayDonationSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -292,6 +305,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiRevealKeyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/overlay/donation/$slug': {
+      id: '/overlay/donation/$slug'
+      path: '/overlay/donation/$slug'
+      fullPath: '/overlay/donation/$slug'
+      preLoaderRoute: typeof OverlayDonationSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -309,6 +329,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCurrencyPreferenceRoute: ApiCurrencyPreferenceRoute,
   StreamerIdRoute: StreamerIdRoute,
   SupportSlugRoute: SupportSlugRoute,
+  OverlayDonationSlugRoute: OverlayDonationSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

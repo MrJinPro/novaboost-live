@@ -645,6 +645,55 @@ function StreamerProfile() {
           </section>
 
           <section className="space-y-4">
+            {streamer.donation_link_slug ? (
+              <div className="lg:sticky lg:top-20 lg:z-20">
+                <div className="overflow-hidden rounded-4xl border border-blast/30 bg-[radial-gradient(circle_at_top,rgba(255,133,32,0.18),transparent_58%),linear-gradient(180deg,rgba(19,13,44,0.96),rgba(14,11,34,0.96))] p-6 shadow-glow">
+                  <div className="flex items-center gap-2">
+                    <Wallet className="h-5 w-5 text-blast" />
+                    <h2 className="font-display font-bold text-2xl">Поддержка стримера</h2>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                    {streamer.donation_link_title ?? "Поддержать эфир через NovaBoost Live"}
+                  </p>
+                  <div className="mt-4 grid gap-3 rounded-2xl border border-white/8 bg-black/15 p-4 sm:grid-cols-[1fr_auto] sm:items-center">
+                    <div>
+                      <div className="text-xs uppercase tracking-[0.25em] text-blast/80">Live support</div>
+                      <div className="mt-2 font-display text-2xl font-bold">Поднять эфир донатом</div>
+                      <div className="mt-2 text-sm text-muted-foreground">Сообщение и сумма сразу попадут в публичную ленту поддержек и могут улететь в OBS overlay.</div>
+                    </div>
+                    <Link to="/support/$slug" params={{ slug: streamer.donation_link_slug }}>
+                      <Button className="w-full gap-2 bg-gradient-blast px-6 py-6 text-base font-bold text-blast-foreground sm:w-auto">
+                        <Wallet className="h-4 w-4" /> Поддержать через NovaBoost Live
+                      </Button>
+                    </Link>
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    {streamer.recent_donations.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-border/50 bg-background/20 px-4 py-3 text-sm text-muted-foreground">
+                        Пока нет публичных донатов. После первых поддержек здесь появятся карточки с именем и суммой.
+                      </div>
+                    ) : (
+                      streamer.recent_donations.map((donation) => (
+                        <div key={donation.id} className="rounded-2xl border border-blast/20 bg-blast/5 px-4 py-3 animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="font-medium">{donation.donorName}</div>
+                            <div className="text-right">
+                              <div className="text-sm font-semibold text-blast">+{getLocalizedMoney(donation.amount, { baseCurrency: "RUB", preference: currencyPreference }).primary}</div>
+                              {getLocalizedMoney(donation.amount, { baseCurrency: "RUB", preference: currencyPreference }).secondary && (
+                                <div className="text-[11px] text-muted-foreground">{getLocalizedMoney(donation.amount, { baseCurrency: "RUB", preference: currencyPreference }).secondary}</div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="mt-1 text-xs text-muted-foreground">{donation.createdAt}</div>
+                          {donation.message && <div className="mt-2 text-sm text-foreground/85">{donation.message}</div>}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             <div className="rounded-3xl border border-border/50 bg-surface/60 p-6">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="font-display font-bold text-xl">Тарифы NovaBoost</h2>
@@ -732,49 +781,6 @@ function StreamerProfile() {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-border/50 bg-surface/60 p-6">
-              <div className="flex items-center gap-2">
-                <Wallet className="h-5 w-5 text-blast" />
-                <h2 className="font-display font-bold text-xl">Поддержка стримера</h2>
-              </div>
-              <p className="mt-3 text-sm text-muted-foreground">
-                {streamer.donation_link_title ?? "Стример пока не активировал donation link внутри платформы."}
-              </p>
-              {streamer.donation_link_slug ? (
-                <Link to="/support/$slug" params={{ slug: streamer.donation_link_slug }}>
-                  <Button className="mt-4 w-full gap-2 bg-gradient-blast text-blast-foreground">
-                    <Wallet className="h-4 w-4" /> Поддержать через NovaBoost Live
-                  </Button>
-                </Link>
-              ) : (
-                <Button className="mt-4 w-full" variant="outline" disabled>
-                  Donation link не настроен
-                </Button>
-              )}
-              <div className="mt-4 space-y-2">
-                {streamer.recent_donations.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-border/50 bg-background/20 px-4 py-3 text-sm text-muted-foreground">
-                    Пока нет публичных донатов. После первых поддержек здесь появятся карточки с именем и суммой.
-                  </div>
-                ) : (
-                  streamer.recent_donations.map((donation) => (
-                    <div key={donation.id} className="rounded-2xl border border-blast/20 bg-blast/5 px-4 py-3 animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="font-medium">{donation.donorName}</div>
-                        <div className="text-right">
-                          <div className="text-sm font-semibold text-blast">+{getLocalizedMoney(donation.amount, { baseCurrency: "RUB", preference: currencyPreference }).primary}</div>
-                          {getLocalizedMoney(donation.amount, { baseCurrency: "RUB", preference: currencyPreference }).secondary && (
-                            <div className="text-[11px] text-muted-foreground">{getLocalizedMoney(donation.amount, { baseCurrency: "RUB", preference: currencyPreference }).secondary}</div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground">{donation.createdAt}</div>
-                      {donation.message && <div className="mt-2 text-sm text-foreground/85">{donation.message}</div>}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
           </section>
         </div>
 
