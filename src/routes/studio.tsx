@@ -47,6 +47,8 @@ const DONATION_OVERLAY_VARIANTS: Array<{ key: DonationOverlayVariant; title: str
   { key: "nova-ring", title: "Nova Ring", description: "Чистый sci-fi ринг с импульсом и читаемым текстом." },
 ];
 
+const STORAGE_EVENT_KEY = "novaboost:donation-overlay-event";
+
 function toLocalDateTimeValue(value: string | null) {
   if (!value) {
     return "";
@@ -295,6 +297,37 @@ function StreamerStudioPage() {
       toast.success("OBS overlay URL скопирован.");
     } catch {
       toast.error("Не удалось скопировать ссылку в буфер обмена.");
+    }
+  };
+
+  const sendDonationOverlayTest = () => {
+    if (!donationLinkDraft.slug) {
+      toast.error("Сначала задай короткий адрес страницы поддержки.");
+      return;
+    }
+
+    const event = {
+      slug: donationLinkDraft.slug,
+      payload: {
+        username: user.displayName || "NovaFan",
+        amount: "25",
+        currency: "USD",
+        message: "Ты зажёг новую звезду на стриме",
+      },
+    };
+
+    try {
+      if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+        const channel = new BroadcastChannel(`novaboost:donation-overlay:${donationLinkDraft.slug}`);
+        channel.postMessage(event);
+        channel.close();
+      }
+
+      localStorage.setItem(STORAGE_EVENT_KEY, JSON.stringify(event));
+      localStorage.removeItem(STORAGE_EVENT_KEY);
+      toast.success("Тест отправлен в открытую страницу OBS overlay.");
+    } catch {
+      toast.error("Не удалось отправить тест в overlay. Проверь, что страница OBS уже открыта.");
     }
   };
 
@@ -579,20 +612,9 @@ function StreamerStudioPage() {
                     <Copy className="h-4 w-4" /> Скопировать OBS URL
                   </Button>
                   {donationLinkDraft.slug && (
-                    <Link
-                      to="/overlay/donation/$slug"
-                      params={{ slug: donationLinkDraft.slug }}
-                      search={{
-                        username: user.displayName || "NovaFan",
-                        amount: "25",
-                        currency: "USD",
-                        message: "Ты зажёг новую звезду на стриме",
-                      }}
-                    >
-                      <Button type="button" variant="outline" className="gap-2">
-                        <ExternalLink className="h-4 w-4" /> Тест анимации
-                      </Button>
-                    </Link>
+                    <Button type="button" variant="outline" className="gap-2" onClick={sendDonationOverlayTest}>
+                      <ExternalLink className="h-4 w-4" /> Тест анимации
+                    </Button>
                   )}
                 </div>
               </div>

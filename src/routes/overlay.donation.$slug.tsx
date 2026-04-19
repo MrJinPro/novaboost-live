@@ -4,11 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { loadDonationOverlayBySlug } from "@/lib/monetization-data";
 import type { DonationOverlayVariant } from "@/lib/mock-platform";
 
+const stringFromSearch = z.union([z.string(), z.number()]).transform((value) => String(value));
+
 const searchSchema = z.object({
-  username: z.string().optional(),
-  amount: z.string().optional(),
-  currency: z.string().optional(),
-  message: z.string().optional(),
+  username: stringFromSearch.optional(),
+  amount: stringFromSearch.optional(),
+  currency: stringFromSearch.optional(),
+  message: stringFromSearch.optional(),
 });
 
 type OverlayPayload = {
@@ -27,6 +29,17 @@ declare global {
   }
 }
 
+const STORAGE_EVENT_KEY = "novaboost:donation-overlay-event";
+
+function normalizeOverlayPayload(input: Partial<OverlayPayload>): OverlayPayload {
+  return {
+    username: input.username?.trim() || "NovaBoost",
+    amount: input.amount?.trim() || "25",
+    currency: input.currency?.trim() || "USD",
+    message: input.message?.trim() || "Ты зажёг новую звезду на стриме!",
+  };
+}
+
 export const Route = createFileRoute("/overlay/donation/$slug")({
   validateSearch: searchSchema,
   component: DonationOverlayRoute,
@@ -41,12 +54,17 @@ function DonationOverlayRoute() {
   const [gifUrl, setGifUrl] = useState("");
   const [soundUrl, setSoundUrl] = useState("");
   const [triggerKey, setTriggerKey] = useState(0);
-  const [payload, setPayload] = useState<OverlayPayload>({
-    username: search.username || "MrJin",
-    amount: search.amount || "25",
-    currency: search.currency || "USD",
-    message: search.message || "Ты зажёг новую звезду на стриме!",
-  });
+  const initialPayload = useMemo(
+    () => normalizeOverlayPayload({
+      username: search.username,
+      amount: search.amount,
+      currency: search.currency,
+      message: search.message,
+    }),
+    [search.amount, search.currency, search.message, search.username],
+  );
+  const hasInitialPayload = Boolean(search.username || search.amount || search.currency || search.message);
+  const [payload, setPayload] = useState<OverlayPayload>(initialPayload);
 
   useEffect(() => {
     document.body.style.background = "transparent";
@@ -81,8 +99,12 @@ function DonationOverlayRoute() {
   }, [slug]);
 
   useEffect(() => {
+    setPayload(initialPayload);
+  }, [initialPayload]);
+
+  useEffect(() => {
     const showDonation = (nextPayload: Partial<OverlayPayload>) => {
-      setPayload((current) => ({
+      setPayload((current) => normalizeOverlayPayload({
         username: nextPayload.username || current.username,
         amount: nextPayload.amount || current.amount,
         currency: nextPayload.currency || current.currency,
@@ -91,17 +113,56 @@ function DonationOverlayRoute() {
       setTriggerKey((current) => current + 1);
     };
 
+    const channelName = `novaboost:donation-overlay:${slug}`;
+    const channel = typeof window !== "undefined" && "BroadcastChannel" in window
+      ? new BroadcastChannel(channelName)
+      : null;
+
+    const handleIncomingPayload = (incoming: unknown) => {
+      if (!incoming || typeof incoming !== "object") {
+        return;
+      }
+
+      const event = incoming as { slug?: string; payload?: Partial<OverlayPayload> };
+      if (event.slug && event.slug !== slug) {
+        return;
+      }
+
+      showDonation(event.payload ?? {});
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== STORAGE_EVENT_KEY || !event.newValue) {
+        return;
+      }
+
+      try {
+        handleIncomingPayload(JSON.parse(event.newValue));
+      } catch {
+        return;
+      }
+    };
+
     window.NovaBoostOverlay = { showDonation };
     window.triggerNovaBoost = () => showDonation({});
 
-    const timer = window.setTimeout(() => showDonation({}), 300);
+    channel?.addEventListener("message", (event) => {
+      handleIncomingPayload(event.data);
+    });
+    window.addEventListener("storage", handleStorage);
+
+    const timer = hasInitialPayload ? window.setTimeout(() => showDonation(initialPayload), 300) : null;
 
     return () => {
-      window.clearTimeout(timer);
+      if (timer !== null) {
+        window.clearTimeout(timer);
+      }
+      channel?.close();
+      window.removeEventListener("storage", handleStorage);
       delete window.NovaBoostOverlay;
       delete window.triggerNovaBoost;
     };
-  }, []);
+  }, [hasInitialPayload, initialPayload, slug]);
 
   useEffect(() => {
     if (!soundUrl || !audioRef.current || triggerKey === 0) {
