@@ -59,11 +59,25 @@ const DONATION_DISPLAY_CURRENCIES = ["USD", "MDL", "RUB", "KZT"] as const;
 const STORAGE_EVENT_KEY = "novaboost:donation-overlay-event";
 
 const DONATION_WIDGET_LINKS = [
-  { key: "latest", label: "Последний донат" },
-  { key: "topDay", label: "Топ дня" },
-  { key: "topAllTime", label: "Топ за всё время" },
-  { key: "goal", label: "Цель по донатам" },
+  { key: "latest", label: "Последний донат", description: "Крупный donor card с суммой и сообщением." },
+  { key: "topDay", label: "Топ дня", description: "Рейтинг донатеров за текущие сутки." },
+  { key: "topAllTime", label: "Топ за всё время", description: "Постоянный leaderboard лучших донатеров канала." },
+  { key: "goal", label: "Цель по донатам", description: "Прогресс-бар со сбором на конкретную цель." },
 ] as const;
+
+type OverlayPreviewTab = "alert" | "latest" | "topDay" | "topAllTime" | "goal";
+
+function buildOverlayPreviewUrl(url: string, params?: Record<string, string>) {
+  const nextUrl = new URL(url);
+
+  if (params) {
+    for (const [key, value] of Object.entries(params)) {
+      nextUrl.searchParams.set(key, value);
+    }
+  }
+
+  return nextUrl.toString();
+}
 
 function toLocalDateTimeValue(value: string | null) {
   if (!value) {
@@ -98,6 +112,7 @@ function StreamerStudioPage() {
   const [donationLinkDraft, setDonationLinkDraft] = useState(() => createDonationLinkDraft("", ""));
   const [savingDonationLink, setSavingDonationLink] = useState(false);
   const [appOrigin, setAppOrigin] = useState("");
+  const [overlayPreviewTab, setOverlayPreviewTab] = useState<OverlayPreviewTab>("alert");
 
   if (loading) {
     return <div className="min-h-screen"><Header /><div className="container mx-auto px-4 py-16 text-center text-muted-foreground">Загрузка…</div></div>;
@@ -191,6 +206,52 @@ function StreamerStudioPage() {
         goal: `${appOrigin}/overlay/widget/${donationLinkDraft.slug}/goal?key=${pageDraft.donationOverlayAccessKey}`,
       }
     : null;
+  const donationAlertPreviewUrl = donationPreviewUrl
+    ? buildOverlayPreviewUrl(donationPreviewUrl, {
+        username: user.displayName || "NovaFan",
+        amount: "25",
+        currency: pageDraft.donationOverlayDisplayMode === "preferred" ? pageDraft.donationOverlayDisplayCurrency : "USD",
+        message: "Спасибо за поддержку эфира. Это live preview alert overlay.",
+      })
+    : "";
+  const overlayPreviewItems = [
+    {
+      key: "alert" as const,
+      label: "Alert overlay",
+      description: "Тестовый donation alert. Анимация скрывается автоматически, как в OBS.",
+      url: donationAlertPreviewUrl,
+      minHeightClass: "min-h-[320px]",
+    },
+    {
+      key: "latest" as const,
+      label: "Последний донат",
+      description: "Карточка последнего доната с именем, суммой и сообщением.",
+      url: donationWidgetUrls?.latest ?? "",
+      minHeightClass: "min-h-[260px]",
+    },
+    {
+      key: "topDay" as const,
+      label: "Топ дня",
+      description: "Ежедневный рейтинг активных донатеров.",
+      url: donationWidgetUrls?.topDay ?? "",
+      minHeightClass: "min-h-[300px]",
+    },
+    {
+      key: "topAllTime" as const,
+      label: "Топ за всё время",
+      description: "Постоянный leaderboard донатов канала.",
+      url: donationWidgetUrls?.topAllTime ?? "",
+      minHeightClass: "min-h-[300px]",
+    },
+    {
+      key: "goal" as const,
+      label: "Цель по донатам",
+      description: "Goal widget показывает, на что собираем и сколько уже набрали.",
+      url: donationWidgetUrls?.goal ?? "",
+      minHeightClass: "min-h-[300px]",
+    },
+  ].filter((item) => item.url);
+  const activeOverlayPreview = overlayPreviewItems.find((item) => item.key === overlayPreviewTab) ?? overlayPreviewItems[0] ?? null;
 
   const savePage = async () => {
     setSavingPage(true);
@@ -656,13 +717,23 @@ function StreamerStudioPage() {
               </div>
             )}
           </div>
-          <div className="mt-4 rounded-xl border border-border/50 bg-background/30 p-4 text-sm text-muted-foreground">
-            <div className="font-medium text-foreground">Цель по донатам</div>
-            <div className="mt-3 grid gap-4 md:grid-cols-[1.4fr_0.8fr_0.8fr]">
-              <Field label="Название цели">
+          <div className="mt-4 overflow-hidden rounded-2xl border border-emerald-400/20 bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.12),transparent_35%),linear-gradient(180deg,rgba(15,23,42,0.55),rgba(2,6,23,0.28))] p-4 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="font-medium text-foreground">Настройка цели по донатам</div>
+                <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">
+                  Эти поля управляют именно widget overlay "Цель по донатам": на что собираем, какую сумму нужно набрать и в какой валюте показывать прогресс.
+                </p>
+              </div>
+              <div className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-[11px] uppercase tracking-[0.24em] text-emerald-100/80">
+                Goal widget settings
+              </div>
+            </div>
+            <div className="mt-4 grid gap-4 md:grid-cols-[1.6fr_0.7fr_0.7fr]">
+              <Field label="На что собираем">
                 <Input value={pageDraft.donationGoalTitle} onChange={(e) => setPageDraft((current) => ({ ...current, donationGoalTitle: e.target.value }))} placeholder="Например: Новый микрофон для стрима" />
               </Field>
-              <Field label="Сумма цели">
+              <Field label="Сколько нужно собрать">
                 <Input type="number" min={1} value={pageDraft.donationGoalTarget} onChange={(e) => setPageDraft((current) => ({ ...current, donationGoalTarget: e.target.value }))} />
               </Field>
               <Field label="Валюта цели">
@@ -676,6 +747,10 @@ function StreamerStudioPage() {
                   ))}
                 </select>
               </Field>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-foreground/90">На что: {pageDraft.donationGoalTitle || "Цель донатов"}</span>
+              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-foreground/90">Цель: {pageDraft.donationGoalTarget || "100"} {pageDraft.donationGoalCurrency}</span>
             </div>
           </div>
           <div className="mt-4 rounded-xl border border-border/50 bg-background/30 p-3 text-xs text-muted-foreground">
@@ -699,6 +774,7 @@ function StreamerStudioPage() {
                     <div>
                       <div className="text-xs font-medium text-foreground">{widget.label}</div>
                       <div className="mt-1 text-[11px] uppercase tracking-[0.24em] text-muted-foreground">Widget overlay</div>
+                      <div className="mt-2 max-w-xs text-[11px] leading-5 text-muted-foreground">{widget.description}</div>
                     </div>
                     <Button
                       type="button"
@@ -713,6 +789,47 @@ function StreamerStudioPage() {
                   <div className="mt-3 break-all rounded-xl border border-border/40 bg-black/20 px-3 py-2 text-[11px] text-muted-foreground">{donationWidgetUrls[widget.key]}</div>
                 </div>
               ))}
+            </div>
+          )}
+          {activeOverlayPreview && (
+            <div className="mt-6 rounded-2xl border border-border/50 bg-background/20 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="font-medium text-foreground">Превью overlay на этой странице</div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Можно сразу посмотреть каждый donation overlay прямо в студии, без отдельного окна OBS.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => void copyUrl(activeOverlayPreview.url, activeOverlayPreview.label)}>
+                    <Copy className="mr-1.5 h-3.5 w-3.5" /> Скопировать текущий URL
+                  </Button>
+                  <a href={activeOverlayPreview.url} target="_blank" rel="noreferrer">
+                    <Button type="button" variant="outline" size="sm" className="h-8 text-xs">
+                      <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> Открыть отдельно
+                    </Button>
+                  </a>
+                </div>
+              </div>
+
+              <Tabs value={overlayPreviewTab} onValueChange={(value) => setOverlayPreviewTab(value as OverlayPreviewTab)} className="mt-4">
+                <TabsList className="h-auto flex-wrap justify-start gap-2 rounded-2xl border border-border/40 bg-background/50 p-2">
+                  {overlayPreviewItems.map((item) => (
+                    <TabsTrigger key={item.key} value={item.key}>{item.label}</TabsTrigger>
+                  ))}
+                </TabsList>
+
+                {overlayPreviewItems.map((item) => (
+                  <TabsContent key={item.key} value={item.key} className="mt-4">
+                    <OverlayPreviewPanel
+                      title={item.label}
+                      description={item.description}
+                      url={item.url}
+                      minHeightClass={item.minHeightClass}
+                    />
+                  </TabsContent>
+                ))}
+              </Tabs>
             </div>
           )}
           <div className="mt-4 flex flex-wrap gap-3">
@@ -876,6 +993,46 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div>
       <Label className="mb-1.5 block">{label}</Label>
       {children}
+    </div>
+  );
+}
+
+function OverlayPreviewPanel({
+  title,
+  description,
+  url,
+  minHeightClass,
+}: {
+  title: string;
+  description: string;
+  url: string;
+  minHeightClass: string;
+}) {
+  const [reloadKey, setReloadKey] = useState(0);
+  const previewUrl = buildOverlayPreviewUrl(url, { preview: String(reloadKey) });
+
+  return (
+    <div className="overflow-hidden rounded-3xl border border-border/50 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.14),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(249,115,22,0.12),transparent_24%),linear-gradient(180deg,rgba(15,23,42,0.92),rgba(2,6,23,0.9))] p-4 shadow-[0_20px_60px_rgba(2,6,23,0.35)]">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="font-display text-xl font-bold text-white">{title}</div>
+          <div className="mt-1 max-w-2xl text-sm text-slate-300">{description}</div>
+        </div>
+        <Button type="button" variant="outline" size="sm" className="h-8 border-white/15 bg-white/5 text-xs text-white hover:bg-white/10" onClick={() => setReloadKey((current) => current + 1)}>
+          Перезапустить preview
+        </Button>
+      </div>
+
+        <div className={`mt-4 overflow-hidden rounded-[1.75rem] border border-white/10 bg-[linear-gradient(135deg,rgba(15,23,42,0.9),rgba(30,41,59,0.75))] ${minHeightClass}`}>
+        <div className="flex items-center justify-between border-b border-white/10 px-4 py-2 text-[11px] uppercase tracking-[0.24em] text-slate-400">
+          <span>OBS Scene Preview</span>
+          <span>Transparent overlay</span>
+        </div>
+        <div className="relative h-full min-h-55 bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.14),transparent_24%),linear-gradient(180deg,#0f172a,#111827_52%,#030712)]">
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(transparent_0%,rgba(255,255,255,0.03)_100%)]" />
+          <iframe title={title} src={previewUrl} className="relative z-10 h-full min-h-55 w-full bg-transparent" loading="lazy" />
+        </div>
+      </div>
     </div>
   );
 }

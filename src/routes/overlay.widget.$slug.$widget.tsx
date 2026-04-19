@@ -1,4 +1,4 @@
-﻿import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { useEffect, useMemo, useState } from "react";
 import { formatCurrencyAmount } from "@/lib/currency";
