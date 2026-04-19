@@ -125,12 +125,12 @@ function StreamerStudioPage() {
       <div className="min-h-screen">
         <Header />
         <div className="container mx-auto max-w-3xl px-4 py-16">
-          <div className="rounded-3xl border border-border/50 bg-surface/60 p-8 text-center">
-            <h1 className="font-display text-3xl font-bold">Студия доступна только стримерам</h1>
+          <div className="rounded-3xl border border-border/50 bg-surface/60 p-6 sm:p-8 text-center">
+            <h1 className="font-display text-2xl font-bold sm:text-3xl">Студия доступна только стримерам</h1>
             <p className="mt-3 text-muted-foreground">Сначала войди как стример TikTok LIVE, чтобы настраивать публичную страницу и публиковать посты.</p>
-            <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <Link to="/auth"><Button className="bg-gradient-blast text-blast-foreground font-bold">Войти как стример</Button></Link>
-              <Link to="/"><Button variant="outline">На главную</Button></Link>
+            <div className="mt-6 grid gap-3 sm:flex sm:flex-wrap sm:justify-center">
+              <Link to="/auth"><Button className="w-full bg-gradient-blast text-blast-foreground font-bold sm:w-auto">Войти как стример</Button></Link>
+              <Link to="/"><Button variant="outline" className="w-full sm:w-auto">На главную</Button></Link>
             </div>
           </div>
         </div>
@@ -443,10 +443,10 @@ function StreamerStudioPage() {
   };
 
   const pageSettingsSection = (
-    <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+    <section className="rounded-3xl border border-border/50 bg-surface/60 p-5 sm:p-6">
       <div className="flex items-center gap-2">
         <LayoutPanelTop className="h-5 w-5 text-cosmic" />
-        <h2 className="font-display text-2xl font-bold">Настройка публичной страницы</h2>
+        <h2 className="font-display text-xl font-bold sm:text-2xl">Настройка публичной страницы</h2>
       </div>
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         <Field label="Баннер страницы">
@@ -461,9 +461,9 @@ function StreamerStudioPage() {
         </Field>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-3">
+      <div className="mt-4 grid gap-3 sm:flex sm:flex-wrap">
         <Link to="/profile">
-          <Button variant="outline" className="gap-2"><ImagePlus className="h-4 w-4" /> Открыть настройки профиля</Button>
+          <Button variant="outline" className="w-full gap-2 sm:w-auto"><ImagePlus className="h-4 w-4" /> Открыть настройки профиля</Button>
         </Link>
       </div>
 
@@ -497,18 +497,18 @@ function StreamerStudioPage() {
         </Field>
       </div>
 
-      <div className="mt-6 flex flex-wrap gap-3">
-        <Button onClick={savePage} disabled={savingPage || studioLoading} className="bg-gradient-cosmic font-bold text-foreground">{savingPage ? "Сохраняю…" : "Сохранить настройки страницы"}</Button>
-        <Button variant="outline" className="gap-2"><ImagePlus className="h-4 w-4" /> Загрузить медиа позже</Button>
+      <div className="mt-6 grid gap-3 sm:flex sm:flex-wrap">
+        <Button onClick={savePage} disabled={savingPage || studioLoading} className="w-full bg-gradient-cosmic font-bold text-foreground sm:w-auto">{savingPage ? "Сохраняю…" : "Сохранить настройки страницы"}</Button>
+        <Button variant="outline" className="w-full gap-2 sm:w-auto"><ImagePlus className="h-4 w-4" /> Загрузить медиа позже</Button>
       </div>
     </section>
   );
 
   const postsComposerSection = (
-    <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+    <section className="rounded-3xl border border-border/50 bg-surface/60 p-5 sm:p-6">
       <div className="flex items-center gap-2">
         <PencilLine className="h-5 w-5 text-blast" />
-        <h2 className="font-display text-2xl font-bold">Публикация постов</h2>
+        <h2 className="font-display text-xl font-bold sm:text-2xl">Публикация постов</h2>
       </div>
       <p className="mt-2 text-sm text-muted-foreground">
         Именно здесь публикуются новости, анонсы и короткий контент, который потом виден на публичной странице стримера и может идти в Telegram-контур.
@@ -561,18 +561,18 @@ function StreamerStudioPage() {
         </button>
       </div>
 
-      <div className="mt-5 flex flex-wrap gap-3">
-        <Button onClick={publishPost} disabled={publishingPost || studioLoading} className="bg-gradient-blast text-blast-foreground font-bold">{publishingPost ? "Публикую…" : "Опубликовать пост"}</Button>
-        <Button variant="outline" className="gap-2"><Send className="h-4 w-4" /> Отправить в Telegram позже</Button>
+      <div className="mt-5 grid gap-3 sm:flex sm:flex-wrap">
+        <Button onClick={publishPost} disabled={publishingPost || studioLoading} className="w-full bg-gradient-blast text-blast-foreground font-bold sm:w-auto">{publishingPost ? "Публикую…" : "Опубликовать пост"}</Button>
+        <Button variant="outline" className="w-full gap-2 sm:w-auto"><Send className="h-4 w-4" /> Отправить в Telegram позже</Button>
       </div>
     </section>
   );
 
   const codeWordSection = (
-    <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+    <section className="rounded-3xl border border-border/50 bg-surface/60 p-5 sm:p-6">
       <div className="flex items-center gap-2">
         <ShieldCheck className="h-5 w-5 text-crown" />
-        <h2 className="font-display text-2xl font-bold">Кодовое слово эфира</h2>
+        <h2 className="font-display text-xl font-bold sm:text-2xl">Кодовое слово эфира</h2>
       </div>
       <p className="mt-2 text-sm text-muted-foreground">
         Стример задаёт слово до эфира или прямо во время лайва. Зритель узнаёт его на трансляции, вводит в приложении и получает очки один раз.
@@ -595,8 +595,8 @@ function StreamerStudioPage() {
         </div>
       </div>
 
-      <div className="mt-5 flex flex-wrap gap-3">
-        <Button onClick={publishCodeTask} disabled={publishingCodeTask || studioLoading} className="bg-gradient-blast text-blast-foreground font-bold">
+      <div className="mt-5 grid gap-3 sm:flex sm:flex-wrap">
+        <Button onClick={publishCodeTask} disabled={publishingCodeTask || studioLoading} className="w-full bg-gradient-blast text-blast-foreground font-bold sm:w-auto">
           {publishingCodeTask ? "Публикую код…" : "Опубликовать кодовое слово"}
         </Button>
       </div>
@@ -604,8 +604,8 @@ function StreamerStudioPage() {
   );
 
   const codeHistorySection = (
-    <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
-      <h2 className="font-display text-2xl font-bold">Активные и прошлые кодовые слова</h2>
+    <section className="rounded-3xl border border-border/50 bg-surface/60 p-5 sm:p-6">
+      <h2 className="font-display text-xl font-bold sm:text-2xl">Активные и прошлые кодовые слова</h2>
       <div className="mt-5 space-y-3">
         {codeTasks.length === 0 && (
           <div className="rounded-2xl border border-dashed border-border/50 bg-background/20 p-4 text-sm text-muted-foreground">
@@ -641,10 +641,10 @@ function StreamerStudioPage() {
   );
 
   const donationSection = (
-    <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+    <section className="rounded-3xl border border-border/50 bg-surface/60 p-5 sm:p-6">
       <div className="flex items-center gap-2">
         <Wallet className="h-5 w-5 text-cosmic" />
-        <h2 className="font-display text-2xl font-bold">Страница поддержки и OBS</h2>
+        <h2 className="font-display text-xl font-bold sm:text-2xl">Страница поддержки и OBS</h2>
       </div>
       <p className="mt-2 text-sm text-muted-foreground">
         Здесь живут публичная ссылка для зрителей, alert-анимация и весь комплект donation widget overlays для OBS.
@@ -782,7 +782,7 @@ function StreamerStudioPage() {
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               {DONATION_WIDGET_LINKS.map((widget) => (
                 <div key={widget.key} className="rounded-2xl border border-border/50 bg-background/30 p-3">
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <div className="text-xs font-medium text-foreground">{widget.label}</div>
                       <div className="mt-1 text-[11px] uppercase tracking-[0.24em] text-muted-foreground">Widget overlay</div>
@@ -792,7 +792,7 @@ function StreamerStudioPage() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="h-8 gap-1.5 px-2.5 text-xs"
+                      className="h-8 w-full gap-1.5 px-2.5 text-xs sm:w-auto"
                       onClick={() => void copyUrl(donationWidgetUrls[widget.key], widget.label)}
                     >
                       <Copy className="h-3.5 w-3.5" /> Копия
@@ -805,19 +805,19 @@ function StreamerStudioPage() {
           )}
           {activeOverlayPreview && (
             <div className="mt-6 rounded-2xl border border-border/50 bg-background/20 p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <div className="font-medium text-foreground">Превью overlay на этой странице</div>
                   <p className="mt-1 text-xs text-muted-foreground">
                     Можно сразу посмотреть каждый donation overlay прямо в студии, без отдельного окна OBS.
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => void copyUrl(activeOverlayPreview.url, activeOverlayPreview.label)}>
+                <div className="grid gap-2 sm:flex sm:flex-wrap">
+                  <Button type="button" variant="outline" size="sm" className="h-8 w-full text-xs sm:w-auto" onClick={() => void copyUrl(activeOverlayPreview.url, activeOverlayPreview.label)}>
                     <Copy className="mr-1.5 h-3.5 w-3.5" /> Скопировать текущий URL
                   </Button>
                   <a href={activeOverlayPreview.url} target="_blank" rel="noreferrer">
-                    <Button type="button" variant="outline" size="sm" className="h-8 text-xs">
+                    <Button type="button" variant="outline" size="sm" className="h-8 w-full text-xs sm:w-auto">
                       <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> Открыть отдельно
                     </Button>
                   </a>
@@ -825,7 +825,7 @@ function StreamerStudioPage() {
               </div>
 
               <Tabs value={overlayPreviewTab} onValueChange={(value) => setOverlayPreviewTab(value as OverlayPreviewTab)} className="mt-4">
-                <TabsList className="h-auto flex-wrap justify-start gap-2 rounded-2xl border border-border/40 bg-background/50 p-2">
+                <TabsList className="h-auto justify-start gap-2 overflow-x-auto rounded-2xl border border-border/40 bg-background/50 p-2 whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {overlayPreviewItems.map((item) => (
                     <TabsTrigger key={item.key} value={item.key}>{item.label}</TabsTrigger>
                   ))}
@@ -844,12 +844,12 @@ function StreamerStudioPage() {
               </Tabs>
             </div>
           )}
-          <div className="mt-4 flex flex-wrap gap-3">
-            <Button type="button" variant="outline" className="gap-2" onClick={() => void copyDonationOverlayUrl()}>
+          <div className="mt-4 grid gap-3 sm:flex sm:flex-wrap">
+            <Button type="button" variant="outline" className="w-full gap-2 sm:w-auto" onClick={() => void copyDonationOverlayUrl()}>
               <Copy className="h-4 w-4" /> Скопировать OBS URL
             </Button>
             {donationLinkDraft.slug && (
-              <Button type="button" variant="outline" className="gap-2" onClick={sendDonationOverlayTest}>
+              <Button type="button" variant="outline" className="w-full gap-2 sm:w-auto" onClick={sendDonationOverlayTest}>
                 <ExternalLink className="h-4 w-4" /> Тест анимации
               </Button>
             )}
@@ -857,13 +857,13 @@ function StreamerStudioPage() {
         </div>
       </div>
 
-      <div className="mt-5 flex flex-wrap gap-3">
-        <Button onClick={saveDonationLink} disabled={savingDonationLink || studioLoading} className="bg-gradient-cosmic font-bold text-foreground">
+      <div className="mt-5 grid gap-3 sm:flex sm:flex-wrap">
+        <Button onClick={saveDonationLink} disabled={savingDonationLink || studioLoading} className="w-full bg-gradient-cosmic font-bold text-foreground sm:w-auto">
           {savingDonationLink ? "Сохраняю страницу…" : "Сохранить страницу поддержки"}
         </Button>
         {donationLinkDraft.slug && (
           <Link to="/support/$slug" params={{ slug: donationLinkDraft.slug }}>
-            <Button variant="outline" className="gap-2">
+            <Button variant="outline" className="w-full gap-2 sm:w-auto">
               <ExternalLink className="h-4 w-4" /> Открыть страницу поддержки
             </Button>
           </Link>
@@ -873,21 +873,21 @@ function StreamerStudioPage() {
   );
 
   const previewSection = (
-    <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+    <section className="rounded-3xl border border-border/50 bg-surface/60 p-5 sm:p-6">
       <div className="flex items-center gap-2">
         <Bell className="h-5 w-5 text-crown" />
-        <h2 className="font-display text-2xl font-bold">Как выглядит страница для зрителя</h2>
+        <h2 className="font-display text-xl font-bold sm:text-2xl">Как выглядит страница для зрителя</h2>
       </div>
 
       <div className="mt-5 overflow-hidden rounded-3xl border border-border/50 bg-background/40">
         <div className={`h-40 w-full bg-linear-to-r ${pageDraft.accent}`} style={{ backgroundImage: pageDraft.bannerUrl ? `linear-gradient(135deg, rgba(255,255,255,0.04), transparent), url(${pageDraft.bannerUrl})` : undefined, backgroundSize: "cover", backgroundPosition: "center" }} />
-        <div className="px-5 pb-5">
+        <div className="px-4 pb-4 sm:px-5 sm:pb-5">
           <div className="-mt-10 flex items-end gap-4">
             <div className="h-20 w-20 overflow-hidden rounded-full border-4 border-background bg-surface-2">
               {pageDraft.logoUrl ? <img src={pageDraft.logoUrl} alt={user.displayName} className="h-full w-full object-cover" /> : null}
             </div>
             <div className="pb-2">
-              <div className="font-display text-2xl font-bold">{user.displayName}</div>
+              <div className="font-display text-xl font-bold sm:text-2xl">{user.displayName}</div>
               <div className="text-sm text-muted-foreground">@{user.tiktokUsername}</div>
             </div>
           </div>
@@ -905,8 +905,8 @@ function StreamerStudioPage() {
   );
 
   const postsFeedSection = (
-    <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
-      <h2 className="font-display text-2xl font-bold">Лента постов на публичной странице</h2>
+    <section className="rounded-3xl border border-border/50 bg-surface/60 p-5 sm:p-6">
+      <h2 className="font-display text-xl font-bold sm:text-2xl">Лента постов на публичной странице</h2>
       <div className="mt-5 space-y-3">
         {posts.length === 0 && (
           <div className="rounded-2xl border border-dashed border-border/50 bg-background/20 p-4 text-sm text-muted-foreground">
@@ -935,22 +935,22 @@ function StreamerStudioPage() {
   return (
     <div className="min-h-screen">
       <Header />
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-5 md:py-8">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-surface/60 px-3 py-1 text-xs font-medium text-muted-foreground">
               <Sparkles className="h-3 w-3 text-blast" /> Студия стримера TikTok LIVE
             </div>
-            <h1 className="mt-4 font-display text-4xl font-bold">Управление публичной страницей</h1>
+            <h1 className="mt-4 font-display text-3xl font-bold leading-tight sm:text-4xl">Управление публичной страницей</h1>
             <p className="mt-2 max-w-3xl text-muted-foreground">
               Здесь стример настраивает свою публичную страницу внутри NovaBoost Live и публикует посты, анонсы и короткий контент для аудитории между эфирами.
             </p>
           </div>
-          <div className="flex flex-wrap gap-3">
-            <Link to="/profile"><Button variant="outline">Назад в кабинет</Button></Link>
+          <div className="grid gap-3 sm:flex sm:flex-wrap">
+            <Link to="/profile"><Button variant="outline" className="w-full sm:w-auto">Назад в кабинет</Button></Link>
             {publicPageId && (
               <Link to="/streamer/$id" params={{ id: publicPageId }}>
-                <Button className="bg-gradient-blast text-blast-foreground font-bold gap-2">
+                <Button className="w-full bg-gradient-blast text-blast-foreground font-bold gap-2 sm:w-auto">
                   <ExternalLink className="h-4 w-4" /> Открыть публичную страницу
                 </Button>
               </Link>
@@ -993,7 +993,7 @@ function StreamerStudioPage() {
         </div>
 
         <Tabs defaultValue="page" className="mt-6">
-          <TabsList className="h-auto flex-wrap justify-start gap-2 rounded-2xl border border-border/50 bg-surface/60 p-2">
+          <TabsList className="h-auto justify-start gap-2 overflow-x-auto rounded-2xl border border-border/50 bg-surface/60 p-2 whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <TabsTrigger value="page">Страница</TabsTrigger>
             <TabsTrigger value="content">Контент</TabsTrigger>
             <TabsTrigger value="engagement">Активности</TabsTrigger>
@@ -1055,17 +1055,17 @@ function OverlayPreviewPanel({
 
   return (
     <div className="overflow-hidden rounded-3xl border border-border/50 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.14),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(249,115,22,0.12),transparent_24%),linear-gradient(180deg,rgba(15,23,42,0.92),rgba(2,6,23,0.9))] p-4 shadow-[0_20px_60px_rgba(2,6,23,0.35)]">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div>
           <div className="font-display text-xl font-bold text-white">{title}</div>
           <div className="mt-1 max-w-2xl text-sm text-slate-300">{description}</div>
         </div>
-        <Button type="button" variant="outline" size="sm" className="h-8 border-white/15 bg-white/5 text-xs text-white hover:bg-white/10" onClick={() => setReloadKey((current) => current + 1)}>
+        <Button type="button" variant="outline" size="sm" className="h-8 w-full border-white/15 bg-white/5 text-xs text-white hover:bg-white/10 sm:w-auto" onClick={() => setReloadKey((current) => current + 1)}>
           Перезапустить preview
         </Button>
       </div>
 
-        <div className={`mt-4 overflow-hidden rounded-[1.75rem] border border-white/10 bg-[linear-gradient(135deg,rgba(15,23,42,0.9),rgba(30,41,59,0.75))] ${minHeightClass}`}>
+      <div className={`mt-4 overflow-hidden rounded-[1.75rem] border border-white/10 bg-[linear-gradient(135deg,rgba(15,23,42,0.9),rgba(30,41,59,0.75))] ${minHeightClass}`}>
         <div className="flex items-center justify-between border-b border-white/10 px-4 py-2 text-[11px] uppercase tracking-[0.24em] text-slate-400">
           <span>OBS Scene Preview</span>
           <span>Transparent overlay</span>
