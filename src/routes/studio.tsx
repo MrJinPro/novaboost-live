@@ -58,6 +58,13 @@ const DONATION_DISPLAY_CURRENCIES = ["USD", "MDL", "RUB", "KZT"] as const;
 
 const STORAGE_EVENT_KEY = "novaboost:donation-overlay-event";
 
+const DONATION_WIDGET_LINKS = [
+  { key: "latest", label: "Последний донат" },
+  { key: "topDay", label: "Топ дня" },
+  { key: "topAllTime", label: "Топ за всё время" },
+  { key: "goal", label: "Цель по донатам" },
+] as const;
+
 function toLocalDateTimeValue(value: string | null) {
   if (!value) {
     return "";
@@ -327,6 +334,15 @@ function StreamerStudioPage() {
     try {
       await navigator.clipboard.writeText(donationPreviewUrl);
       toast.success("OBS overlay URL скопирован.");
+    } catch {
+      toast.error("Не удалось скопировать ссылку в буфер обмена.");
+    }
+  };
+
+  const copyUrl = async (url: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success(`${label} скопирован.`);
     } catch {
       toast.error("Не удалось скопировать ссылку в буфер обмена.");
     }
@@ -677,15 +693,24 @@ function StreamerStudioPage() {
           )}
           {donationWidgetUrls && (
             <div className="mt-4 grid gap-3 md:grid-cols-2">
-              {[
-                { label: "Последний донат", url: donationWidgetUrls.latest },
-                { label: "Топ дня", url: donationWidgetUrls.topDay },
-                { label: "Топ за всё время", url: donationWidgetUrls.topAllTime },
-                { label: "Цель по донатам", url: donationWidgetUrls.goal },
-              ].map((widget) => (
-                <div key={widget.label} className="rounded-xl border border-border/50 bg-background/30 p-3">
-                  <div className="text-xs font-medium text-foreground">{widget.label}</div>
-                  <div className="mt-2 break-all text-[11px] text-muted-foreground">{widget.url}</div>
+              {DONATION_WIDGET_LINKS.map((widget) => (
+                <div key={widget.key} className="rounded-2xl border border-border/50 bg-background/30 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-medium text-foreground">{widget.label}</div>
+                      <div className="mt-1 text-[11px] uppercase tracking-[0.24em] text-muted-foreground">Widget overlay</div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 gap-1.5 px-2.5 text-xs"
+                      onClick={() => void copyUrl(donationWidgetUrls[widget.key], widget.label)}
+                    >
+                      <Copy className="h-3.5 w-3.5" /> Копия
+                    </Button>
+                  </div>
+                  <div className="mt-3 break-all rounded-xl border border-border/40 bg-black/20 px-3 py-2 text-[11px] text-muted-foreground">{donationWidgetUrls[widget.key]}</div>
                 </div>
               ))}
             </div>
