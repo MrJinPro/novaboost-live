@@ -62,9 +62,9 @@ export function AppFooter() {
       </div>
 
       <div className="border-t border-border/40">
-        <div className="container mx-auto flex flex-wrap items-center justify-between gap-3 px-4 py-4 text-xs text-muted-foreground">
+        <div className="container mx-auto flex flex-col gap-2 px-4 py-4 text-xs text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
           <div>© 2026 NovaBoost Live</div>
-          <div>Используя сервис, пользователь соглашается с правилами платформы и обработкой данных в рамках работы NovaBoost Live.</div>
+          <div className="max-w-3xl leading-5">Используя сервис, пользователь соглашается с правилами платформы и обработкой данных в рамках работы NovaBoost Live.</div>
         </div>
       </div>
     </footer>

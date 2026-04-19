@@ -80,44 +80,44 @@ function HomePage() {
       {/* HERO */}
       <section className="relative overflow-hidden border-b border-border/40">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,oklch(0.72_0.20_45/0.18),transparent_50%),radial-gradient(circle_at_70%_60%,oklch(0.58_0.21_285/0.18),transparent_50%)]" />
-        <div className="container mx-auto relative px-4 py-12 md:py-20">
-          <div className="grid md:grid-cols-[1.2fr_1fr] gap-8 items-center">
+        <div className="container mx-auto relative px-4 py-10 md:py-20">
+          <div className="grid items-center gap-8 md:grid-cols-[1.2fr_1fr]">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-surface/60 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur">
                 <Sparkles className="h-3 w-3 text-blast" />
                 Реальное время · Платформа для TikTok LIVE-стримеров
               </div>
-              <h1 className="mt-5 font-display font-bold text-4xl md:text-6xl leading-[1.05] tracking-tight">
+              <h1 className="mt-5 max-w-3xl font-display text-3xl font-bold leading-[1.02] tracking-tight sm:text-4xl md:text-6xl">
                 Платформа роста для{" "}
                 <span className="text-gradient-nova">TikTok LIVE-стримеров</span>
               </h1>
-              <p className="mt-5 text-lg text-muted-foreground max-w-xl">
+              <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
                 NovaBoost Live - сторонний сервис для TikTok-стримеров и их аудитории: отслеживание эфиров, рост через бусты и сигналы, удержание через контент, Telegram и геймификацию.
               </p>
               <div className="mt-5 max-w-2xl">
                 <PlatformDisclaimer compact />
               </div>
-              <div className="mt-7 flex flex-wrap gap-3">
+              <div className="mt-7 grid gap-3 sm:flex sm:flex-wrap">
                 <Link to="/streamers">
-                  <Button size="lg" className="bg-gradient-blast text-blast-foreground hover:opacity-90 shadow-glow font-bold gap-2">
+                  <Button size="lg" className="w-full bg-gradient-blast font-bold text-blast-foreground shadow-glow hover:opacity-90 sm:w-auto gap-2">
                     Смотреть стримы
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 </Link>
                 <Link to="/boost">
-                  <Button size="lg" variant="outline" className="border-cosmic/40 hover:bg-cosmic/10 gap-2">
+                  <Button size="lg" variant="outline" className="w-full border-cosmic/40 gap-2 hover:bg-cosmic/10 sm:w-auto">
                     <Zap className="h-4 w-4 text-cosmic" />
                     Запустить буст
                   </Button>
                 </Link>
                 <Link to="/auth">
-                  <Button size="lg" variant="outline" className="border-border/60 hover:bg-surface gap-2">
+                  <Button size="lg" variant="outline" className="w-full border-border/60 gap-2 hover:bg-surface sm:w-auto">
                     <Crown className="h-4 w-4 text-crown" />
                     Я стример
                   </Button>
                 </Link>
               </div>
-              <div className="mt-8 flex flex-wrap gap-x-8 gap-y-3 text-sm">
+              <div className="mt-8 grid grid-cols-2 gap-4 text-sm sm:flex sm:flex-wrap sm:gap-x-8 sm:gap-y-3">
                 <Stat label="В эфире" value={live.length} accent="live" />
                 <Stat label="Зрителей сейчас" value={formatNumber(totalLiveViewers)} accent="blast" />
                 <Stat label="Активных бустов" value={boosted.length} accent="cosmic" />
@@ -299,9 +299,9 @@ function Stat({ label, value, accent }: { label: string; value: number | string;
     cosmic: "text-cosmic",
   };
   return (
-    <div>
-      <div className={`font-display font-bold text-2xl ${colors[accent]}`}>{value}</div>
-      <div className="text-xs text-muted-foreground uppercase tracking-wider">{label}</div>
+    <div className="min-w-0 rounded-2xl border border-border/40 bg-surface/30 px-3 py-3 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+      <div className={`font-display text-2xl font-bold ${colors[accent]}`}>{value}</div>
+      <div className="text-[11px] uppercase tracking-wider text-muted-foreground sm:text-xs">{label}</div>
     </div>
   );
 }
@@ -313,7 +313,7 @@ function BentoBlock({ children, className = "", accent }: { children: React.Reac
     magenta: "border-magenta/30 hover:border-magenta/50",
   };
   return (
-    <div className={`rounded-2xl border bg-surface/60 p-5 backdrop-blur transition-colors ${accent ? accentBorder[accent] : "border-border/50 hover:border-border"} ${className}`}>
+    <div className={`rounded-2xl border bg-surface/60 p-4 backdrop-blur transition-colors sm:p-5 ${accent ? accentBorder[accent] : "border-border/50 hover:border-border"} ${className}`}>
       {children}
     </div>
   );
