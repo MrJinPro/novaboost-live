@@ -21,6 +21,7 @@ function AuthPage() {
   const { user, signIn, signUp } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState<"signin" | "signup">("signup");
+  const [accountRole, setAccountRole] = useState<"viewer" | "streamer">("viewer");
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [tiktokUsername, setTikTokUsername] = useState("");
@@ -95,6 +96,7 @@ function AuthPage() {
           displayName,
           tiktokUsername,
           password,
+          accountRole,
           referralStreamerId: referralStreamer?.id ?? null,
         });
         toast.success(
@@ -139,7 +141,7 @@ function AuthPage() {
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             {mode === "signup"
-              ? "Один аккаунт для всех сценариев внутри NovaBoost Live: смотреть, поддерживать, выполнять задания и при необходимости подать заявку на кабинет стримера."
+              ? "Выбери тип аккаунта при регистрации: зритель или стример. Вход потом всегда единый по email и паролю."
               : "Для входа нужен только email и пароль. Дополнительные роли и настройки подтягиваются уже внутри профиля."}
           </p>
         </div>
@@ -158,6 +160,30 @@ function AuthPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl border border-border/50 bg-surface/60 p-6">
+          {mode === "signup" && (
+            <div>
+              <Label>Тип аккаунта</Label>
+              <div className="mt-1.5 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => setAccountRole("viewer")}
+                  className={`rounded-2xl border p-3 text-left transition-colors ${accountRole === "viewer" ? "border-blast bg-blast/10 text-foreground" : "border-border/50 bg-background text-muted-foreground"}`}
+                >
+                  <div className="font-semibold">Я зритель</div>
+                  <div className="mt-1 text-xs">Обычный профиль для подписок, заданий и поддержки стримеров.</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAccountRole("streamer")}
+                  className={`rounded-2xl border p-3 text-left transition-colors ${accountRole === "streamer" ? "border-cosmic bg-cosmic/10 text-foreground" : "border-border/50 bg-background text-muted-foreground"}`}
+                >
+                  <div className="font-semibold">Я стример</div>
+                  <div className="mt-1 text-xs">Сразу открываем студию, публичную страницу и донат-ссылку по указанному TikTok username.</div>
+                </button>
+              </div>
+            </div>
+          )}
+
           <div>
             <Label htmlFor="email">Email</Label>
             <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="mt-1.5 bg-background" />
@@ -243,7 +269,9 @@ function AuthPage() {
 
           {mode === "signup" && (
             <div className="rounded-xl border border-cosmic/30 bg-cosmic/10 p-4 text-sm text-muted-foreground">
-              После регистрации у тебя будет обычный аккаунт NovaBoost Live. Если позже захочешь кабинет стримера, подашь заявку прямо внутри профиля и приложишь доказательства, что реально стримишь.
+              {accountRole === "streamer"
+                ? "Если регистрируешься как стример, кабинет стримера откроется сразу. Вход потом остаётся единым, без отдельного выбора роли."
+                : "Если позже захочешь функции стримера, подашь заявку прямо внутри профиля и после одобрения получишь доступ к студии и донат-ссылке."}
             </div>
           )}
 

@@ -16,6 +16,7 @@ interface AuthContextValue {
     displayName?: string;
     tiktokUsername: string;
     password: string;
+    accountRole: Exclude<AppRole, "admin">;
     referralStreamerId?: string | null;
   }) => Promise<{ emailConfirmationRequired: boolean }>;
   signIn: (payload: {
@@ -31,7 +32,7 @@ async function getProfile(userId: string) {
   return getAuthProfileCompat(userId);
 }
 
-async function resolveAppRole(userId: string, hasVerifiedStreamerProfile: boolean): Promise<AppRole> {
+async function resolveAppRole(userId: string, declaredRole: Exclude<AppRole, "admin"> | null, hasVerifiedStreamerProfile: boolean): Promise<AppRole> {
   const { data, error } = await supabase
     .from("user_roles")
     .select("role")
@@ -43,7 +44,11 @@ async function resolveAppRole(userId: string, hasVerifiedStreamerProfile: boolea
     return "admin";
   }
 
-  return hasVerifiedStreamerProfile ? "streamer" : "viewer";
+  if (declaredRole === "streamer" || hasVerifiedStreamerProfile) {
+    return "streamer";
+  }
+
+  return "viewer";
 }
 
 async function buildAppUser(session: Session): Promise<AppUser> {
@@ -52,8 +57,11 @@ async function buildAppUser(session: Session): Promise<AppUser> {
     userId: session.user.id,
     tiktokUsername: profile?.tiktok_username ?? session.user.user_metadata.tiktok_username ?? "",
   });
+  const declaredRole = session.user.user_metadata.account_role === "streamer" || session.user.user_metadata.account_role === "viewer"
+    ? session.user.user_metadata.account_role
+    : null;
   const hasVerifiedStreamerProfile = streamer?.verification_status === "verified";
-  const role = await resolveAppRole(session.user.id, hasVerifiedStreamerProfile);
+  const role = await resolveAppRole(session.user.id, declaredRole, hasVerifiedStreamerProfile);
 
   const username = profile?.username ?? session.user.user_metadata.username ?? session.user.email?.split("@")[0] ?? "user";
   const displayName = (hasVerifiedStreamerProfile ? streamer?.display_name : null) ?? profile?.display_name ?? session.user.user_metadata.display_name ?? username;
@@ -148,6 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     displayName?: string;
     tiktokUsername: string;
     password: string;
+    accountRole: Exclude<AppRole, "admin">;
     referralStreamerId?: string | null;
   }) => {
     const emailLocalPart = payload.email.split("@")[0]?.trim() || "user";
@@ -169,6 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           username: normalizedUsername,
           display_name: normalizedDisplayName,
           tiktok_username: normalizedTikTokUsername,
+          account_role: payload.accountRole,
           avatar_url: tiktokProfile.avatarUrl,
           bio: tiktokProfile.bio,
           preferred_language: "ru",
@@ -186,6 +196,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (data.session) {
       await syncSessionProfileMetadata(data.session);
+
+      if (payload.accountRole === "streamer") {
+        await ensureLinkedStreamer({
+          userId: data.user.id,
+          tiktokUsername: normalizedTikTokUsername,
+          displayName: normalizedDisplayName,
+        });
+      }
 
       if (payload.referralStreamerId) {
         const { error: referralError } = await supabase.from("referrals").insert({

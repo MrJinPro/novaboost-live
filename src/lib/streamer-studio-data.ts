@@ -174,11 +174,10 @@ function isPostActive(row: DbPost) {
 }
 
 async function getManagedStreamer(user: Pick<AppUser, "id" | "tiktokUsername" | "displayName">) {
-  return resolveLinkedStreamer({
+  return ensureLinkedStreamer({
     userId: user.id,
     tiktokUsername: user.tiktokUsername,
     displayName: user.displayName,
-    claimIfNeeded: true,
   });
 }
 
