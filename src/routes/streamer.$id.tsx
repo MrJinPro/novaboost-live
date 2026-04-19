@@ -6,6 +6,7 @@ import { LiveIndicator } from "@/components/LiveIndicator";
 import { CurrencySwitcher } from "@/components/CurrencySwitcher";
 import { LocalizedPrice } from "@/components/LocalizedPrice";
 import { BoostBadge } from "@/components/BoostBadge";
+import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
 import { usePaymentComingSoonSurvey } from "@/components/PaymentComingSoonDialog";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Bell, Crown, Eye, ExternalLink, Play, Send, Sparkles, Users, Wallet, Zap, TrendingUp } from "lucide-react";
@@ -424,6 +425,31 @@ function StreamerProfile() {
           <StatCard icon={<Wallet className="h-5 w-5" />} label="Подарков" value={formatNumber(streamer.total_gifts)} />
           <StatCard icon={<Bell className="h-5 w-5" />} label="Сообщений в чате" value={formatNumber(streamer.total_messages ?? 0)} />
           <StatCard icon={<Play className="h-5 w-5" />} label="Пик зрителей" value={formatNumber(streamer.peak_viewer_count ?? 0)} accent="live" />
+        </div>
+
+        <div className="mt-6">
+          <ProjectHelpPanel
+            badge="Как читать страницу стримера"
+            title="Что здесь может сделать зритель"
+            description="Публичная страница стримера в NovaBoost Live - это не только визитка, но и отдельная продуктовая поверхность для вовлечения между эфирами и во время live." 
+            items={[
+              {
+                key: "public-page-purpose",
+                title: "Зачем нужна эта страница",
+                body: "Здесь собираются все ключевые точки взаимодействия со стримером внутри NovaBoost Live: подписка, boost, контент, support, платные сценарии в подготовке и внутренние сигналы активности.",
+              },
+              {
+                key: "boost-on-page",
+                title: "Что означает crown и boost-сумма",
+                body: "Если у стримера есть активный boost, его карточка и страница получают более высокий приоритет внутри NovaBoost Live. Crown и сумма показывают силу текущей волны поддержки аудитории внутри платформы.",
+              },
+              {
+                key: "memberships-page",
+                title: "Что с тарифами и поддержкой",
+                body: "Часть сценариев уже оформлена как продуктовый интерфейс, но реальные платежи ещё могут быть не активированы. В таких случаях платформа показывает coming-soon flow и собирает платёжные предпочтения.",
+              },
+            ]}
+          />
         </div>
 
         <section id="promotion-services" className="mt-6 rounded-3xl border border-border/50 bg-surface/60 p-6">

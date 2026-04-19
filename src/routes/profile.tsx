@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { Header } from "@/components/Header";
+import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
 import { Button } from "@/components/ui/button";
 import { Award, Crown, ExternalLink, LogOut, Sparkles, Trophy } from "lucide-react";
 import { formatNumber } from "@/lib/format";
@@ -153,6 +154,41 @@ function ProfilePage() {
           <StatBox icon={<Trophy className="h-5 w-5" />} label={isStreamer ? "Подписчиков" : "Очков"} value={formatNumber(isStreamer ? 1240 : points)} accent="blast" />
           <StatBox icon={<Award className="h-5 w-5" />} label={isStreamer ? "Эфиров в трекинге" : "Заданий"} value={String(isStreamer ? 8 : viewerProfile?.completedTasks ?? 0)} />
           <StatBox icon={<Sparkles className="h-5 w-5" />} label={isStreamer ? "Telegram-связки" : "Бустов"} value={String(isStreamer ? 1 : viewerProfile?.boostsJoined ?? 0)} accent="cosmic" />
+        </div>
+
+        <div className="mt-6">
+          <ProjectHelpPanel
+            badge="Что показывает профиль"
+            title={isStreamer ? "Как читать кабинет стримера" : "Как читать профиль зрителя"}
+            description={isStreamer
+              ? "Профиль стримера в NovaBoost Live - это короткая сводка о твоём статусе в платформе и вход в основные инструменты роста."
+              : "Профиль зрителя показывает твой прогресс внутри платформы: очки, уровень, задания и участие в бустах."}
+            items={isStreamer
+              ? [
+                  {
+                    key: "streamer-profile-purpose",
+                    title: "Зачем нужен этот кабинет",
+                    body: "Это стартовая точка для стримера: отсюда можно перейти в студию, на публичную страницу и к инструментам продвижения внутри NovaBoost Live.",
+                  },
+                  {
+                    key: "streamer-stats",
+                    title: "Что значат показатели сверху",
+                    body: "Показатели дают быстрое представление о присутствии стримера внутри платформы: сколько подписчиков, сколько активностей подключено и какие инструменты уже используются.",
+                  },
+                ]
+              : [
+                  {
+                    key: "viewer-points-profile",
+                    title: "Что такое очки и уровень",
+                    body: "Очки зрителя выдаются за задания и активность. Каждые 100 очков поднимают уровень и показывают, насколько активно пользователь участвует в жизни платформы.",
+                  },
+                  {
+                    key: "viewer-boosts-profile",
+                    title: "Что означает счётчик бустов",
+                    body: "Это число показывает, сколько раз ты уже запускал буст для стримеров внутри NovaBoost Live, помогая им подниматься выше в каталоге и внутренних подборках.",
+                  },
+                ]}
+          />
         </div>
 
         {!isStreamer && favoriteStreamers.length > 0 && (

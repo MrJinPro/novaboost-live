@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { Header } from "@/components/Header";
+import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CheckCircle2, Lock, Trophy, Zap } from "lucide-react";
@@ -94,6 +95,31 @@ function TasksPage() {
           <h1 className="font-display font-bold text-3xl md:text-4xl">Задания</h1>
         </div>
         <p className="mt-2 text-muted-foreground">Выполняй задания и поднимай уровень. 100 очков = +1 уровень.</p>
+
+        <div className="mt-6">
+          <ProjectHelpPanel
+            badge="Как работают задания"
+            title="Что даёт этот раздел"
+            description="Задания - это основной способ вовлекать зрителя и начислять ему viewer points внутри платформы."
+            items={[
+              {
+                key: "tasks-points",
+                title: "Зачем выполнять задания",
+                body: "Через задания пользователь получает очки, повышает уровень и открывает возможность активнее участвовать в механиках NovaBoost Live, включая boost-поддержку стримеров.",
+              },
+              {
+                key: "tasks-code",
+                title: "Что такое кодовые слова",
+                body: "Это задания, которые стример может активировать во время эфира. Они связывают live-активность и платформу NovaBoost Live, помогая переводить зрителя из эфира в продуктовую механику.",
+              },
+              {
+                key: "tasks-internal",
+                title: "Важно: очки - это внутренняя механика",
+                body: "Points начисляются и тратятся только внутри NovaBoost Live. Они не являются деньгами и не обещают внешние бонусы вне логики платформы, если это прямо не объявлено отдельно.",
+              },
+            ]}
+          />
+        </div>
 
         {tasksLoading && <div className="mt-6 text-sm text-muted-foreground">Загружаю задания…</div>}
 

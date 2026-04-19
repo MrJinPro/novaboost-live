@@ -15,6 +15,7 @@ import { Route as StreamersRouteImport } from './routes/streamers'
 import { Route as ServicesRouteImport } from './routes/services'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
+import { Route as HelpRouteImport } from './routes/help'
 import { Route as BoostRouteImport } from './routes/boost'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AboutRouteImport } from './routes/about'
@@ -23,6 +24,8 @@ import { Route as SupportSlugRouteImport } from './routes/support.$slug'
 import { Route as StreamerIdRouteImport } from './routes/streamer.$id'
 import { Route as LegalTermsRouteImport } from './routes/legal.terms'
 import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
+import { Route as LegalPaymentsRouteImport } from './routes/legal.payments'
+import { Route as LegalAcceptableUseRouteImport } from './routes/legal.acceptable-use'
 import { Route as ApiCurrencyPreferenceRouteImport } from './routes/api/currency-preference'
 import { Route as ApiRevealKeyRouteImport } from './routes/api/_reveal-key'
 import { Route as OverlayDonationSlugRouteImport } from './routes/overlay.donation.$slug'
@@ -56,6 +59,11 @@ const ProfileRoute = ProfileRouteImport.update({
 const LeaderboardRoute = LeaderboardRouteImport.update({
   id: '/leaderboard',
   path: '/leaderboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BoostRoute = BoostRouteImport.update({
@@ -98,6 +106,16 @@ const LegalPrivacyRoute = LegalPrivacyRouteImport.update({
   path: '/legal/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LegalPaymentsRoute = LegalPaymentsRouteImport.update({
+  id: '/legal/payments',
+  path: '/legal/payments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalAcceptableUseRoute = LegalAcceptableUseRouteImport.update({
+  id: '/legal/acceptable-use',
+  path: '/legal/acceptable-use',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCurrencyPreferenceRoute = ApiCurrencyPreferenceRouteImport.update({
   id: '/api/currency-preference',
   path: '/api/currency-preference',
@@ -124,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/boost': typeof BoostRoute
+  '/help': typeof HelpRoute
   '/leaderboard': typeof LeaderboardRoute
   '/profile': typeof ProfileRoute
   '/services': typeof ServicesRoute
@@ -132,6 +151,8 @@ export interface FileRoutesByFullPath {
   '/tasks': typeof TasksRoute
   '/api': typeof ApiRevealKeyRoute
   '/api/currency-preference': typeof ApiCurrencyPreferenceRoute
+  '/legal/acceptable-use': typeof LegalAcceptableUseRoute
+  '/legal/payments': typeof LegalPaymentsRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
   '/streamer/$id': typeof StreamerIdRoute
@@ -144,6 +165,7 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/boost': typeof BoostRoute
+  '/help': typeof HelpRoute
   '/leaderboard': typeof LeaderboardRoute
   '/profile': typeof ProfileRoute
   '/services': typeof ServicesRoute
@@ -152,6 +174,8 @@ export interface FileRoutesByTo {
   '/tasks': typeof TasksRoute
   '/api': typeof ApiRevealKeyRoute
   '/api/currency-preference': typeof ApiCurrencyPreferenceRoute
+  '/legal/acceptable-use': typeof LegalAcceptableUseRoute
+  '/legal/payments': typeof LegalPaymentsRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
   '/streamer/$id': typeof StreamerIdRoute
@@ -165,6 +189,7 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/boost': typeof BoostRoute
+  '/help': typeof HelpRoute
   '/leaderboard': typeof LeaderboardRoute
   '/profile': typeof ProfileRoute
   '/services': typeof ServicesRoute
@@ -173,6 +198,8 @@ export interface FileRoutesById {
   '/tasks': typeof TasksRoute
   '/api/_reveal-key': typeof ApiRevealKeyRoute
   '/api/currency-preference': typeof ApiCurrencyPreferenceRoute
+  '/legal/acceptable-use': typeof LegalAcceptableUseRoute
+  '/legal/payments': typeof LegalPaymentsRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
   '/streamer/$id': typeof StreamerIdRoute
@@ -187,6 +214,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/auth'
     | '/boost'
+    | '/help'
     | '/leaderboard'
     | '/profile'
     | '/services'
@@ -195,6 +223,8 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/api'
     | '/api/currency-preference'
+    | '/legal/acceptable-use'
+    | '/legal/payments'
     | '/legal/privacy'
     | '/legal/terms'
     | '/streamer/$id'
@@ -207,6 +237,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/auth'
     | '/boost'
+    | '/help'
     | '/leaderboard'
     | '/profile'
     | '/services'
@@ -215,6 +246,8 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/api'
     | '/api/currency-preference'
+    | '/legal/acceptable-use'
+    | '/legal/payments'
     | '/legal/privacy'
     | '/legal/terms'
     | '/streamer/$id'
@@ -227,6 +260,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/auth'
     | '/boost'
+    | '/help'
     | '/leaderboard'
     | '/profile'
     | '/services'
@@ -235,6 +269,8 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/api/_reveal-key'
     | '/api/currency-preference'
+    | '/legal/acceptable-use'
+    | '/legal/payments'
     | '/legal/privacy'
     | '/legal/terms'
     | '/streamer/$id'
@@ -248,6 +284,7 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   AuthRoute: typeof AuthRoute
   BoostRoute: typeof BoostRoute
+  HelpRoute: typeof HelpRoute
   LeaderboardRoute: typeof LeaderboardRoute
   ProfileRoute: typeof ProfileRoute
   ServicesRoute: typeof ServicesRoute
@@ -256,6 +293,8 @@ export interface RootRouteChildren {
   TasksRoute: typeof TasksRoute
   ApiRevealKeyRoute: typeof ApiRevealKeyRoute
   ApiCurrencyPreferenceRoute: typeof ApiCurrencyPreferenceRoute
+  LegalAcceptableUseRoute: typeof LegalAcceptableUseRoute
+  LegalPaymentsRoute: typeof LegalPaymentsRoute
   LegalPrivacyRoute: typeof LegalPrivacyRoute
   LegalTermsRoute: typeof LegalTermsRoute
   StreamerIdRoute: typeof StreamerIdRoute
@@ -306,6 +345,13 @@ declare module '@tanstack/react-router' {
       path: '/leaderboard'
       fullPath: '/leaderboard'
       preLoaderRoute: typeof LeaderboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/boost': {
@@ -364,6 +410,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LegalPrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/legal/payments': {
+      id: '/legal/payments'
+      path: '/legal/payments'
+      fullPath: '/legal/payments'
+      preLoaderRoute: typeof LegalPaymentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/acceptable-use': {
+      id: '/legal/acceptable-use'
+      path: '/legal/acceptable-use'
+      fullPath: '/legal/acceptable-use'
+      preLoaderRoute: typeof LegalAcceptableUseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/currency-preference': {
       id: '/api/currency-preference'
       path: '/api/currency-preference'
@@ -400,6 +460,7 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   AuthRoute: AuthRoute,
   BoostRoute: BoostRoute,
+  HelpRoute: HelpRoute,
   LeaderboardRoute: LeaderboardRoute,
   ProfileRoute: ProfileRoute,
   ServicesRoute: ServicesRoute,
@@ -408,6 +469,8 @@ const rootRouteChildren: RootRouteChildren = {
   TasksRoute: TasksRoute,
   ApiRevealKeyRoute: ApiRevealKeyRoute,
   ApiCurrencyPreferenceRoute: ApiCurrencyPreferenceRoute,
+  LegalAcceptableUseRoute: LegalAcceptableUseRoute,
+  LegalPaymentsRoute: LegalPaymentsRoute,
   LegalPrivacyRoute: LegalPrivacyRoute,
   LegalTermsRoute: LegalTermsRoute,
   StreamerIdRoute: StreamerIdRoute,

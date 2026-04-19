@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth-context";
 import { CurrencySwitcher } from "@/components/CurrencySwitcher";
 import { Header } from "@/components/Header";
 import { LocalizedPrice } from "@/components/LocalizedPrice";
+import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -189,6 +190,26 @@ function SupportPage() {
           <p className="mt-4 text-muted-foreground">
             {linkData.description ?? "Поддержка через NovaBoost Live уже готова как сценарий, но реальную оплату мы ещё не включили. Кнопка ниже откроет короткий опрос о том, каким способом тебе было бы удобнее платить."}
           </p>
+
+          <div className="mt-6">
+            <ProjectHelpPanel
+              badge="Как работает поддержка"
+              title="Что это за страница"
+              description="Это platform support page для стримера. Она нужна, чтобы оформить поддержку внутри NovaBoost Live отдельно от основного TikTok-сценария."
+              items={[
+                {
+                  key: "support-purpose",
+                  title: "Зачем нужна такая страница",
+                  body: "Поддержка стримера оформляется в отдельном интерфейсе, чтобы NovaBoost Live мог строить вокруг этого свои сценарии: alerts, overlays, публичную ленту поддержек и будущие платёжные механики.",
+                },
+                {
+                  key: "support-status",
+                  title: "Почему здесь пока нет реальной оплаты",
+                  body: "Платёжный flow находится в подготовке. Сейчас платформа показывает форму и собирает ожидания по сумме, валюте и способу оплаты, чтобы корректно запустить будущий gateway.",
+                },
+              ]}
+            />
+          </div>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-4">
             {PRESET_AMOUNTS.map((preset) => (

@@ -18,6 +18,9 @@ export function AppFooter() {
             <Link to="/about" className="text-muted-foreground transition-colors hover:text-foreground">
               Что это за проект
             </Link>
+            <Link to="/help" className="text-muted-foreground transition-colors hover:text-foreground">
+              Центр помощи
+            </Link>
             <Link to="/streamers" className="text-muted-foreground transition-colors hover:text-foreground">
               Каталог стримеров
             </Link>
@@ -38,6 +41,12 @@ export function AppFooter() {
             </Link>
             <Link to="/legal/terms" className="text-muted-foreground transition-colors hover:text-foreground">
               Условия использования
+            </Link>
+            <Link to="/legal/payments" className="text-muted-foreground transition-colors hover:text-foreground">
+              Политика платежей
+            </Link>
+            <Link to="/legal/acceptable-use" className="text-muted-foreground transition-colors hover:text-foreground">
+              Правила допустимого использования
             </Link>
           </div>
           <p className="mt-4 text-xs leading-5 text-muted-foreground">
