@@ -9,7 +9,8 @@ import { BoostBadge } from "@/components/BoostBadge";
 import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
 import { usePaymentComingSoonSurvey } from "@/components/PaymentComingSoonDialog";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Bell, Crown, Eye, ExternalLink, Play, Send, Sparkles, Users, Wallet, Zap, TrendingUp } from "lucide-react";
+import { ArrowLeft, Bell, ChevronDown, Crown, Eye, ExternalLink, Play, Send, Sparkles, Users, Wallet, Zap, TrendingUp } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { formatNumber } from "@/lib/format";
 import { getLocalizedMoney, useCurrencyPreference } from "@/lib/currency";
 import type { PostReactionType, StreamerPageData, StreamerPost, SubscriptionPlanKey } from "@/lib/mock-platform";
@@ -54,6 +55,7 @@ function StreamerProfile() {
   const [reactionSummaries, setReactionSummaries] = useState<Map<string, PostReactionSummary>>(new Map());
   const [promotionServices, setPromotionServices] = useState<TikTokPromotionService[]>([]);
   const [activePromotionGroupKey, setActivePromotionGroupKey] = useState("");
+  const [showGrowthTools, setShowGrowthTools] = useState(false);
   const { openSurvey, surveyDialog } = usePaymentComingSoonSurvey();
 
   useEffect(() => {
@@ -390,16 +392,13 @@ function StreamerProfile() {
                 <Button size="lg" variant={subscribed ? "secondary" : "outline"} className="gap-2 w-full" onClick={handleSubscription} disabled={subscriptionLoading}>
                   <Bell className="h-4 w-4" /> {subscriptionLoading ? "Обновляю…" : subscribed ? "Подписка активна" : "Подписаться"}
                 </Button>
-                <Link to="/boost" search={{ streamerId: streamer.id }}>
-                  <Button size="lg" variant="outline" className="gap-2 w-full border-cosmic/40 hover:bg-cosmic/10">
-                    <Zap className="h-4 w-4 text-cosmic" /> Запустить буст
-                  </Button>
-                </Link>
-                <a href="#promotion-services">
-                  <Button size="lg" variant="outline" className="gap-2 w-full border-blast/40 hover:bg-blast/10">
-                    <Sparkles className="h-4 w-4 text-blast" /> Поддержать продвижением
-                  </Button>
-                </a>
+                {streamer.donation_link_slug ? (
+                  <Link to="/support/$slug" params={{ slug: streamer.donation_link_slug }}>
+                    <Button size="lg" variant="outline" className="gap-2 w-full border-blast/40 hover:bg-blast/10">
+                      <Wallet className="h-4 w-4 text-blast" /> Поддержать стримера
+                    </Button>
+                  </Link>
+                ) : null}
                 {telegramHref ? (
                   <a href={telegramHref} target="_blank" rel="noopener noreferrer">
                     <Button size="lg" variant="outline" className="gap-2 w-full border-border/60">
@@ -411,6 +410,11 @@ function StreamerProfile() {
                     <Send className="h-4 w-4 text-cosmic" /> Telegram не указан
                   </Button>
                 )}
+                <Link to="/boost" search={{ streamerId: streamer.id }}>
+                  <Button size="lg" variant="ghost" className="gap-2 w-full text-muted-foreground hover:text-foreground">
+                    <Zap className="h-4 w-4 text-cosmic" /> Поддержать внутри NovaBoost
+                  </Button>
+                </Link>
               </div>
             </div>
           </div>
@@ -419,8 +423,8 @@ function StreamerProfile() {
         <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard icon={<Eye className="h-5 w-5" />} label="Зрителей сейчас" value={streamer.is_live ? formatNumber(streamer.viewer_count) : "—"} accent="live" />
           <StatCard icon={<Users className="h-5 w-5" />} label="Подписчиков" value={formatNumber(streamer.followers_count)} />
+          <StatCard icon={<Zap className="h-5 w-5" />} label="Поддержка сообщества" value={formatNumber(streamer.total_boost_amount)} accent="blast" />
           <StatCard icon={<TrendingUp className="h-5 w-5" />} label="Подписки в платформе" value={formatNumber(streamer.subscription_count)} />
-          <StatCard icon={<Zap className="h-5 w-5" />} label="Сумма бустов" value={formatNumber(streamer.total_boost_amount)} accent="blast" />
           <StatCard icon={<Sparkles className="h-5 w-5" />} label="Лайков в эфире" value={formatNumber(streamer.total_likes)} accent="blast" />
           <StatCard icon={<Wallet className="h-5 w-5" />} label="Подарков" value={formatNumber(streamer.total_gifts)} />
           <StatCard icon={<Bell className="h-5 w-5" />} label="Сообщений в чате" value={formatNumber(streamer.total_messages ?? 0)} />
@@ -451,89 +455,6 @@ function StreamerProfile() {
             ]}
           />
         </div>
-
-        <section id="promotion-services" className="mt-6 rounded-3xl border border-border/50 bg-surface/60 p-6">
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/30 px-3 py-1 text-xs text-muted-foreground">
-                <Sparkles className="h-3.5 w-3.5 text-blast" /> Поддержка эфира
-              </div>
-              <h2 className="mt-3 font-display text-2xl font-bold">Услуги продвижения TikTok</h2>
-              <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-                Выбери, что именно хочешь усилить: эфир, видео, профиль или активность в комментариях.
-              </p>
-            </div>
-            <div className="rounded-2xl border border-border/50 bg-background/30 px-4 py-3 text-sm text-muted-foreground">
-              Все основные варианты собраны прямо на странице стримера.
-            </div>
-          </div>
-
-          <div className="mt-5 space-y-6">
-            <div className="flex flex-wrap gap-2">
-              {promotionGroups.map((group) => (
-                <button
-                  key={group.key}
-                  type="button"
-                  onClick={() => setActivePromotionGroupKey(group.key)}
-                  className={`rounded-full border px-4 py-2 text-sm transition-colors ${group.key === activePromotionGroup?.key ? "border-blast bg-blast/10 text-foreground" : "border-border/50 bg-background/20 text-muted-foreground hover:border-foreground/30"}`}
-                >
-                  {group.title} · {group.services.length}
-                </button>
-              ))}
-            </div>
-
-            {activePromotionGroup && (
-              <div>
-                <div className="mb-3 flex items-end justify-between gap-3">
-                  <div>
-                    <h3 className="font-display text-xl font-bold">{activePromotionGroup.title}</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">{activePromotionGroup.description}</p>
-                  </div>
-                </div>
-                <div className="grid gap-3 lg:grid-cols-2">
-                  {activePromotionGroup.services.map((service) => {
-                    const price = calculateCustomerAmount("viewer", service.rate, service.min);
-
-                    return (
-                      <div key={service.id} className="rounded-2xl border border-border/50 bg-background/30 p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="rounded-full border border-border/50 bg-background/20 px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-muted-foreground w-fit">
-                              {service.subcategory}
-                            </div>
-                            <h3 className="mt-3 font-display text-lg font-bold leading-tight">{service.name}</h3>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <LocalizedPrice
-                              amount={price.customerAmount}
-                              preference={currencyPreference}
-                              primaryClassName="font-display text-lg font-bold text-blast"
-                              secondaryClassName="text-xs text-muted-foreground"
-                              align="right"
-                            />
-                            <div className="text-xs text-muted-foreground">от {service.min}</div>
-                          </div>
-                        </div>
-                        <p className="mt-3 text-sm leading-6 text-muted-foreground">{service.shortDescription}</p>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {(service.summaryBullets ?? []).slice(0, 2).map((bullet) => (
-                            <span key={bullet} className="rounded-full border border-border/50 px-2 py-1 text-[11px] text-muted-foreground">{bullet}</span>
-                          ))}
-                        </div>
-                        <div className="mt-3 text-xs text-muted-foreground">{service.targetLabel}</div>
-                        <Link to="/services" search={{ streamerId: streamer.id, serviceId: String(service.id) }}>
-                          <Button className="mt-4 w-full gap-2 bg-gradient-blast text-blast-foreground">
-                            <Sparkles className="h-4 w-4" /> Выбрать услугу
-                          </Button>
-                        </Link>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
 
         <div className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
           <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
@@ -676,7 +597,7 @@ function StreamerProfile() {
                   <div className="mt-4 grid gap-3 rounded-2xl border border-white/8 bg-black/15 p-4 sm:grid-cols-[1fr_auto] sm:items-center">
                     <div>
                       <div className="text-xs uppercase tracking-[0.25em] text-blast/80">Live support</div>
-                      <div className="mt-2 font-display text-2xl font-bold">Поднять эфир донатом</div>
+                      <div className="mt-2 font-display text-2xl font-bold">Поддержать стримера</div>
                       <div className="mt-2 text-sm text-muted-foreground">Сообщение и сумма сразу попадут в публичную ленту поддержек и могут улететь в OBS overlay.</div>
                     </div>
                     <Link to="/support/$slug" params={{ slug: streamer.donation_link_slug }}>
@@ -828,13 +749,127 @@ function StreamerProfile() {
                       <h3 className="font-semibold text-foreground">{video.title}</h3>
                       <span className="text-xs text-muted-foreground">#{streamer.tiktok_username}</span>
                     </div>
-                    {surveyDialog}
                   </div>
                 </div>
               ))
             )}
           </div>
         </section>
+
+        <section className="mt-6 rounded-3xl border border-border/50 bg-surface/60 p-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/30 px-3 py-1 text-xs text-muted-foreground">
+                <Sparkles className="h-3.5 w-3.5 text-cosmic" /> Дополнительные инструменты
+              </div>
+              <h2 className="mt-3 font-display text-2xl font-bold">Рост внутри NovaBoost</h2>
+              <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+                Этот блок вынесен отдельно, потому что он не должен мешать основному знакомству со стримером. Здесь собраны внутренний boost и отдельные инструменты роста платформы.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-border/50 bg-background/30 px-4 py-3 text-sm text-muted-foreground">
+              Сначала контент и поддержка стримера, потом дополнительные механики роста.
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
+            <div className="rounded-2xl border border-cosmic/30 bg-cosmic/5 p-5">
+              <div className="flex items-center gap-2 text-cosmic">
+                <Zap className="h-5 w-5" />
+                <h3 className="font-display text-xl font-bold text-foreground">Boost сообщества</h3>
+              </div>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                Зрители могут поддержать стримера своими viewer points. Это поднимает его видимость внутри NovaBoost, но не является обещанием внешней накрутки или автоматического роста в TikTok.
+              </p>
+              <Link to="/boost" search={{ streamerId: streamer.id }}>
+                <Button className="mt-4 w-full gap-2 bg-gradient-cosmic text-foreground">
+                  <Zap className="h-4 w-4" /> Поддержать boost внутри NovaBoost
+                </Button>
+              </Link>
+            </div>
+
+            <Collapsible open={showGrowthTools} onOpenChange={setShowGrowthTools} className="rounded-2xl border border-border/50 bg-background/20 p-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h3 className="font-display text-xl font-bold">Отдельные инструменты продвижения</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Это вторичный раздел. Он не является главным действием на публичной странице стримера.
+                  </p>
+                </div>
+                <CollapsibleTrigger asChild>
+                  <Button variant="outline" className="gap-2">
+                    {showGrowthTools ? "Скрыть блок" : "Показать блок"} <ChevronDown className={`h-4 w-4 transition-transform ${showGrowthTools ? "rotate-180" : ""}`} />
+                  </Button>
+                </CollapsibleTrigger>
+              </div>
+
+              <CollapsibleContent className="mt-5 space-y-6 data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+                <div className="flex flex-wrap gap-2">
+                  {promotionGroups.map((group) => (
+                    <button
+                      key={group.key}
+                      type="button"
+                      onClick={() => setActivePromotionGroupKey(group.key)}
+                      className={`rounded-full border px-4 py-2 text-sm transition-colors ${group.key === activePromotionGroup?.key ? "border-blast bg-blast/10 text-foreground" : "border-border/50 bg-background/20 text-muted-foreground hover:border-foreground/30"}`}
+                    >
+                      {group.title} · {group.services.length}
+                    </button>
+                  ))}
+                </div>
+
+                {activePromotionGroup && (
+                  <div>
+                    <div className="mb-3">
+                      <h4 className="font-display text-lg font-bold">{activePromotionGroup.title}</h4>
+                      <p className="mt-1 text-sm text-muted-foreground">{activePromotionGroup.description}</p>
+                    </div>
+                    <div className="grid gap-3 lg:grid-cols-2">
+                      {activePromotionGroup.services.map((service) => {
+                        const price = calculateCustomerAmount("viewer", service.rate, service.min);
+
+                        return (
+                          <div key={service.id} className="rounded-2xl border border-border/50 bg-background/30 p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="rounded-full border border-border/50 bg-background/20 px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-muted-foreground w-fit">
+                                  {service.subcategory}
+                                </div>
+                                <h4 className="mt-3 font-display text-lg font-bold leading-tight">{service.name}</h4>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <LocalizedPrice
+                                  amount={price.customerAmount}
+                                  preference={currencyPreference}
+                                  primaryClassName="font-display text-lg font-bold text-blast"
+                                  secondaryClassName="text-xs text-muted-foreground"
+                                  align="right"
+                                />
+                                <div className="text-xs text-muted-foreground">от {service.min}</div>
+                              </div>
+                            </div>
+                            <p className="mt-3 text-sm leading-6 text-muted-foreground">{service.shortDescription}</p>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {(service.summaryBullets ?? []).slice(0, 2).map((bullet) => (
+                                <span key={bullet} className="rounded-full border border-border/50 px-2 py-1 text-[11px] text-muted-foreground">{bullet}</span>
+                              ))}
+                            </div>
+                            <div className="mt-3 text-xs text-muted-foreground">{service.targetLabel}</div>
+                            <Link to="/services" search={{ streamerId: streamer.id, serviceId: String(service.id) }}>
+                              <Button className="mt-4 w-full gap-2 bg-gradient-blast text-blast-foreground">
+                                <Sparkles className="h-4 w-4" /> Перейти к услуге
+                              </Button>
+                            </Link>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+        </section>
+        {surveyDialog}
       </div>
     </div>
   );
