@@ -64,6 +64,7 @@ export interface StreamerStudioDraft {
   donationOverlayVariant: DonationOverlayVariant;
   donationSoundUrl: string;
   donationGifUrl: string;
+  donationOverlayAccessKey: string;
 }
 
 export type DonationOverlayVariant = "supernova" | "epic-burst" | "nova-ring";
@@ -72,6 +73,7 @@ export interface DonationOverlaySettings {
   variant: DonationOverlayVariant;
   soundUrl: string;
   gifUrl: string;
+  accessKey: string;
 }
 
 export interface DonationEventSummary {

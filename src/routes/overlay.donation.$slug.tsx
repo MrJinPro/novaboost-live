@@ -7,6 +7,7 @@ import type { DonationOverlayVariant } from "@/lib/mock-platform";
 const stringFromSearch = z.union([z.string(), z.number()]).transform((value) => String(value));
 
 const searchSchema = z.object({
+  key: stringFromSearch.optional(),
   username: stringFromSearch.optional(),
   amount: stringFromSearch.optional(),
   currency: stringFromSearch.optional(),
@@ -54,6 +55,7 @@ function DonationOverlayRoute() {
   const [gifUrl, setGifUrl] = useState("");
   const [soundUrl, setSoundUrl] = useState("");
   const [triggerKey, setTriggerKey] = useState(0);
+  const [isAuthorized, setIsAuthorized] = useState(false);
   const initialPayload = useMemo(
     () => normalizeOverlayPayload({
       username: search.username,
@@ -81,28 +83,42 @@ function DonationOverlayRoute() {
   useEffect(() => {
     let active = true;
 
-    void loadDonationOverlayBySlug(slug)
+    void loadDonationOverlayBySlug(slug, search.key)
       .then((data) => {
-        if (!active || !data) {
+        if (!active) {
           return;
         }
 
+        if (!data) {
+          setIsAuthorized(false);
+          return;
+        }
+
+        setIsAuthorized(true);
         setVariant(data.overlay.variant);
         setGifUrl(data.overlay.gifUrl);
         setSoundUrl(data.overlay.soundUrl);
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (active) {
+          setIsAuthorized(false);
+        }
+      });
 
     return () => {
       active = false;
     };
-  }, [slug]);
+  }, [search.key, slug]);
 
   useEffect(() => {
     setPayload(initialPayload);
   }, [initialPayload]);
 
   useEffect(() => {
+    if (!isAuthorized) {
+      return;
+    }
+
     const showDonation = (nextPayload: Partial<OverlayPayload>) => {
       setPayload((current) => normalizeOverlayPayload({
         username: nextPayload.username || current.username,
@@ -162,7 +178,7 @@ function DonationOverlayRoute() {
       delete window.NovaBoostOverlay;
       delete window.triggerNovaBoost;
     };
-  }, [hasInitialPayload, initialPayload, slug]);
+  }, [hasInitialPayload, initialPayload, isAuthorized, slug]);
 
   useEffect(() => {
     if (!soundUrl || !audioRef.current || triggerKey === 0) {
@@ -276,6 +292,10 @@ function DonationOverlayRoute() {
         };
     }
   }, [variant]);
+
+  if (!isAuthorized) {
+    return <div className="fixed inset-0 bg-transparent" />;
+  }
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-transparent">

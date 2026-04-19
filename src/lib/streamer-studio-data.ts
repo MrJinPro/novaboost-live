@@ -47,7 +47,14 @@ const DEFAULT_DONATION_OVERLAY: DonationOverlaySettings = {
   variant: "supernova",
   soundUrl: "",
   gifUrl: "",
+  accessKey: "",
 };
+
+function createOverlayAccessKey() {
+  const bytes = new Uint8Array(18);
+  globalThis.crypto.getRandomValues(bytes);
+  return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
+}
 
 function resolveDonationOverlayVariant(value: unknown): DonationOverlayVariant {
   if (value === "epic-burst" || value === "nova-ring" || value === "supernova") {
@@ -66,6 +73,15 @@ function parseDonationOverlaySettings(layout: unknown): DonationOverlaySettings 
     variant: resolveDonationOverlayVariant(overlay?.variant),
     soundUrl: typeof overlay?.soundUrl === "string" ? overlay.soundUrl : DEFAULT_DONATION_OVERLAY.soundUrl,
     gifUrl: typeof overlay?.gifUrl === "string" ? overlay.gifUrl : DEFAULT_DONATION_OVERLAY.gifUrl,
+    accessKey: typeof overlay?.accessKey === "string" ? overlay.accessKey : DEFAULT_DONATION_OVERLAY.accessKey,
+  };
+}
+
+function toPublicDonationOverlaySettings(layout: unknown): DonationOverlaySettings {
+  const overlay = parseDonationOverlaySettings(layout);
+  return {
+    ...overlay,
+    accessKey: "",
   };
 }
 
@@ -84,6 +100,7 @@ function createEmptyStudioDraft(tiktokUsername: string, displayName: string): St
     donationOverlayVariant: DEFAULT_DONATION_OVERLAY.variant,
     donationSoundUrl: DEFAULT_DONATION_OVERLAY.soundUrl,
     donationGifUrl: DEFAULT_DONATION_OVERLAY.gifUrl,
+    donationOverlayAccessKey: DEFAULT_DONATION_OVERLAY.accessKey,
   };
 }
 
@@ -363,6 +380,7 @@ function buildDraft(base: StreamerStudioDraft, streamer: DbStreamer, settings: D
     donationOverlayVariant: donationOverlay.variant,
     donationSoundUrl: donationOverlay.soundUrl,
     donationGifUrl: donationOverlay.gifUrl,
+    donationOverlayAccessKey: donationOverlay.accessKey,
   };
 }
 
@@ -377,12 +395,15 @@ export async function saveStreamerDonationOverlaySettings(user: AppUser, input: 
   const currentLayout = existingSettings?.layout && typeof existingSettings.layout === "object"
     ? (existingSettings.layout as Record<string, unknown>)
     : {};
+  const currentOverlay = parseDonationOverlaySettings(currentLayout);
+  const accessKey = input.accessKey || currentOverlay.accessKey || createOverlayAccessKey();
   const nextLayout = {
     ...currentLayout,
     donationOverlay: {
       variant: input.variant,
       soundUrl: input.soundUrl || null,
       gifUrl: input.gifUrl || null,
+      accessKey,
     },
   };
 
@@ -405,6 +426,13 @@ export async function saveStreamerDonationOverlaySettings(user: AppUser, input: 
   if (error) {
     throw error;
   }
+
+  return {
+    variant: input.variant,
+    soundUrl: input.soundUrl || "",
+    gifUrl: input.gifUrl || "",
+    accessKey,
+  } satisfies DonationOverlaySettings;
 }
 
 export async function loadStreamerStudioData(user: AppUser) {
@@ -442,6 +470,10 @@ export async function saveStreamerStudioPage(user: AppUser, draft: StreamerStudi
     .split(",")
     .map((tag) => tag.trim())
     .filter(Boolean);
+  const existingSettings = await getPageSettings(streamer.id);
+  const currentLayout = existingSettings?.layout && typeof existingSettings.layout === "object"
+    ? (existingSettings.layout as Record<string, unknown>)
+    : {};
 
   const { data: updatedStreamer, error: streamerError } = await supabase
     .from("streamers")
@@ -477,7 +509,10 @@ export async function saveStreamerStudioPage(user: AppUser, draft: StreamerStudi
         headline: draft.headline || null,
         description: draft.bio || null,
         featured_video_url: draft.featuredVideoUrl || null,
-        layout: { tags },
+        layout: {
+          ...currentLayout,
+          tags,
+        },
       },
       { onConflict: "streamer_id" }
     )
@@ -599,7 +634,7 @@ export async function loadPublicStreamerPage(id: string) {
     perks: ["ранний доступ к анонсам", "сигналы по эфирам"],
     donation_link_slug: donationLink?.slug ?? null,
     donation_link_title: donationLink?.title ?? null,
-    donation_overlay: parseDonationOverlaySettings(settings?.layout ?? null),
+    donation_overlay: toPublicDonationOverlaySettings(settings?.layout ?? null),
     recent_donations: recentDonations,
     recent_live_events: resolvedEvents,
     posts,

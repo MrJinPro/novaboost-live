@@ -50,6 +50,7 @@ const DEFAULT_DONATION_OVERLAY: DonationOverlaySettings = {
   variant: "supernova",
   soundUrl: "",
   gifUrl: "",
+  accessKey: "",
 };
 
 function resolveDonationOverlayVariant(value: unknown): DonationOverlayVariant {
@@ -69,6 +70,7 @@ function parseDonationOverlaySettings(layout: unknown): DonationOverlaySettings 
     variant: resolveDonationOverlayVariant(overlay?.variant),
     soundUrl: typeof overlay?.soundUrl === "string" ? overlay.soundUrl : DEFAULT_DONATION_OVERLAY.soundUrl,
     gifUrl: typeof overlay?.gifUrl === "string" ? overlay.gifUrl : DEFAULT_DONATION_OVERLAY.gifUrl,
+    accessKey: typeof overlay?.accessKey === "string" ? overlay.accessKey : DEFAULT_DONATION_OVERLAY.accessKey,
   };
 }
 
@@ -353,7 +355,7 @@ export async function loadDonationLinkBySlug(slug: string) {
   return data;
 }
 
-export async function loadDonationOverlayBySlug(slug: string) {
+export async function loadDonationOverlayBySlug(slug: string, accessKey?: string) {
   const { data, error } = await supabase
     .from("streamer_donation_links")
     .select("id, streamer_id, slug, title, description, minimum_amount, is_active, streamers(display_name, tiktok_username, avatar_url)")
@@ -379,9 +381,14 @@ export async function loadDonationOverlayBySlug(slug: string) {
     throw settingsError;
   }
 
+  const overlay = parseDonationOverlaySettings(settings?.layout ?? null);
+  if (!overlay.accessKey || overlay.accessKey !== accessKey) {
+    return null;
+  }
+
   return {
     ...data,
-    overlay: parseDonationOverlaySettings(settings?.layout ?? null),
+    overlay,
   };
 }
 

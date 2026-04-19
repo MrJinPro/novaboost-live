@@ -38,6 +38,7 @@ function createInitialStudioDraft() {
     donationOverlayVariant: "supernova" as DonationOverlayVariant,
     donationSoundUrl: "",
     donationGifUrl: "",
+    donationOverlayAccessKey: "",
   };
 }
 
@@ -164,8 +165,8 @@ function StreamerStudioPage() {
   }, []);
 
   const previewTags = pageDraft.tags.split(",").map((tag) => tag.trim()).filter(Boolean);
-  const donationPreviewUrl = donationLinkDraft.slug
-    ? `${appOrigin}/overlay/donation/${donationLinkDraft.slug}?username=${encodeURIComponent(user.displayName || "NovaFan")}&amount=25&currency=USD&message=${encodeURIComponent("Ты зажёг новую звезду на стриме")}`
+  const donationPreviewUrl = donationLinkDraft.slug && pageDraft.donationOverlayAccessKey
+    ? `${appOrigin}/overlay/donation/${donationLinkDraft.slug}?key=${pageDraft.donationOverlayAccessKey}`
     : "";
 
   const savePage = async () => {
@@ -266,11 +267,13 @@ function StreamerStudioPage() {
     setSavingDonationLink(true);
     try {
       const savedLink = await saveManagedDonationLink(user, donationLinkDraft);
-      await saveStreamerDonationOverlaySettings(user, {
+      const savedOverlay = await saveStreamerDonationOverlaySettings(user, {
         variant: pageDraft.donationOverlayVariant,
         soundUrl: pageDraft.donationSoundUrl.trim(),
         gifUrl: pageDraft.donationGifUrl.trim(),
+        accessKey: pageDraft.donationOverlayAccessKey,
       });
+      setPageDraft((current) => ({ ...current, donationOverlayAccessKey: savedOverlay.accessKey }));
       setDonationLinkDraft({
         slug: savedLink.slug,
         title: savedLink.title,
@@ -577,7 +580,7 @@ function StreamerStudioPage() {
 
               <div className="rounded-2xl border border-border/50 bg-background/20 p-4">
                 <div className="font-medium text-foreground">OBS donation overlay</div>
-                <p className="mt-1 text-xs text-muted-foreground">Выбери один из 3 шаблонов. По умолчанию используется анимация NovaBoost, а при желании можно добавить свой `sound URL` и `GIF URL`.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Здесь формируется отдельная приватная OBS-ссылка стримера. В постоянный URL больше не зашиваются тестовые сумма и текст, они отправляются отдельно как payload.</p>
                 <div className="mt-4 grid gap-3 md:grid-cols-3">
                   {DONATION_OVERLAY_VARIANTS.map((variant) => (
                     <button
@@ -602,6 +605,11 @@ function StreamerStudioPage() {
                 <div className="mt-4 rounded-xl border border-border/50 bg-background/30 p-3 text-xs text-muted-foreground">
                   Переменные для alert payload: `username`, `amount`, `currency`, `message`.
                 </div>
+                {!pageDraft.donationOverlayAccessKey && (
+                  <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-100">
+                    Сохрани страницу поддержки один раз, чтобы сгенерировать приватный OBS key.
+                  </div>
+                )}
                 {donationPreviewUrl && (
                   <div className="mt-4 rounded-xl border border-border/50 bg-background/30 p-3 text-xs text-muted-foreground break-all">
                     {donationPreviewUrl}
