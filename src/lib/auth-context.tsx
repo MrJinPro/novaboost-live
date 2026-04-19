@@ -53,19 +53,28 @@ async function resolveAppRole(userId: string, declaredRole: Exclude<AppRole, "ad
 
 async function buildAppUser(session: Session): Promise<AppUser> {
   const profile = await getProfile(session.user.id);
-  const streamer = await resolveLinkedStreamer({
-    userId: session.user.id,
-    tiktokUsername: profile?.tiktok_username ?? session.user.user_metadata.tiktok_username ?? "",
-  });
   const declaredRole = session.user.user_metadata.account_role === "streamer" || session.user.user_metadata.account_role === "viewer"
     ? session.user.user_metadata.account_role
     : null;
+  const fallbackUsername = profile?.username ?? session.user.user_metadata.username ?? session.user.email?.split("@")[0] ?? "user";
+  const normalizedDisplayName = profile?.display_name ?? session.user.user_metadata.display_name ?? fallbackUsername;
+  const normalizedTikTokUsername = profile?.tiktok_username ?? session.user.user_metadata.tiktok_username ?? "";
+  const streamer = declaredRole === "streamer"
+    ? await ensureLinkedStreamer({
+        userId: session.user.id,
+        tiktokUsername: normalizedTikTokUsername,
+        displayName: normalizedDisplayName,
+      })
+    : await resolveLinkedStreamer({
+        userId: session.user.id,
+        tiktokUsername: normalizedTikTokUsername,
+      });
   const hasVerifiedStreamerProfile = streamer?.verification_status === "verified";
   const role = await resolveAppRole(session.user.id, declaredRole, hasVerifiedStreamerProfile);
 
-  const username = profile?.username ?? session.user.user_metadata.username ?? session.user.email?.split("@")[0] ?? "user";
-  const displayName = (hasVerifiedStreamerProfile ? streamer?.display_name : null) ?? profile?.display_name ?? session.user.user_metadata.display_name ?? username;
-  const tiktokUsername = (hasVerifiedStreamerProfile ? streamer?.tiktok_username : null) ?? profile?.tiktok_username ?? session.user.user_metadata.tiktok_username ?? "";
+  const username = fallbackUsername;
+  const displayName = streamer?.display_name ?? normalizedDisplayName;
+  const tiktokUsername = streamer?.tiktok_username ?? normalizedTikTokUsername;
 
   return {
     id: session.user.id,
