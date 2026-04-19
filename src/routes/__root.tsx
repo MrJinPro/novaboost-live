@@ -1,6 +1,8 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts, useLocation } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { AuthProvider } from "@/lib/auth-context";
 import { CurrencyProvider } from "@/lib/currency";
+import { initializeNativeShell } from "@/lib/native-shell";
 import { Toaster } from "@/components/ui/sonner";
 import { AppFooter } from "@/components/AppFooter";
 
@@ -32,7 +34,8 @@ export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
+      { name: "theme-color", content: "#0c0814" },
       { title: "NovaBoost Live — Платформа для TikTok LIVE-стримеров" },
       { name: "description", content: "Независимый сторонний сервис для TikTok LIVE-стримеров: аудитория, бусты, контент, Telegram и участие зрителей вокруг эфиров." },
       { name: "author", content: "NovaBoost" },
@@ -66,7 +69,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body>
+      <body className="app-shell">
         {children}
         <Scripts />
       </body>
@@ -77,6 +80,10 @@ function RootShell({ children }: { children: React.ReactNode }) {
 function RootComponent() {
   const location = useLocation();
   const hideFooter = location.pathname.startsWith("/overlay");
+
+  useEffect(() => {
+    void initializeNativeShell();
+  }, []);
 
   return (
     <CurrencyProvider>
