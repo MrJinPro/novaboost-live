@@ -1,4 +1,4 @@
-import { TikTokLiveConnection, WebcastEvent } from "tiktok-live-connector";
+import { ControlEvent, TikTokLiveConnection, WebcastEvent } from "tiktok-live-connector";
 import type { WebcastChatMessage, WebcastGiftMessage, WebcastLikeMessage, WebcastMemberMessage, WebcastRoomUserSeqMessage } from "tiktok-live-connector";
 
 import type { Logger } from "../../lib/logger.js";
@@ -85,7 +85,7 @@ export class TrackingLiveEventBridge {
   private async connectStreamer(streamer: TrackedStreamer, streamSessionId: string, username: string) {
     const connectionOptions: ConstructorParameters<typeof TikTokLiveConnection>[1] = {
       processInitialData: false,
-      fetchRoomInfoOnConnect: false,
+      fetchRoomInfoOnConnect: true,
       enableExtendedGiftInfo: true,
       enableRequestPolling: true,
       requestPollingIntervalMs: 1_000,
@@ -109,8 +109,9 @@ export class TrackingLiveEventBridge {
     this.registerHandlers(streamer, streamSessionId, connection);
 
     try {
-      await connection.connect();
+      const state = await connection.connect();
       this.activeConnections.set(streamer.id, { streamerId: streamer.id, streamSessionId, username, connection });
+      await this.seedSessionFromRoomInfo(streamer, streamSessionId, state.roomInfo);
       this.options.logger.info("Live event bridge connected", {
         streamerId: streamer.id,
         username,
@@ -126,6 +127,34 @@ export class TrackingLiveEventBridge {
   }
 
   private registerHandlers(streamer: TrackedStreamer, streamSessionId: string, connection: TikTokLiveConnection) {
+    connection.on(ControlEvent.CONNECTED, (state) => {
+      this.options.logger.info("Live event bridge transport connected", {
+        streamerId: streamer.id,
+        streamSessionId,
+        roomId: state.roomId,
+      });
+    });
+    connection.on(ControlEvent.WEBSOCKET_CONNECTED, () => {
+      this.options.logger.info("Live event bridge websocket connected", {
+        streamerId: streamer.id,
+        streamSessionId,
+      });
+    });
+    connection.on(ControlEvent.DISCONNECTED, (event) => {
+      this.options.logger.warn("Live event bridge transport disconnected", {
+        streamerId: streamer.id,
+        streamSessionId,
+        code: event.code,
+        reason: event.reason,
+      });
+    });
+    connection.on(ControlEvent.ERROR, (error) => {
+      this.options.logger.warn("Live event bridge transport error", {
+        streamerId: streamer.id,
+        streamSessionId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
     connection.on(WebcastEvent.MEMBER, (data) => this.handleMemberEvent(streamer, streamSessionId, data));
     connection.on(WebcastEvent.CHAT, (data) => this.handleChatEvent(streamer, streamSessionId, data));
     connection.on(WebcastEvent.LIKE, (data) => this.handleLikeEvent(streamer, streamSessionId, data));
@@ -133,6 +162,51 @@ export class TrackingLiveEventBridge {
     connection.on(WebcastEvent.ROOM_USER, (data) => this.handleRoomUserEvent(streamer, streamSessionId, data));
     connection.on(WebcastEvent.STREAM_END, async () => {
       await this.disconnectStreamer(streamer.id, "stream_end");
+    });
+  }
+
+  private async seedSessionFromRoomInfo(streamer: TrackedStreamer, streamSessionId: string, roomInfo: unknown) {
+    const metrics = extractRoomMetrics(roomInfo);
+    if (metrics.viewerCount === null && metrics.likeCount === null && metrics.followersCount === null) {
+      return;
+    }
+
+    const session = await this.options.trackingRepository.getLatestSessionSummary(streamer.id);
+    if (!session || session.id !== streamSessionId) {
+      return;
+    }
+
+    const nextViewerCount = metrics.viewerCount ?? session.current_viewer_count;
+    const likeDelta = metrics.likeCount === null ? 0 : Math.max(0, metrics.likeCount - session.like_count);
+
+    if (likeDelta <= 0 && nextViewerCount === session.current_viewer_count) {
+      return;
+    }
+
+    await this.options.trackingRepository.updateSessionEngagement(streamSessionId, {
+      likeDelta,
+      currentViewerCount: metrics.viewerCount ?? undefined,
+      rawSnapshot: {
+        initial_room_info_sync: true,
+        viewer_count: metrics.viewerCount,
+        like_count: metrics.likeCount,
+        followers_count: metrics.followersCount,
+      },
+    });
+
+    await this.options.trackingRepository.insertStreamEvent({
+      streamerId: streamer.id,
+      streamSessionId,
+      eventType: "snapshot_updated",
+      source: "tiktok-live-connector",
+      eventTimestamp: new Date().toISOString(),
+      normalizedPayload: {
+        viewer_count: nextViewerCount,
+        like_count: session.like_count + likeDelta,
+        followers_count: metrics.followersCount,
+        seeded_from_room_info: true,
+      },
+      rawPayload: summarizeRoomMetrics(roomInfo),
     });
   }
 
@@ -564,6 +638,93 @@ function parseNumeric(value: unknown) {
   }
 
   return null;
+}
+
+function getValueAtPath(source: unknown, path: string[]) {
+  let current: unknown = source;
+
+  for (const segment of path) {
+    if (!current || typeof current !== "object" || !(segment in current)) {
+      return null;
+    }
+
+    current = (current as Record<string, unknown>)[segment];
+  }
+
+  return current;
+}
+
+function extractNumber(source: unknown, paths: string[][]) {
+  for (const path of paths) {
+    const value = parseNumeric(getValueAtPath(source, path));
+    if (value !== null) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function extractRoomMetrics(roomInfo: unknown) {
+  return {
+    viewerCount: extractNumber(roomInfo, [
+      ["user_count"],
+      ["stats", "user_count"],
+      ["stats", "viewer_count"],
+      ["data", "liveRoom", "user_count"],
+      ["data", "liveRoom", "stats", "user_count"],
+      ["data", "liveRoom", "stats", "viewer_count"],
+      ["data", "liveRoom", "stats", "userCount"],
+      ["liveRoomUserInfo", "liveRoom", "user_count"],
+      ["liveRoomUserInfo", "liveRoom", "stats", "user_count"],
+      ["liveRoomUserInfo", "liveRoom", "stats", "viewer_count"],
+      ["liveRoomUserInfo", "liveRoom", "stats", "userCount"],
+    ]),
+    likeCount: extractNumber(roomInfo, [
+      ["like_count"],
+      ["stats", "like_count"],
+      ["stats", "total_like_count"],
+      ["stats", "likeCount"],
+      ["stats", "totalLikeCount"],
+      ["data", "liveRoom", "like_count"],
+      ["data", "liveRoom", "stats", "like_count"],
+      ["data", "liveRoom", "stats", "total_like_count"],
+      ["data", "liveRoom", "stats", "likeCount"],
+      ["data", "liveRoom", "stats", "totalLikeCount"],
+      ["liveRoomUserInfo", "liveRoom", "like_count"],
+      ["liveRoomUserInfo", "liveRoom", "stats", "like_count"],
+      ["liveRoomUserInfo", "liveRoom", "stats", "total_like_count"],
+      ["liveRoomUserInfo", "liveRoom", "stats", "likeCount"],
+      ["liveRoomUserInfo", "liveRoom", "stats", "totalLikeCount"],
+    ]),
+    followersCount: extractNumber(roomInfo, [
+      ["owner", "follow_info", "follower_count"],
+      ["owner", "follower_count"],
+      ["data", "owner", "follow_info", "follower_count"],
+      ["data", "owner", "followInfo", "followerCount"],
+      ["data", "owner", "follower_count"],
+      ["data", "owner", "followerCount"],
+      ["data", "user", "follower_count"],
+      ["data", "user", "followerCount"],
+      ["data", "user", "stats", "followerCount"],
+      ["liveRoomUserInfo", "user", "follow_info", "follower_count"],
+      ["liveRoomUserInfo", "user", "followInfo", "followerCount"],
+      ["liveRoomUserInfo", "user", "follower_count"],
+      ["liveRoomUserInfo", "user", "followerCount"],
+    ]),
+  };
+}
+
+function summarizeRoomMetrics(roomInfo: unknown) {
+  return {
+    room_id: getValueAtPath(roomInfo, ["id"]),
+    status: getValueAtPath(roomInfo, ["status"]),
+    data_status: getValueAtPath(roomInfo, ["data", "status"]),
+    stats: getValueAtPath(roomInfo, ["stats"]),
+    live_room_stats: getValueAtPath(roomInfo, ["data", "liveRoom", "stats"]),
+    live_room_user_info: getValueAtPath(roomInfo, ["liveRoomUserInfo"]),
+    metrics: extractRoomMetrics(roomInfo),
+  } satisfies Record<string, unknown>;
 }
 
 function mapEventToViewerAction(eventType: LiveEngagementEvent["type"]) {
