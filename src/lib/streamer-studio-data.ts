@@ -736,6 +736,11 @@ export async function loadPublicStreamerPage(id: string) {
   const resolvedEvents = trackingDetails?.recentEvents?.length
     ? trackingDetails.recentEvents.map(mapLiveEvent)
     : recentLiveEvents;
+  const currentViewerCount = trackingDetails?.state?.viewer_count
+    ?? resolvedSession?.current_viewer_count
+    ?? liveStatus?.viewerCount
+    ?? streamer.viewer_count;
+  const isLive = trackingDetails?.state?.is_live ?? liveStatus?.isLive ?? streamer.is_live;
 
   return {
     id: streamer.id,
@@ -747,8 +752,8 @@ export async function loadPublicStreamerPage(id: string) {
     bio: settings?.description ?? streamer.bio ?? "",
     tagline: settings?.headline ?? streamer.tagline ?? createDefaultHeadline(streamer.display_name, streamer.tiktok_username),
     featured_video_url: settings?.featured_video_url ?? media[0]?.cover ?? null,
-    is_live: liveStatus?.isLive ?? streamer.is_live,
-    viewer_count: liveStatus?.viewerCount ?? streamer.viewer_count,
+    is_live: isLive,
+    viewer_count: currentViewerCount,
     followers_count: liveStatus?.followersCount || streamer.followers_count,
     needs_boost: streamer.needs_boost,
     total_boost_amount: boostTotals.get(streamer.id) ?? streamer.total_boost_amount,

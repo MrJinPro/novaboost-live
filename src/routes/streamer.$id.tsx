@@ -21,6 +21,8 @@ import { calculateCustomerAmount, groupTikTokPromotionServices, loadTikTokPromot
 import { getStreamerSubscriptionState, loadPublicStreamerPage, toggleStreamerSubscription } from "@/lib/streamer-studio-data";
 import { toast } from "sonner";
 
+const STREAMER_PAGE_REFRESH_MS = 5_000;
+
 export const Route = createFileRoute("/streamer/$id")({
   component: StreamerProfile,
 });
@@ -51,6 +53,7 @@ function StreamerProfile() {
   const [subscribed, setSubscribed] = useState(false);
   const [streamer, setStreamer] = useState<StreamerPageData | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
+  const [pageRefreshing, setPageRefreshing] = useState(false);
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
   const [membershipState, setMembershipState] = useState<StreamerMembershipState>({ subscribed: false, planKey: "free", paidUntil: null, totalPaidAmount: 0 });
   const [membershipLoading, setMembershipLoading] = useState(false);
@@ -62,9 +65,15 @@ function StreamerProfile() {
 
   useEffect(() => {
     let active = true;
+    let timer: ReturnType<typeof setTimeout> | null = null;
 
-    const syncPage = async () => {
-      setPageLoading(true);
+    const syncPage = async (background = false) => {
+      if (background) {
+        setPageRefreshing(true);
+      } else {
+        setPageLoading(true);
+      }
+
       try {
         const page = await loadPublicStreamerPage(id);
         if (active) {
@@ -73,11 +82,21 @@ function StreamerProfile() {
       } catch (error) {
         if (active) {
           setStreamer(null);
-          toast.error(error instanceof Error ? error.message : "Не удалось загрузить публичную страницу стримера");
+          if (!background) {
+            toast.error(error instanceof Error ? error.message : "Не удалось загрузить публичную страницу стримера");
+          }
         }
       } finally {
         if (active) {
-          setPageLoading(false);
+          if (background) {
+            setPageRefreshing(false);
+          } else {
+            setPageLoading(false);
+          }
+
+          timer = setTimeout(() => {
+            void syncPage(true);
+          }, STREAMER_PAGE_REFRESH_MS);
         }
       }
     };
@@ -86,6 +105,9 @@ function StreamerProfile() {
 
     return () => {
       active = false;
+      if (timer) {
+        clearTimeout(timer);
+      }
     };
   }, [id]);
 
@@ -425,6 +447,12 @@ function StreamerProfile() {
                 </Link>
               </div>
             </div>
+          </div>
+        </div>
+
+        <div className="mt-3 flex justify-end">
+          <div className="rounded-full border border-border/50 bg-background/30 px-3 py-1 text-xs text-muted-foreground">
+            {pageRefreshing ? "Обновляю live-метрики…" : `Live refresh каждые ${Math.floor(STREAMER_PAGE_REFRESH_MS / 1000)} сек`}
           </div>
         </div>
 
