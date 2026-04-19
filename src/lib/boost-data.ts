@@ -1,8 +1,33 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { AppUser } from "@/lib/mock-platform";
+import { getViewerProfileStatsCompat, updateViewerProfileProgressCompat } from "@/lib/profile-schema-compat";
+
+function resolveBoostDurationMinutes(amount: number) {
+  if (amount >= 120) {
+    return 120;
+  }
+
+  if (amount >= 60) {
+    return 60;
+  }
+
+  return 30;
+}
 
 export async function createBoost(user: AppUser, streamerId: string, amount: number) {
-  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  if (amount < 1) {
+    throw new Error("Стоимость буста должна быть больше нуля.");
+  }
+
+  const viewerProfile = await getViewerProfileStatsCompat(user.id);
+
+  if ((viewerProfile.points ?? 0) < amount) {
+    throw new Error(`Не хватает очков для буста. Нужно ${amount} ⚡.`);
+  }
+
+  const nextPoints = Math.max(0, (viewerProfile.points ?? 0) - amount);
+  const durationMinutes = resolveBoostDurationMinutes(amount);
+  const expiresAt = new Date(Date.now() + durationMinutes * 60 * 1000).toISOString();
 
   const { error } = await supabase
     .from("boosts")
@@ -18,6 +43,20 @@ export async function createBoost(user: AppUser, streamerId: string, amount: num
   if (error) {
     throw error;
   }
+
+  await updateViewerProfileProgressCompat({
+    userId: user.id,
+    points: nextPoints,
+    level: viewerProfile.level ?? 1,
+    streak_days: viewerProfile.streak_days ?? 0,
+  });
+
+  return {
+    spentPoints: amount,
+    remainingPoints: nextPoints,
+    durationMinutes,
+    expiresAt,
+  };
 }
 
 export async function loadActiveBoostTotals() {

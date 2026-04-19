@@ -129,5 +129,21 @@ export async function loadStreamerDirectory() {
     });
   });
 
+  realStreamers.sort((left, right) => {
+    if (left.is_live !== right.is_live) {
+      return Number(right.is_live) - Number(left.is_live);
+    }
+
+    if (left.total_boost_amount !== right.total_boost_amount) {
+      return right.total_boost_amount - left.total_boost_amount;
+    }
+
+    if (left.is_live && right.is_live && left.viewer_count !== right.viewer_count) {
+      return right.viewer_count - left.viewer_count;
+    }
+
+    return right.followers_count - left.followers_count;
+  });
+
   return realStreamers.length > 0 ? realStreamers : mockStreamers;
 }
