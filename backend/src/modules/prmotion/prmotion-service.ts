@@ -231,7 +231,7 @@ export class PRMotionService {
           serviceType: selectedService.type,
           serviceRate: selectedService.rate,
           quantity: input.quantity,
-          currency: input.currency ?? "RUB",
+          currency: input.currency ?? "USD",
           supplierAmount: Number(((selectedService.rate * input.quantity) / 1000).toFixed(2)),
           customerAmount: Number((((selectedService.rate * input.quantity) / 1000) * (1 + getRoleMarkup(input.requesterRole))).toFixed(2)),
           status: "queued",
@@ -243,7 +243,7 @@ export class PRMotionService {
           service: selectedService,
           quantity: input.quantity,
           link: input.link,
-          currency: input.currency ?? "RUB",
+          currency: input.currency ?? "USD",
           supplierAmount: Number(((selectedService.rate * input.quantity) / 1000).toFixed(2)),
           customerAmount: Number((((selectedService.rate * input.quantity) / 1000) * (1 + getRoleMarkup(input.requesterRole))).toFixed(2)),
           status: "queued" as const,
@@ -265,7 +265,7 @@ export class PRMotionService {
       serviceType: selectedService.type,
       serviceRate: selectedService.rate,
       quantity: input.quantity,
-      currency: input.currency ?? "RUB",
+      currency: input.currency ?? "USD",
       supplierAmount,
       customerAmount,
     });
@@ -276,7 +276,7 @@ export class PRMotionService {
         service: String(input.serviceId),
         link: input.link,
         quantity: String(input.quantity),
-        currency: input.currency ?? "RUB",
+        currency: input.currency ?? "USD",
       });
 
       await this.promotionOrderRepository.markSubmitted(internalOrderId, response.order, response as Record<string, unknown>, submittedStreamSessionId);
@@ -293,7 +293,7 @@ export class PRMotionService {
         service: selectedService,
         quantity: input.quantity,
         link: input.link,
-        currency: input.currency ?? "RUB",
+        currency: input.currency ?? "USD",
         supplierAmount,
         customerAmount,
         status: "submitted" as const,

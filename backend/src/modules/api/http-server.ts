@@ -155,7 +155,7 @@ export function startHttpServer(env: BackendEnv, logger: Logger, services: Servi
             serviceId: Number(parsedBody.serviceId),
             link: String(parsedBody.link ?? "").trim(),
             quantity: Number(parsedBody.quantity),
-            currency: parsedBody.currency === "USD" ? "USD" : "RUB",
+            currency: parsedBody.currency === "RUB" ? "RUB" : "USD",
           });
           writeJson(response, 200, result);
         })().catch((error: unknown) => {

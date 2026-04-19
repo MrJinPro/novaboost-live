@@ -1,13 +1,16 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { CurrencySwitcher } from "@/components/CurrencySwitcher";
 import { Header } from "@/components/Header";
+import { LocalizedPrice } from "@/components/LocalizedPrice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Wallet } from "lucide-react";
 import { toast } from "sonner";
+import { convertCurrency, formatEditableAmount, getLocalizedMoney, useCurrencyPreference } from "@/lib/currency";
 import { createDonationEvent, loadDonationLinkBySlug } from "@/lib/monetization-data";
 
 export const Route = createFileRoute("/support/$slug")({
@@ -41,9 +44,10 @@ function SupportPage() {
   const { slug } = Route.useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const currencyPreference = useCurrencyPreference();
   const [linkData, setLinkData] = useState<DonationLinkPage | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
-  const [amount, setAmount] = useState("250");
+  const [amount, setAmount] = useState("");
   const [message, setMessage] = useState("");
   const [donorName, setDonorName] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -86,6 +90,15 @@ function SupportPage() {
     setDonorName(user.displayName || user.username || "");
   }, [user]);
 
+  useEffect(() => {
+    if (!linkData) {
+      return;
+    }
+
+    const initialBaseAmount = Math.max(250, linkData.minimum_amount);
+    setAmount(formatEditableAmount(convertCurrency(initialBaseAmount, "RUB", "USD")));
+  }, [linkData?.id, linkData?.minimum_amount]);
+
   if (pageLoading) {
     return (
       <div className="min-h-screen">
@@ -108,10 +121,19 @@ function SupportPage() {
   }
 
   const minimumAmount = linkData.minimum_amount;
+  const minimumMoney = useMemo(
+    () => getLocalizedMoney(minimumAmount, { baseCurrency: "RUB", preference: currencyPreference }),
+    [currencyPreference, minimumAmount],
+  );
+  const parsedUsdAmount = Number(amount.replace(",", "."));
+  const parsedBaseAmount = Number.isFinite(parsedUsdAmount)
+    ? Math.round(convertCurrency(parsedUsdAmount, "USD", "RUB"))
+    : Number.NaN;
+  const enteredMoney = Number.isFinite(parsedBaseAmount)
+    ? getLocalizedMoney(parsedBaseAmount, { baseCurrency: "RUB", preference: currencyPreference })
+    : minimumMoney;
 
   const handleDonate = async () => {
-    const parsedAmount = Number(amount);
-
     if (!user) {
       toast.error("Для доната нужен вход в профиль зрителя");
       navigate({ to: "/auth" });
@@ -128,8 +150,8 @@ function SupportPage() {
       return;
     }
 
-    if (!Number.isFinite(parsedAmount) || parsedAmount < minimumAmount) {
-      toast.error(`Минимальная сумма поддержки: ${minimumAmount} ₽`);
+    if (!Number.isFinite(parsedBaseAmount) || parsedBaseAmount < minimumAmount) {
+      toast.error(`Минимальная сумма поддержки: ${minimumMoney.primary}`);
       return;
     }
 
@@ -140,10 +162,10 @@ function SupportPage() {
         donationLinkId: linkData.id,
         donorUserId: user.id,
         donorName,
-        amount: parsedAmount,
+        amount: parsedBaseAmount,
         message,
       });
-      toast.success(`Поддержка ${parsedAmount} ₽ отправлена`);
+      toast.success(`Поддержка ${enteredMoney.primary} отправлена`);
       navigate({ to: "/streamer/$id", params: { id: linkData.streamer_id } });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Не удалось отправить донат");
@@ -161,8 +183,11 @@ function SupportPage() {
         </Button>
 
         <div className="mt-6 rounded-3xl border border-border/50 bg-surface/60 p-6 md:p-8">
-          <div className="inline-flex items-center gap-2 rounded-full bg-gradient-blast px-3 py-1 text-xs font-bold text-blast-foreground shadow-glow">
-            <Wallet className="h-3.5 w-3.5" /> SUPPORT
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="inline-flex items-center gap-2 rounded-full bg-gradient-blast px-3 py-1 text-xs font-bold text-blast-foreground shadow-glow">
+              <Wallet className="h-3.5 w-3.5" /> SUPPORT
+            </div>
+            <CurrencySwitcher inline />
           </div>
 
           <div className="mt-5 flex items-center gap-4">
@@ -190,10 +215,15 @@ function SupportPage() {
               <button
                 key={preset}
                 type="button"
-                onClick={() => setAmount(String(Math.max(preset, minimumAmount)))}
-                className={`rounded-2xl border px-4 py-3 text-left ${Number(amount) === Math.max(preset, minimumAmount) ? "border-blast bg-blast/10" : "border-border/50 bg-background/30"}`}
+                onClick={() => setAmount(formatEditableAmount(convertCurrency(Math.max(preset, minimumAmount), "RUB", "USD")))}
+                className={`rounded-2xl border px-4 py-3 text-left ${amount === formatEditableAmount(convertCurrency(Math.max(preset, minimumAmount), "RUB", "USD")) ? "border-blast bg-blast/10" : "border-border/50 bg-background/30"}`}
               >
-                <div className="font-display text-xl font-bold">{Math.max(preset, minimumAmount)} ₽</div>
+                <LocalizedPrice
+                  amount={Math.max(preset, minimumAmount)}
+                  preference={currencyPreference}
+                  primaryClassName="font-display text-xl font-bold"
+                  secondaryClassName="text-xs text-muted-foreground"
+                />
                 <div className="text-xs text-muted-foreground">быстрый донат</div>
               </button>
             ))}
@@ -203,8 +233,12 @@ function SupportPage() {
             <Field label="Твоё имя в алерте">
               <Input value={donorName} onChange={(e) => setDonorName(e.target.value)} placeholder="Например: NovaFan" />
             </Field>
-            <Field label="Сумма поддержки">
-              <Input type="number" min={minimumAmount} value={amount} onChange={(e) => setAmount(e.target.value)} />
+            <Field label="Сумма поддержки, USD">
+              <Input type="number" min={convertCurrency(minimumAmount, "RUB", "USD").toFixed(2)} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
+              <div className="mt-2 text-xs text-muted-foreground">
+                {enteredMoney.primary}
+                {enteredMoney.secondary ? ` · ${enteredMoney.secondary}` : ""}
+              </div>
             </Field>
             <Field label="Сообщение стримеру">
               <Textarea value={message} onChange={(e) => setMessage(e.target.value)} className="min-h-24 bg-background" placeholder="Например: удачного эфира и побольше онлайна" />
@@ -213,7 +247,7 @@ function SupportPage() {
 
           <div className="mt-6 flex flex-wrap gap-3">
             <Button onClick={handleDonate} disabled={submitting} className="bg-gradient-blast text-blast-foreground font-bold gap-2">
-              <Wallet className="h-4 w-4" /> {submitting ? "Отправляю поддержку…" : `Поддержать на ${amount || minimumAmount} ₽`}
+              <Wallet className="h-4 w-4" /> {submitting ? "Отправляю поддержку…" : `Поддержать на ${enteredMoney.primary}`}
             </Button>
             {!user && (
               <Link to="/auth">
@@ -223,7 +257,7 @@ function SupportPage() {
           </div>
 
           <p className="mt-4 text-xs text-muted-foreground">
-            После отправки поддержка появится на странице стримера в списке последних донатов.
+            После отправки поддержка появится на странице стримера в списке последних донатов. Основная витрина показывает USD, локальная валюта определяется по региону браузера{currencyPreference.countryCode ? ` (${currencyPreference.countryCode})` : ""}.
           </p>
         </div>
       </div>

@@ -20,6 +20,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SupportSlugRouteImport } from './routes/support.$slug'
 import { Route as StreamerIdRouteImport } from './routes/streamer.$id'
+import { Route as ApiCurrencyPreferenceRouteImport } from './routes/api/currency-preference'
 import { Route as ApiRevealKeyRouteImport } from './routes/api/_reveal-key'
 
 const TasksRoute = TasksRouteImport.update({
@@ -77,6 +78,11 @@ const StreamerIdRoute = StreamerIdRouteImport.update({
   path: '/streamer/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCurrencyPreferenceRoute = ApiCurrencyPreferenceRouteImport.update({
+  id: '/api/currency-preference',
+  path: '/api/currency-preference',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiRevealKeyRoute = ApiRevealKeyRouteImport.update({
   id: '/api/_reveal-key',
   path: '/api',
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/studio': typeof StudioRoute
   '/tasks': typeof TasksRoute
   '/api': typeof ApiRevealKeyRoute
+  '/api/currency-preference': typeof ApiCurrencyPreferenceRoute
   '/streamer/$id': typeof StreamerIdRoute
   '/support/$slug': typeof SupportSlugRoute
 }
@@ -108,6 +115,7 @@ export interface FileRoutesByTo {
   '/studio': typeof StudioRoute
   '/tasks': typeof TasksRoute
   '/api': typeof ApiRevealKeyRoute
+  '/api/currency-preference': typeof ApiCurrencyPreferenceRoute
   '/streamer/$id': typeof StreamerIdRoute
   '/support/$slug': typeof SupportSlugRoute
 }
@@ -123,6 +131,7 @@ export interface FileRoutesById {
   '/studio': typeof StudioRoute
   '/tasks': typeof TasksRoute
   '/api/_reveal-key': typeof ApiRevealKeyRoute
+  '/api/currency-preference': typeof ApiCurrencyPreferenceRoute
   '/streamer/$id': typeof StreamerIdRoute
   '/support/$slug': typeof SupportSlugRoute
 }
@@ -139,6 +148,7 @@ export interface FileRouteTypes {
     | '/studio'
     | '/tasks'
     | '/api'
+    | '/api/currency-preference'
     | '/streamer/$id'
     | '/support/$slug'
   fileRoutesByTo: FileRoutesByTo
@@ -153,6 +163,7 @@ export interface FileRouteTypes {
     | '/studio'
     | '/tasks'
     | '/api'
+    | '/api/currency-preference'
     | '/streamer/$id'
     | '/support/$slug'
   id:
@@ -167,6 +178,7 @@ export interface FileRouteTypes {
     | '/studio'
     | '/tasks'
     | '/api/_reveal-key'
+    | '/api/currency-preference'
     | '/streamer/$id'
     | '/support/$slug'
   fileRoutesById: FileRoutesById
@@ -182,6 +194,7 @@ export interface RootRouteChildren {
   StudioRoute: typeof StudioRoute
   TasksRoute: typeof TasksRoute
   ApiRevealKeyRoute: typeof ApiRevealKeyRoute
+  ApiCurrencyPreferenceRoute: typeof ApiCurrencyPreferenceRoute
   StreamerIdRoute: typeof StreamerIdRoute
   SupportSlugRoute: typeof SupportSlugRoute
 }
@@ -265,6 +278,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StreamerIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/currency-preference': {
+      id: '/api/currency-preference'
+      path: '/api/currency-preference'
+      fullPath: '/api/currency-preference'
+      preLoaderRoute: typeof ApiCurrencyPreferenceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/_reveal-key': {
       id: '/api/_reveal-key'
       path: '/api'
@@ -286,6 +306,7 @@ const rootRouteChildren: RootRouteChildren = {
   StudioRoute: StudioRoute,
   TasksRoute: TasksRoute,
   ApiRevealKeyRoute: ApiRevealKeyRoute,
+  ApiCurrencyPreferenceRoute: ApiCurrencyPreferenceRoute,
   StreamerIdRoute: StreamerIdRoute,
   SupportSlugRoute: SupportSlugRoute,
 }

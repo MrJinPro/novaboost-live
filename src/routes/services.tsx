@@ -2,8 +2,11 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { Header } from "@/components/Header";
+import { CurrencySwitcher } from "@/components/CurrencySwitcher";
+import { LocalizedPrice } from "@/components/LocalizedPrice";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
+import { getLocalizedMoney, resolveSupportedCurrency, useCurrencyPreference } from "@/lib/currency";
 import { calculateCustomerAmount, createTikTokPromotionOrder, getPromotionTargetMeta, groupTikTokPromotionServices, loadTikTokPromotionServices, type TikTokPromotionService } from "@/lib/prmotion-data";
 import { loadMyPromotionOrders, type PromotionOrderSummary } from "@/lib/promotion-orders-data";
 import { loadStreamerDirectory } from "@/lib/streamers-directory-data";
@@ -30,6 +33,7 @@ export const Route = createFileRoute("/services")({
 function ServicesPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const currencyPreference = useCurrencyPreference();
   const search = Route.useSearch();
   const [streamers, setStreamers] = useState<StreamerCardData[]>([]);
   const [selectedStreamerId, setSelectedStreamerId] = useState(search.streamerId ?? "");
@@ -156,6 +160,10 @@ function ServicesPage() {
 
     return calculateCustomerAmount(role, selectedService.rate, parsedQuantity);
   }, [parsedQuantity, role, selectedService]);
+  const pricingMoney = useMemo(
+    () => (pricing ? getLocalizedMoney(pricing.customerAmount, { baseCurrency: "RUB", preference: currencyPreference }) : null),
+    [currencyPreference, pricing],
+  );
 
   useEffect(() => {
     if (!liveTargetSelected || !autoLiveLink) {
@@ -206,6 +214,7 @@ function ServicesPage() {
         serviceId: selectedService.id,
         link: targetLink.trim(),
         quantity: parsedQuantity,
+        currency: currencyPreference.orderCurrency,
       });
 
       setOrders((current) => [
@@ -261,6 +270,8 @@ function ServicesPage() {
           </div>
           <div className="rounded-2xl border border-border/50 bg-background/30 px-4 py-3 text-sm text-muted-foreground">
             {role === "viewer" ? "Поддержка доступна в пару кликов прямо внутри NovaBoost Live." : "Собери заказ по нужной ссылке и количеству без лишних шагов."}
+            <div className="mt-1 text-xs">Основная витрина цен: USD. Локальная валюта: {currencyPreference.localCurrency}{currencyPreference.countryCode ? ` (${currencyPreference.countryCode})` : ""}.</div>
+            <div className="mt-3"><CurrencySwitcher inline /></div>
           </div>
         </div>
 
@@ -321,7 +332,13 @@ function ServicesPage() {
                                 <div className="mt-3 font-display text-lg font-bold leading-tight text-foreground">{service.name}</div>
                               </div>
                               <div className="text-right shrink-0">
-                                <div className="font-display text-xl font-bold text-blast">{price.customerAmount} ₽</div>
+                                <LocalizedPrice
+                                  amount={price.customerAmount}
+                                  preference={currencyPreference}
+                                  primaryClassName="font-display text-xl font-bold text-blast"
+                                  secondaryClassName="text-xs text-muted-foreground"
+                                  align="right"
+                                />
                                 <div className="text-xs text-muted-foreground">от {service.min}</div>
                               </div>
                             </div>
@@ -386,7 +403,8 @@ function ServicesPage() {
                     <div>Услуга: {selectedService.name}</div>
                     <div className="mt-1">Подкатегория: {selectedService.subcategory}</div>
                     <div className="mt-2">Количество: {parsedQuantity}</div>
-                    <div className="mt-1 font-medium text-foreground">Итоговая стоимость: {pricing.customerAmount} ₽</div>
+                    <div className="mt-1 font-medium text-foreground">Итоговая стоимость: {pricingMoney?.primary}</div>
+                    {pricingMoney?.secondary && <div className="mt-1 text-xs text-muted-foreground">Локально: {pricingMoney.secondary}</div>}
                   </>
                 ) : (
                   <div>Выбери услугу, чтобы увидеть итоговую стоимость.</div>
@@ -420,7 +438,17 @@ function ServicesPage() {
                           {order.status === "submitted" ? "Отправлен" : order.status === "completed" ? "Выполнен" : order.status === "queued" ? "В очереди" : order.status === "failed" ? "Ошибка" : order.status === "cancelled" ? "Отменён" : "Ожидание"}
                         </span>
                       </div>
-                      <div className="mt-3 text-sm text-muted-foreground">{order.quantity} единиц · {order.quotedAmount} {order.currency}</div>
+                      <div className="mt-3 flex items-start justify-between gap-3 text-sm text-muted-foreground">
+                        <div>{order.quantity} единиц</div>
+                        <LocalizedPrice
+                          amount={order.quotedAmount}
+                          baseCurrency={resolveSupportedCurrency(order.currency)}
+                          preference={currencyPreference}
+                          primaryClassName="font-medium text-foreground"
+                          secondaryClassName="text-xs text-muted-foreground"
+                          align="right"
+                        />
+                      </div>
                       <div className="mt-2 truncate text-xs text-muted-foreground">{order.targetLink}</div>
                       {order.failureReason && <div className="mt-2 text-xs text-destructive">{order.failureReason}</div>}
                     </div>

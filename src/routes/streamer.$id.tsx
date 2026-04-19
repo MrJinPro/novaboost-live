@@ -3,10 +3,13 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { Header } from "@/components/Header";
 import { LiveIndicator } from "@/components/LiveIndicator";
+import { CurrencySwitcher } from "@/components/CurrencySwitcher";
+import { LocalizedPrice } from "@/components/LocalizedPrice";
 import { BoostBadge } from "@/components/BoostBadge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Bell, Crown, Eye, ExternalLink, Play, Send, Sparkles, Users, Wallet, Zap, TrendingUp } from "lucide-react";
 import { formatNumber } from "@/lib/format";
+import { getLocalizedMoney, useCurrencyPreference } from "@/lib/currency";
 import type { PostReactionType, StreamerPageData, StreamerPost, SubscriptionPlanKey } from "@/lib/mock-platform";
 import { activateStreamerPlan, getSubscriptionPlanLabel, loadPostReactionSummaries, loadStreamerMembershipState, SUBSCRIPTION_PLANS, togglePostReaction, type PostReactionSummary, type StreamerMembershipState } from "@/lib/monetization-data";
 import { calculateCustomerAmount, groupTikTokPromotionServices, loadTikTokPromotionServices, type TikTokPromotionService } from "@/lib/prmotion-data";
@@ -39,6 +42,7 @@ function StreamerProfile() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const currencyPreference = useCurrencyPreference();
   const [subscribed, setSubscribed] = useState(false);
   const [streamer, setStreamer] = useState<StreamerPageData | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
@@ -482,7 +486,13 @@ function StreamerProfile() {
                             <h3 className="mt-3 font-display text-lg font-bold leading-tight">{service.name}</h3>
                           </div>
                           <div className="text-right shrink-0">
-                            <div className="font-display text-lg font-bold text-blast">{price.customerAmount} ₽</div>
+                            <LocalizedPrice
+                              amount={price.customerAmount}
+                              preference={currencyPreference}
+                              primaryClassName="font-display text-lg font-bold text-blast"
+                              secondaryClassName="text-xs text-muted-foreground"
+                              align="right"
+                            />
                             <div className="text-xs text-muted-foreground">от {service.min}</div>
                           </div>
                         </div>
@@ -638,8 +648,11 @@ function StreamerProfile() {
             <div className="rounded-3xl border border-border/50 bg-surface/60 p-6">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="font-display font-bold text-xl">Тарифы NovaBoost</h2>
-                <div className="rounded-full border border-border/50 bg-background/30 px-3 py-1 text-xs text-muted-foreground">
-                  План: {membershipLoading ? "обновляю…" : membershipState.planKey}
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <div className="rounded-full border border-border/50 bg-background/30 px-3 py-1 text-xs text-muted-foreground">
+                    План: {membershipLoading ? "обновляю…" : membershipState.planKey}
+                  </div>
+                  <CurrencySwitcher inline />
                 </div>
               </div>
               <div className="mt-4 space-y-3">
@@ -653,7 +666,17 @@ function StreamerProfile() {
                           <div className="mt-1 text-sm text-muted-foreground">{plan.description}</div>
                         </div>
                         <div className="text-right">
-                          <div className="font-display text-xl font-bold">{plan.price === 0 ? "Без оплаты" : `${plan.price} ₽`}</div>
+                          {plan.price === 0 ? (
+                            <div className="font-display text-xl font-bold">Без оплаты</div>
+                          ) : (
+                            <LocalizedPrice
+                              amount={plan.price}
+                              preference={currencyPreference}
+                              primaryClassName="font-display text-xl font-bold"
+                              secondaryClassName="text-xs text-muted-foreground"
+                              align="right"
+                            />
+                          )}
                           <div className="text-xs text-muted-foreground">30 дней</div>
                         </div>
                       </div>
@@ -738,7 +761,12 @@ function StreamerProfile() {
                     <div key={donation.id} className="rounded-2xl border border-blast/20 bg-blast/5 px-4 py-3 animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
                       <div className="flex items-center justify-between gap-3">
                         <div className="font-medium">{donation.donorName}</div>
-                        <div className="text-sm font-semibold text-blast">+{formatNumber(donation.amount)} ₽</div>
+                        <div className="text-right">
+                          <div className="text-sm font-semibold text-blast">+{getLocalizedMoney(donation.amount, { baseCurrency: "RUB", preference: currencyPreference }).primary}</div>
+                          {getLocalizedMoney(donation.amount, { baseCurrency: "RUB", preference: currencyPreference }).secondary && (
+                            <div className="text-[11px] text-muted-foreground">{getLocalizedMoney(donation.amount, { baseCurrency: "RUB", preference: currencyPreference }).secondary}</div>
+                          )}
+                        </div>
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground">{donation.createdAt}</div>
                       {donation.message && <div className="mt-2 text-sm text-foreground/85">{donation.message}</div>}

@@ -1,6 +1,7 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Logo } from "./Logo";
+import { CurrencySwitcher } from "@/components/CurrencySwitcher";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, LogOut, User as UserIcon } from "lucide-react";
@@ -76,6 +77,7 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <CurrencySwitcher />
           {user ? (
             <>
               {user.role === "streamer" && publicPageId && (
