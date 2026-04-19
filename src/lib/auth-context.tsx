@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { AppRole, AppUser } from "@/lib/mock-platform";
 import { getAuthProfileCompat, upsertAuthProfileCompat } from "./profile-schema-compat";
 import { ensureLinkedStreamer, resolveLinkedStreamer } from "./streamer-profile-linking";
+import { lookupTikTokProfile, normalizeTikTokUsername } from "./tiktok-profile-data";
 
 interface AuthContextValue {
   user: AppUser | null;
@@ -13,6 +14,7 @@ interface AuthContextValue {
   signUp: (payload: {
     email: string;
     displayName?: string;
+    tiktokUsername: string;
     password: string;
     referralStreamerId?: string | null;
   }) => Promise<{ emailConfirmationRequired: boolean }>;
@@ -65,6 +67,19 @@ async function buildAppUser(session: Session): Promise<AppUser> {
     displayName,
     tiktokUsername,
   };
+}
+
+async function syncSessionProfileMetadata(session: Session) {
+  const metadata = session.user.user_metadata ?? {};
+
+  await upsertAuthProfileCompat({
+    id: session.user.id,
+    username: typeof metadata.username === "string" && metadata.username.trim() ? metadata.username : session.user.email?.split("@")[0] ?? "user",
+    display_name: typeof metadata.display_name === "string" && metadata.display_name.trim() ? metadata.display_name : session.user.email?.split("@")[0] ?? "user",
+    tiktok_username: typeof metadata.tiktok_username === "string" ? metadata.tiktok_username : "",
+    avatar_url: typeof metadata.avatar_url === "string" ? metadata.avatar_url : null,
+    bio: typeof metadata.bio === "string" ? metadata.bio : null,
+  });
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -131,12 +146,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (payload: {
     email: string;
     displayName?: string;
+    tiktokUsername: string;
     password: string;
     referralStreamerId?: string | null;
   }) => {
     const emailLocalPart = payload.email.split("@")[0]?.trim() || "user";
     const normalizedUsername = emailLocalPart.toLowerCase().replace(/[^a-z0-9._-]/g, "") || `user_${Date.now()}`;
-    const normalizedDisplayName = payload.displayName?.trim() || emailLocalPart;
+    const normalizedTikTokUsername = normalizeTikTokUsername(payload.tiktokUsername);
+
+    if (!normalizedTikTokUsername) {
+      throw new Error("Укажи TikTok username для регистрации.");
+    }
+
+    const tiktokProfile = await lookupTikTokProfile(normalizedTikTokUsername);
+    const normalizedDisplayName = payload.displayName?.trim() || tiktokProfile.displayName || emailLocalPart;
 
     const { data, error } = await supabase.auth.signUp({
       email: payload.email,
@@ -145,7 +168,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         data: {
           username: normalizedUsername,
           display_name: normalizedDisplayName,
-          tiktok_username: "",
+          tiktok_username: normalizedTikTokUsername,
+          avatar_url: tiktokProfile.avatarUrl,
+          bio: tiktokProfile.bio,
           preferred_language: "ru",
         },
       },
@@ -160,12 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (data.session) {
-      await upsertAuthProfileCompat({
-        id: data.user.id,
-        username: normalizedUsername,
-        display_name: normalizedDisplayName,
-        tiktok_username: "",
-      });
+      await syncSessionProfileMetadata(data.session);
 
       if (payload.referralStreamerId) {
         const { error: referralError } = await supabase.from("referrals").insert({
@@ -202,6 +222,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!data.session) {
       throw new Error("Supabase не вернул активную сессию после входа.");
     }
+
+    await syncSessionProfileMetadata(data.session);
 
     const nextUser = await buildAppUser(data.session);
 

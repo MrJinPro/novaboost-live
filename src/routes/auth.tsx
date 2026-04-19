@@ -23,6 +23,7 @@ function AuthPage() {
   const [mode, setMode] = useState<"signin" | "signup">("signup");
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [tiktokUsername, setTikTokUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -92,6 +93,7 @@ function AuthPage() {
         const result = await signUp({
           email,
           displayName,
+          tiktokUsername,
           password,
           referralStreamerId: referralStreamer?.id ?? null,
         });
@@ -165,6 +167,14 @@ function AuthPage() {
             <div>
               <Label htmlFor="displayName">Отображаемое имя</Label>
               <Input id="displayName" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Например, Алина Luna" className="mt-1.5 bg-background" />
+            </div>
+          )}
+
+          {mode === "signup" && (
+            <div>
+              <Label htmlFor="tiktokUsername">TikTok username</Label>
+              <Input id="tiktokUsername" required value={tiktokUsername} onChange={(e) => setTikTokUsername(e.target.value.replace(/^@+/, ""))} placeholder="username из TikTok" className="mt-1.5 bg-background" />
+              <p className="mt-1.5 text-xs text-muted-foreground">Указывай вручную username из TikTok. По нему платформа попытается сразу подтянуть аватар и bio.</p>
             </div>
           )}
 

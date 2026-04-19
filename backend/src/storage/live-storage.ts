@@ -33,6 +33,13 @@ export interface TrackingStore {
 
 export interface ViewerEngagementStore {
   findEligibleViewer(streamerId: string, externalViewerUsername?: string | null): Promise<EligibleViewer | null>;
+  syncViewerIdentity(input: {
+    userId: string;
+    displayName?: string | null;
+    tiktokUsername?: string | null;
+    avatarUrl?: string | null;
+    bio?: string | null;
+  }): Promise<void>;
   getTeamMembership(streamerId: string, userId: string): Promise<TeamMembershipSnapshot | null>;
   getAchievementKeys(streamerId: string, userId: string): Promise<string[]>;
   insertViewerStreamAction(input: {

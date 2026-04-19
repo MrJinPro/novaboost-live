@@ -137,6 +137,8 @@ export class TrackingLiveEventBridge {
   }
 
   private async handleMemberEvent(streamer: TrackedStreamer, streamSessionId: string, data: WebcastMemberMessage) {
+    const viewerProfile = extractTikTokUserProfile(data.user);
+
     await this.processLiveEvent({
       type: "viewer_joined",
       streamerId: streamer.id,
@@ -146,17 +148,25 @@ export class TrackingLiveEventBridge {
       externalViewerId: data.user?.userId ?? data.userId ?? null,
       externalViewerUsername: data.user?.uniqueId ?? null,
       externalViewerDisplayName: data.user?.nickname ?? null,
+      externalViewerAvatarUrl: viewerProfile.avatarUrl,
+      externalViewerBio: viewerProfile.bio,
+      externalViewerSecUid: viewerProfile.secUid,
       viewerLevel: parseNumeric(data.user?.fansClub?.data?.level) ?? parseNumeric(data.user?.payScore),
       rawPayload: {
         action: data.action,
         member_count: data.memberCount,
         username: data.user?.uniqueId ?? null,
         nickname: data.user?.nickname ?? null,
+        avatar_url: viewerProfile.avatarUrl,
+        bio: viewerProfile.bio,
+        sec_uid: viewerProfile.secUid,
       },
     });
   }
 
   private async handleChatEvent(streamer: TrackedStreamer, streamSessionId: string, data: WebcastChatMessage) {
+    const viewerProfile = extractTikTokUserProfile(data.user);
+
     await this.processLiveEvent({
       type: "chat_message",
       streamerId: streamer.id,
@@ -166,12 +176,18 @@ export class TrackingLiveEventBridge {
       externalViewerId: data.user?.userId ?? null,
       externalViewerUsername: data.user?.uniqueId ?? null,
       externalViewerDisplayName: data.user?.nickname ?? null,
+      externalViewerAvatarUrl: viewerProfile.avatarUrl,
+      externalViewerBio: viewerProfile.bio,
+      externalViewerSecUid: viewerProfile.secUid,
       commentText: data.comment,
       viewerLevel: parseNumeric(data.user?.fansClub?.data?.level) ?? parseNumeric(data.user?.payScore),
       rawPayload: {
         comment: data.comment,
         username: data.user?.uniqueId ?? null,
         nickname: data.user?.nickname ?? null,
+        avatar_url: viewerProfile.avatarUrl,
+        bio: viewerProfile.bio,
+        sec_uid: viewerProfile.secUid,
       },
     });
 
@@ -184,6 +200,8 @@ export class TrackingLiveEventBridge {
   }
 
   private async handleLikeEvent(streamer: TrackedStreamer, streamSessionId: string, data: WebcastLikeMessage) {
+    const viewerProfile = extractTikTokUserProfile(data.user);
+
     await this.processLiveEvent({
       type: "like_received",
       streamerId: streamer.id,
@@ -193,6 +211,9 @@ export class TrackingLiveEventBridge {
       externalViewerId: data.user?.userId ?? null,
       externalViewerUsername: data.user?.uniqueId ?? null,
       externalViewerDisplayName: data.user?.nickname ?? null,
+      externalViewerAvatarUrl: viewerProfile.avatarUrl,
+      externalViewerBio: viewerProfile.bio,
+      externalViewerSecUid: viewerProfile.secUid,
       likeCount: data.likeCount,
       viewerLevel: parseNumeric(data.user?.fansClub?.data?.level) ?? parseNumeric(data.user?.payScore),
       rawPayload: {
@@ -200,6 +221,9 @@ export class TrackingLiveEventBridge {
         total_like_count: data.totalLikeCount,
         username: data.user?.uniqueId ?? null,
         nickname: data.user?.nickname ?? null,
+        avatar_url: viewerProfile.avatarUrl,
+        bio: viewerProfile.bio,
+        sec_uid: viewerProfile.secUid,
       },
     });
 
@@ -219,6 +243,7 @@ export class TrackingLiveEventBridge {
 
     const giftCount = Math.max(1, data.repeatCount || data.comboCount || data.groupCount || 1);
     const diamondCount = (data.giftDetails?.diamondCount ?? 0) * giftCount;
+    const viewerProfile = extractTikTokUserProfile(data.user);
 
     await this.processLiveEvent({
       type: "gift_received",
@@ -229,6 +254,9 @@ export class TrackingLiveEventBridge {
       externalViewerId: data.user?.userId ?? null,
       externalViewerUsername: data.user?.uniqueId ?? null,
       externalViewerDisplayName: data.user?.nickname ?? null,
+      externalViewerAvatarUrl: viewerProfile.avatarUrl,
+      externalViewerBio: viewerProfile.bio,
+      externalViewerSecUid: viewerProfile.secUid,
       giftCount,
       giftDiamondCount: diamondCount,
       viewerLevel: parseNumeric(data.user?.fansClub?.data?.level) ?? parseNumeric(data.user?.payScore),
@@ -239,6 +267,9 @@ export class TrackingLiveEventBridge {
         diamond_count: diamondCount,
         username: data.user?.uniqueId ?? null,
         nickname: data.user?.nickname ?? null,
+        avatar_url: viewerProfile.avatarUrl,
+        bio: viewerProfile.bio,
+        sec_uid: viewerProfile.secUid,
       },
     });
 
@@ -296,6 +327,9 @@ export class TrackingLiveEventBridge {
       normalizedPayload: {
         external_viewer_username: event.externalViewerUsername,
         external_viewer_display_name: event.externalViewerDisplayName,
+        external_viewer_avatar_url: event.externalViewerAvatarUrl,
+        external_viewer_bio: event.externalViewerBio,
+        external_viewer_sec_uid: event.externalViewerSecUid,
         comment_text: event.commentText,
         like_count: event.likeCount,
         gift_count: event.giftCount,
@@ -317,6 +351,14 @@ export class TrackingLiveEventBridge {
     if (!this.options.engagementRepository) {
       return;
     }
+
+    await this.options.engagementRepository.syncViewerIdentity({
+      userId: eligibleViewer.userId,
+      displayName: event.externalViewerDisplayName ?? eligibleViewer.displayName,
+      tiktokUsername: event.externalViewerUsername ?? eligibleViewer.tiktokUsername,
+      avatarUrl: event.externalViewerAvatarUrl,
+      bio: event.externalViewerBio,
+    });
 
     const reward = this.options.scoringService.getViewerReward({
       type: event.type,
@@ -349,6 +391,9 @@ export class TrackingLiveEventBridge {
         source: event.source,
         external_viewer_username: event.externalViewerUsername,
         external_viewer_display_name: event.externalViewerDisplayName,
+        external_viewer_avatar_url: event.externalViewerAvatarUrl,
+        external_viewer_bio: event.externalViewerBio,
+        external_viewer_sec_uid: event.externalViewerSecUid,
         comment_text: event.commentText,
         like_count: event.likeCount,
         gift_count: event.giftCount,
@@ -459,6 +504,53 @@ export class TrackingLiveEventBridge {
 function normalizeTikTokUsername(input: string) {
   const normalized = input.trim().replace(/^@+/, "");
   return normalized || null;
+}
+
+function extractTikTokUserProfile(user: unknown) {
+  if (!user || typeof user !== "object") {
+    return { avatarUrl: null, bio: null, secUid: null };
+  }
+
+  const record = user as Record<string, unknown>;
+
+  const directProfilePictureUrl = typeof record.profilePictureUrl === "string" && record.profilePictureUrl.trim().length > 0
+    ? record.profilePictureUrl.trim()
+    : null;
+  const avatarFromDetails = extractImageUrl(record.profilePicture) ?? extractImageUrl(record.avatarThumb) ?? null;
+  const userDetails = typeof record.userDetails === "object" && record.userDetails ? record.userDetails as Record<string, unknown> : null;
+  const bio = typeof userDetails?.bioDescription === "string" && userDetails.bioDescription.trim().length > 0
+    ? userDetails.bioDescription.trim()
+    : typeof record.signature === "string" && record.signature.trim().length > 0
+      ? record.signature.trim()
+      : null;
+  const secUid = typeof record.secUid === "string" && record.secUid.trim().length > 0 ? record.secUid.trim() : null;
+
+  return {
+    avatarUrl: directProfilePictureUrl ?? avatarFromDetails,
+    bio,
+    secUid,
+  };
+}
+
+function extractImageUrl(value: unknown): string | null {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === "string" && value.trim().length > 0) {
+    return value.trim();
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(extractImageUrl).find(Boolean) ?? null;
+  }
+
+  if (typeof value !== "object") {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+  return extractImageUrl(record.url) ?? extractImageUrl(record.urlList) ?? extractImageUrl(record.urls) ?? null;
 }
 
 function parseNumeric(value: unknown) {

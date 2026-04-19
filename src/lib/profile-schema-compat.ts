@@ -5,6 +5,8 @@ export type AuthProfileCompat = {
   username: string;
   display_name: string | null;
   tiktok_username: string | null;
+  avatar_url: string | null;
+  bio: string | null;
 };
 
 export type ViewerProfileStatsCompat = {
@@ -28,7 +30,7 @@ function isSchemaMismatch(error: unknown) {
 export async function getAuthProfileCompat(userId: string) {
   const full = await supabase
     .from("profiles")
-    .select("id, username, display_name, tiktok_username")
+    .select("id, username, display_name, tiktok_username, avatar_url, bio")
     .eq("id", userId)
     .maybeSingle();
 
@@ -57,6 +59,8 @@ export async function getAuthProfileCompat(userId: string) {
   return {
     ...fallback.data,
     tiktok_username: null,
+    avatar_url: null,
+    bio: null,
   } satisfies AuthProfileCompat;
 }
 
@@ -65,6 +69,8 @@ export async function upsertAuthProfileCompat(input: {
   username: string;
   display_name: string;
   tiktok_username: string;
+  avatar_url?: string | null;
+  bio?: string | null;
 }) {
   const full = await supabase.from("profiles").upsert(
     {
@@ -72,6 +78,8 @@ export async function upsertAuthProfileCompat(input: {
       username: input.username,
       display_name: input.display_name,
       tiktok_username: input.tiktok_username,
+      avatar_url: input.avatar_url ?? null,
+      bio: input.bio ?? null,
     },
     { onConflict: "id" }
   );

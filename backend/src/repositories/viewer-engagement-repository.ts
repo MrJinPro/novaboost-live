@@ -90,6 +90,48 @@ export class ViewerEngagementRepository implements ViewerEngagementStore {
     } satisfies EligibleViewer;
   }
 
+  async syncViewerIdentity(input: {
+    userId: string;
+    displayName?: string | null;
+    tiktokUsername?: string | null;
+    avatarUrl?: string | null;
+    bio?: string | null;
+  }) {
+    const patch: Record<string, unknown> = {};
+
+    if (input.displayName?.trim()) {
+      patch.display_name = input.displayName.trim();
+    }
+
+    const normalizedTikTokUsername = normalizeLooseUsername(input.tiktokUsername);
+    if (normalizedTikTokUsername) {
+      patch.tiktok_username = normalizedTikTokUsername;
+    }
+
+    if (input.avatarUrl?.trim()) {
+      patch.avatar_url = input.avatarUrl.trim();
+    }
+
+    if (input.bio?.trim()) {
+      patch.bio = input.bio.trim();
+    }
+
+    if (Object.keys(patch).length === 0) {
+      return;
+    }
+
+    patch.updated_at = new Date().toISOString();
+
+    const { error } = await this.supabase
+      .from("profiles")
+      .update(patch)
+      .eq("id", input.userId);
+
+    if (error) {
+      throw error;
+    }
+  }
+
   async getTeamMembership(streamerId: string, userId: string) {
     const { data, error } = await this.supabase
       .from("streamer_team_memberships")

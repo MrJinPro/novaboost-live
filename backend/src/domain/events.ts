@@ -75,6 +75,9 @@ export type LiveEngagementEvent = {
   externalViewerId?: string | null;
   externalViewerUsername?: string | null;
   externalViewerDisplayName?: string | null;
+  externalViewerAvatarUrl?: string | null;
+  externalViewerBio?: string | null;
+  externalViewerSecUid?: string | null;
   commentText?: string | null;
   likeCount?: number;
   giftCount?: number;

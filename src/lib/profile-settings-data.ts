@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { AppUser } from "@/lib/mock-platform";
 import { getAuthProfileCompat, upsertAuthProfileCompat } from "@/lib/profile-schema-compat";
 import { ensureLinkedStreamer, normalizeTikTokUsername } from "@/lib/streamer-profile-linking";
+import { lookupTikTokProfile } from "@/lib/tiktok-profile-data";
 
 export type ProfileSettingsDraft = {
   displayName: string;
@@ -129,6 +130,9 @@ export async function saveProfileSettings(user: AppUser, draft: ProfileSettingsD
   const displayName = draft.displayName.trim();
   const username = draft.username.trim();
   const tiktokUsername = normalizeTikTokUsername(draft.tiktokUsername);
+  const tiktokProfile = tiktokUsername ? await lookupTikTokProfile(tiktokUsername).catch(() => null) : null;
+  const resolvedBio = draft.bio.trim() || tiktokProfile?.bio || null;
+  const resolvedAvatarUrl = draft.avatarUrl.trim() || tiktokProfile?.avatarUrl || null;
 
   if (!displayName) {
     throw new Error("Укажи отображаемое имя.");
@@ -143,6 +147,8 @@ export async function saveProfileSettings(user: AppUser, draft: ProfileSettingsD
     username,
     display_name: displayName,
     tiktok_username: tiktokUsername,
+    avatar_url: resolvedAvatarUrl,
+    bio: resolvedBio,
   });
 
   const { error: profileError } = await supabase
@@ -151,8 +157,8 @@ export async function saveProfileSettings(user: AppUser, draft: ProfileSettingsD
       display_name: displayName,
       username,
       tiktok_username: tiktokUsername || null,
-      bio: draft.bio.trim() || null,
-      avatar_url: draft.avatarUrl.trim() || null,
+      bio: resolvedBio,
+      avatar_url: resolvedAvatarUrl,
       telegram_username: draft.telegramUsername.trim() || null,
       updated_at: new Date().toISOString(),
     })
@@ -177,9 +183,9 @@ export async function saveProfileSettings(user: AppUser, draft: ProfileSettingsD
     .update({
       display_name: displayName,
       tiktok_username: tiktokUsername,
-      bio: draft.bio.trim() || null,
-      avatar_url: draft.avatarUrl.trim() || null,
-      logo_url: draft.avatarUrl.trim() || null,
+      bio: resolvedBio,
+      avatar_url: resolvedAvatarUrl,
+      logo_url: resolvedAvatarUrl,
       banner_url: draft.streamerBannerUrl.trim() || null,
       tagline: draft.streamerTagline.trim() || null,
       telegram_channel: draft.streamerTelegramChannel.trim() || null,
@@ -196,9 +202,9 @@ export async function saveProfileSettings(user: AppUser, draft: ProfileSettingsD
     .upsert({
       streamer_id: streamer.id,
       banner_url: draft.streamerBannerUrl.trim() || null,
-      logo_url: draft.avatarUrl.trim() || null,
+      logo_url: resolvedAvatarUrl,
       headline: draft.streamerTagline.trim() || null,
-      description: draft.bio.trim() || null,
+      description: resolvedBio,
     }, { onConflict: "streamer_id" });
 
   if (settingsError) {

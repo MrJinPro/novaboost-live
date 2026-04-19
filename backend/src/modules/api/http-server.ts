@@ -6,6 +6,7 @@ import { NotificationService } from "../notifications/notification-service.js";
 import { PRMotionService } from "../prmotion/prmotion-service.js";
 import { ScoringService } from "../scoring/scoring-service.js";
 import { TelegramService } from "../telegram/telegram-service.js";
+import { lookupTikTokProfile } from "../tiktok/tiktok-profile-service.js";
 import { TrackingService } from "../tracking/tracking-service.js";
 import { TrackingSocketHub } from "../tracking/tracking-socket-hub.js";
 import { handleMediaUploadRequest, tryServeMediaRequest } from "./media-storage.js";
@@ -65,12 +66,13 @@ export function startHttpServer(env: BackendEnv, logger: Logger, services: Servi
 
       if (url.pathname === "/manifest") {
         writeJson(response, 200, {
-          api: ["/health", "/manifest", "/tracking/status", "/notifications/stream/:streamerId/preview?trigger=...", "/growth/tiktok/services", "/growth/orders", "/media/upload?kind=...", "/media/*"],
+          api: ["/health", "/manifest", "/tracking/status", "/tracking/live?username=...", "/tracking/stream/:streamerId", "/tiktok/profile?username=...", "/notifications/stream/:streamerId/preview?trigger=...", "/growth/tiktok/services", "/growth/orders", "/media/upload?kind=...", "/media/*"],
           ws: ["/ws/tracking"],
           capabilities: [
             "tracking scheduler foundation",
             "tracking websocket updates",
             "tiktok live room listeners",
+            "tiktok profile lookup by username",
             "viewer rewards and achievements",
             "team progression and unlocks",
             "priority scoring foundation",
@@ -114,6 +116,28 @@ export function startHttpServer(env: BackendEnv, logger: Logger, services: Servi
           });
           writeJson(response, 500, {
             error: error instanceof Error ? error.message : "Не удалось проверить live-статус.",
+          });
+        });
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/tiktok/profile") {
+        const username = url.searchParams.get("username")?.trim() ?? "";
+
+        if (!username) {
+          writeJson(response, 400, { error: "Query param 'username' is required." });
+          return;
+        }
+
+        void lookupTikTokProfile(username).then((profile) => {
+          writeJson(response, 200, { profile });
+        }).catch((error: unknown) => {
+          logger.error("Failed to resolve TikTok profile", {
+            username,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          writeJson(response, 502, {
+            error: error instanceof Error ? error.message : "Не удалось получить профиль TikTok.",
           });
         });
         return;
