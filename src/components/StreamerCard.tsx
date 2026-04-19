@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Eye, Gift, MessageCircle, Heart, Users } from "lucide-react";
 import { LiveIndicator } from "./LiveIndicator";
 import { BoostBadge, NeedsBoostBadge } from "./BoostBadge";
+import { AppAvatar } from "./AppAvatar";
 import { formatNumber } from "@/lib/format";
 import type { StreamerCardData } from "@/lib/mock-platform";
 
@@ -28,9 +29,9 @@ export function StreamerCard({ streamer, variant = "default" }: StreamerCardProp
         className="group flex items-center gap-3 rounded-xl border border-border/50 bg-surface/60 p-3 transition-all hover:border-blast/40 hover:bg-surface"
       >
         <div className="relative shrink-0">
-          <img
+          <AppAvatar
             src={streamer.avatar_url ?? ""}
-            alt={streamer.display_name}
+            name={streamer.display_name}
             className="h-12 w-12 rounded-full bg-surface-2 object-cover ring-2 ring-border"
           />
           {streamer.is_live && (
@@ -90,9 +91,9 @@ export function StreamerCard({ streamer, variant = "default" }: StreamerCardProp
       <div className="relative flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="relative">
-            <img
+            <AppAvatar
               src={streamer.avatar_url ?? ""}
-              alt={streamer.display_name}
+              name={streamer.display_name}
               className={`rounded-full bg-surface-2 object-cover ring-2 ${
                 boosted ? "ring-blast/60" : "ring-border"
               } ${featured ? "h-16 w-16" : "h-14 w-14"}`}

@@ -8,6 +8,7 @@ import { Logo } from "@/components/Logo";
 import { LiveIndicator } from "@/components/LiveIndicator";
 import { BoostBadge } from "@/components/BoostBadge";
 import { Button } from "@/components/ui/button";
+import { AppAvatar } from "@/components/AppAvatar";
 import { ArrowRight, Crown, Eye, Flame, Send, Sparkles, Trophy, Zap } from "lucide-react";
 import { formatNumber } from "@/lib/format";
 import type { StreamerCardData } from "@/lib/mock-platform";
@@ -223,7 +224,7 @@ function HomePage() {
                     }`}>
                       {idx + 1}
                     </div>
-                    <img src={s.avatar_url ?? ""} alt="" className="h-8 w-8 rounded-full bg-surface-2" />
+                    <AppAvatar src={s.avatar_url ?? ""} name={s.display_name} className="h-8 w-8 rounded-full bg-surface-2 object-cover" />
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-semibold truncate">{s.display_name}</div>
                       <div className="text-[10px] text-muted-foreground">{formatNumber(s.subscription_count ?? 0)} подписчиков в платформе</div>

@@ -51,6 +51,77 @@ async function resolveAppRole(userId: string, declaredRole: Exclude<AppRole, "ad
   return "viewer";
 }
 
+async function enrichTikTokProfileIfNeeded(input: {
+  session: Session;
+  fallbackUsername: string;
+  fallbackDisplayName: string;
+  tiktokUsername: string;
+  profile: Awaited<ReturnType<typeof getProfile>>;
+  streamer: Awaited<ReturnType<typeof resolveLinkedStreamer>>;
+}) {
+  const normalizedTikTokUsername = input.tiktokUsername.trim();
+  if (!normalizedTikTokUsername) {
+    return null;
+  }
+
+  const needsProfileRefresh = !input.profile?.avatar_url
+    || !input.profile?.bio
+    || !input.streamer?.avatar_url
+    || !input.streamer?.logo_url
+    || !input.streamer?.bio;
+
+  if (!needsProfileRefresh) {
+    return null;
+  }
+
+  const tiktokProfile = await lookupTikTokProfile(normalizedTikTokUsername).catch(() => null);
+  if (!tiktokProfile) {
+    return null;
+  }
+
+  const displayName = tiktokProfile.displayName?.trim()
+    || input.streamer?.display_name
+    || input.profile?.display_name
+    || input.fallbackDisplayName;
+  const avatarUrl = tiktokProfile.avatarUrl?.trim()
+    || input.streamer?.avatar_url
+    || input.streamer?.logo_url
+    || input.profile?.avatar_url
+    || null;
+  const bio = tiktokProfile.bio?.trim()
+    || input.streamer?.bio
+    || input.profile?.bio
+    || null;
+
+  await upsertAuthProfileCompat({
+    id: input.session.user.id,
+    username: input.fallbackUsername,
+    display_name: displayName,
+    tiktok_username: normalizedTikTokUsername,
+    avatar_url: avatarUrl,
+    bio,
+  });
+
+  if (input.streamer?.id) {
+    await supabase
+      .from("streamers")
+      .update({
+        display_name: displayName,
+        avatar_url: avatarUrl,
+        logo_url: avatarUrl,
+        bio,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", input.streamer.id);
+  }
+
+  return {
+    displayName,
+    avatarUrl,
+    bio,
+  };
+}
+
 async function buildAppUser(session: Session): Promise<AppUser> {
   const profile = await getProfile(session.user.id);
   const declaredRole = session.user.user_metadata.account_role === "streamer" || session.user.user_metadata.account_role === "viewer"
@@ -72,8 +143,17 @@ async function buildAppUser(session: Session): Promise<AppUser> {
   const hasVerifiedStreamerProfile = streamer?.verification_status === "verified";
   const role = await resolveAppRole(session.user.id, declaredRole, hasVerifiedStreamerProfile);
 
+  const enrichedTikTokProfile = await enrichTikTokProfileIfNeeded({
+    session,
+    fallbackUsername,
+    fallbackDisplayName: normalizedDisplayName,
+    tiktokUsername: normalizedTikTokUsername,
+    profile,
+    streamer,
+  });
+
   const username = fallbackUsername;
-  const displayName = streamer?.display_name ?? normalizedDisplayName;
+  const displayName = enrichedTikTokProfile?.displayName ?? streamer?.display_name ?? normalizedDisplayName;
   const tiktokUsername = streamer?.tiktok_username ?? normalizedTikTokUsername;
 
   return {
