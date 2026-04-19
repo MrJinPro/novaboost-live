@@ -6,12 +6,13 @@ import { LiveIndicator } from "@/components/LiveIndicator";
 import { CurrencySwitcher } from "@/components/CurrencySwitcher";
 import { LocalizedPrice } from "@/components/LocalizedPrice";
 import { BoostBadge } from "@/components/BoostBadge";
+import { usePaymentComingSoonSurvey } from "@/components/PaymentComingSoonDialog";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Bell, Crown, Eye, ExternalLink, Play, Send, Sparkles, Users, Wallet, Zap, TrendingUp } from "lucide-react";
 import { formatNumber } from "@/lib/format";
 import { getLocalizedMoney, useCurrencyPreference } from "@/lib/currency";
 import type { PostReactionType, StreamerPageData, StreamerPost, SubscriptionPlanKey } from "@/lib/mock-platform";
-import { activateStreamerPlan, getSubscriptionPlanLabel, loadPostReactionSummaries, loadStreamerMembershipState, SUBSCRIPTION_PLANS, togglePostReaction, type PostReactionSummary, type StreamerMembershipState } from "@/lib/monetization-data";
+import { getSubscriptionPlanLabel, loadPostReactionSummaries, loadStreamerMembershipState, SUBSCRIPTION_PLANS, togglePostReaction, type PostReactionSummary, type StreamerMembershipState } from "@/lib/monetization-data";
 import { calculateCustomerAmount, groupTikTokPromotionServices, loadTikTokPromotionServices, type TikTokPromotionService } from "@/lib/prmotion-data";
 import { getStreamerSubscriptionState, loadPublicStreamerPage, toggleStreamerSubscription } from "@/lib/streamer-studio-data";
 import { toast } from "sonner";
@@ -52,6 +53,7 @@ function StreamerProfile() {
   const [reactionSummaries, setReactionSummaries] = useState<Map<string, PostReactionSummary>>(new Map());
   const [promotionServices, setPromotionServices] = useState<TikTokPromotionService[]>([]);
   const [activePromotionGroupKey, setActivePromotionGroupKey] = useState("");
+  const { openSurvey, surveyDialog } = usePaymentComingSoonSurvey();
 
   useEffect(() => {
     let active = true;
@@ -268,32 +270,22 @@ function StreamerProfile() {
     }
   };
 
-  const handlePlanUpgrade = async (planKey: SubscriptionPlanKey) => {
-    if (!user) {
-      toast.error("Войди как зритель, чтобы оформить тариф");
-      navigate({ to: "/auth" });
-      return;
-    }
-
-    if (user.role !== "viewer") {
-      toast.error("Тарифы доступны из профиля зрителя");
-      return;
-    }
-
-    setMembershipLoading(true);
-    try {
-      const nextState = await activateStreamerPlan(streamer.id, user.id, planKey);
-      setMembershipState(nextState);
-      if (!subscribed && nextState.subscribed) {
-        setSubscribed(true);
-        setStreamer((current) => current ? { ...current, subscription_count: current.subscription_count + 1 } : current);
-      }
-      toast.success(`Тариф ${planKey} активирован`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Не удалось активировать тариф");
-    } finally {
-      setMembershipLoading(false);
-    }
+  const handlePlanUpgrade = (planKey: SubscriptionPlanKey) => {
+    const plan = SUBSCRIPTION_PLANS.find((item) => item.key === planKey);
+    openSurvey({
+      userId: user?.id ?? null,
+      entryPoint: "streamer-plan",
+      triggerLabel: `plan-${planKey}`,
+      title: `Тариф ${plan?.title ?? planKey} для ${streamer.display_name}`,
+      description: "Оплата тарифов ещё не включена. По кнопке мы просто собираем предпочтительный способ оплаты, чтобы запустить подписки с правильным gateway. / Membership payments are not live yet. We are only collecting preferred payment methods before launch.",
+      context: {
+        streamerId: streamer.id,
+        streamerName: streamer.display_name,
+        planKey,
+        planTitle: plan?.title ?? planKey,
+        priceRub: plan?.price ?? 0,
+      },
+    });
   };
 
   const handleReactionToggle = async (postId: string, reactionType: PostReactionType) => {
@@ -705,6 +697,9 @@ function StreamerProfile() {
                 </div>
               </div>
               <div className="mt-4 space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Реальную оплату тарифов пока не включали. Любая кнопка активации сейчас откроет короткий опрос о предпочтительном способе оплаты.
+                </p>
                 {SUBSCRIPTION_PLANS.map((plan) => {
                   const activePlan = membershipState.planKey === plan.key;
                   return (
@@ -807,6 +802,7 @@ function StreamerProfile() {
                       <h3 className="font-semibold text-foreground">{video.title}</h3>
                       <span className="text-xs text-muted-foreground">#{streamer.tiktok_username}</span>
                     </div>
+                    {surveyDialog}
                   </div>
                 </div>
               ))

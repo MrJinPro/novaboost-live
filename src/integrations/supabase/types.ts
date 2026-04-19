@@ -109,6 +109,39 @@ export type Database = {
           },
         ]
       }
+      payment_interest_surveys: {
+        Row: {
+          comment: string | null
+          context: Json
+          created_at: string
+          entry_point: string
+          id: string
+          preferred_methods: string[]
+          trigger_label: string
+          user_id: string | null
+        }
+        Insert: {
+          comment?: string | null
+          context?: Json
+          created_at?: string
+          entry_point: string
+          id?: string
+          preferred_methods?: string[]
+          trigger_label: string
+          user_id?: string | null
+        }
+        Update: {
+          comment?: string | null
+          context?: Json
+          created_at?: string
+          entry_point?: string
+          id?: string
+          preferred_methods?: string[]
+          trigger_label?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       notification_deliveries: {
         Row: {
           attempted_at: string | null

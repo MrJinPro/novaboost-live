@@ -8,10 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { usePaymentComingSoonSurvey } from "@/components/PaymentComingSoonDialog";
 import { ArrowLeft, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { convertCurrency, formatEditableAmount, getLocalizedMoney, useCurrencyPreference } from "@/lib/currency";
-import { createDonationEvent, loadDonationLinkBySlug } from "@/lib/monetization-data";
+import { loadDonationLinkBySlug } from "@/lib/monetization-data";
 
 export const Route = createFileRoute("/support/$slug")({
   head: () => ({
@@ -50,7 +51,7 @@ function SupportPage() {
   const [amount, setAmount] = useState("");
   const [message, setMessage] = useState("");
   const [donorName, setDonorName] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const { openSurvey, surveyDialog } = usePaymentComingSoonSurvey();
 
   useEffect(() => {
     let active = true;
@@ -133,47 +134,24 @@ function SupportPage() {
     );
   }
 
-  const handleDonate = async () => {
-    if (!user) {
-      toast.error("Для доната нужен вход в профиль зрителя");
-      navigate({ to: "/auth" });
-      return;
-    }
-
-    if (user.role !== "viewer") {
-      toast.error("Донаты доступны из профиля зрителя");
-      return;
-    }
-
-    if (!donorName.trim()) {
-      toast.error("Укажи имя донатора");
-      return;
-    }
-
-    if (!Number.isFinite(parsedBaseAmount) || parsedBaseAmount < minimumAmount) {
-      toast.error(`Минимальная сумма поддержки: ${minimumMoney.primary}`);
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      await createDonationEvent({
+  const handleDonate = () => {
+    openSurvey({
+      userId: user?.id ?? null,
+      entryPoint: "support-page",
+      triggerLabel: "donation-support",
+      title: `Поддержка стримера ${linkData.streamers?.display_name ?? "NovaBoost creator"}`,
+      description: "Донаты через NovaBoost Live ещё не принимают реальную оплату. Но можно оставить предпочтительный способ оплаты, чтобы мы запустили его первым. / Donations are not processing real payments yet, but you can tell us which payment method to launch first.",
+      context: {
         streamerId: linkData.streamer_id,
         donationLinkId: linkData.id,
-        donorUserId: user.id,
-        donorName,
-        amount: parsedBaseAmount,
-        message,
-        originalCurrency: currencyPreference.primaryCurrency,
-        originalAmount: parsedEnteredAmount,
-      });
-      toast.success(`Поддержка ${enteredMoney.primary} отправлена`);
-      navigate({ to: "/streamer/$id", params: { id: linkData.streamer_id } });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Не удалось отправить донат");
-    } finally {
-      setSubmitting(false);
-    }
+        slug: linkData.slug,
+        amountRub: Number.isFinite(parsedBaseAmount) ? parsedBaseAmount : null,
+        enteredAmount: Number.isFinite(parsedEnteredAmount) ? parsedEnteredAmount : null,
+        enteredCurrency: currencyPreference.primaryCurrency,
+        donorName: donorName.trim() || null,
+        message: message.trim() || null,
+      },
+    });
   };
 
   return (
@@ -209,7 +187,7 @@ function SupportPage() {
           </div>
 
           <p className="mt-4 text-muted-foreground">
-            {linkData.description ?? "Поддержи стримера через платформенную ссылку NovaBoost Live. После отправки донат попадёт в публичный блок последних поддержек."}
+            {linkData.description ?? "Поддержка через NovaBoost Live уже готова как сценарий, но реальную оплату мы ещё не включили. Кнопка ниже откроет короткий опрос о том, каким способом тебе было бы удобнее платить."}
           </p>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-4">
@@ -248,8 +226,8 @@ function SupportPage() {
           </div>
 
           <div className="mt-6 flex flex-wrap gap-3">
-            <Button onClick={handleDonate} disabled={submitting} className="bg-gradient-blast text-blast-foreground font-bold gap-2">
-              <Wallet className="h-4 w-4" /> {submitting ? "Отправляю поддержку…" : `Поддержать на ${enteredMoney.primary}`}
+            <Button onClick={handleDonate} className="bg-gradient-blast text-blast-foreground font-bold gap-2">
+              <Wallet className="h-4 w-4" /> {`Поддержать на ${enteredMoney.primary}`}
             </Button>
             {!user && (
               <Link to="/auth">
@@ -259,10 +237,11 @@ function SupportPage() {
           </div>
 
           <p className="mt-4 text-xs text-muted-foreground">
-            После отправки поддержка появится на странице стримера в списке последних донатов. Сумма ввода и быстрые кнопки показываются в выбранной валюте браузера{currencyPreference.countryCode ? ` (${currencyPreference.countryCode})` : ""}.
+            Пока вместо оплаты мы показываем короткий survey по платёжным методам. Сумма ввода и быстрые кнопки всё равно остаются, чтобы мы понимали ожидаемый чек и валюту браузера{currencyPreference.countryCode ? ` (${currencyPreference.countryCode})` : ""}.
           </p>
         </div>
       </div>
+      {surveyDialog}
     </div>
   );
 }

@@ -4,10 +4,11 @@ import { z } from "zod";
 import { Header } from "@/components/Header";
 import { CurrencySwitcher } from "@/components/CurrencySwitcher";
 import { LocalizedPrice } from "@/components/LocalizedPrice";
+import { usePaymentComingSoonSurvey } from "@/components/PaymentComingSoonDialog";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
 import { getLocalizedMoney, resolveSupportedCurrency, useCurrencyPreference } from "@/lib/currency";
-import { calculateCustomerAmount, createTikTokPromotionOrder, getPromotionTargetMeta, groupTikTokPromotionServices, loadTikTokPromotionServices, type TikTokPromotionService } from "@/lib/prmotion-data";
+import { calculateCustomerAmount, getPromotionTargetMeta, groupTikTokPromotionServices, loadTikTokPromotionServices, type TikTokPromotionService } from "@/lib/prmotion-data";
 import { loadMyPromotionOrders, type PromotionOrderSummary } from "@/lib/promotion-orders-data";
 import { loadStreamerDirectory } from "@/lib/streamers-directory-data";
 import type { StreamerCardData } from "@/lib/mock-platform";
@@ -43,8 +44,8 @@ function ServicesPage() {
   const [selectedServiceId, setSelectedServiceId] = useState(search.serviceId ?? "");
   const [targetLink, setTargetLink] = useState("");
   const [quantity, setQuantity] = useState("100");
-  const [submitting, setSubmitting] = useState(false);
   const [orders, setOrders] = useState<PromotionOrderSummary[]>([]);
+  const { openSurvey, surveyDialog } = usePaymentComingSoonSurvey();
 
   useEffect(() => {
     let active = true;
@@ -173,13 +174,7 @@ function ServicesPage() {
     setTargetLink(autoLiveLink);
   }, [autoLiveLink, liveTargetSelected, selectedServiceId]);
 
-  const handleCreateOrder = async () => {
-    if (!user) {
-      toast.error("Войди, чтобы оформить услугу продвижения");
-      navigate({ to: "/auth" });
-      return;
-    }
-
+  const handleCreateOrder = () => {
     if (!selectedService) {
       toast.error("Выбери вид услуги");
       return;
@@ -205,44 +200,24 @@ function ServicesPage() {
       return;
     }
 
-    setSubmitting(true);
-    try {
-      const result = await createTikTokPromotionOrder({
-        requesterUserId: user.id,
-        requesterRole: role,
+    openSurvey({
+      userId: user?.id ?? null,
+      entryPoint: "services-page",
+      triggerLabel: "promotion-order",
+      title: `${selectedService.name} для ${selectedStreamer?.display_name ?? "стримера"}`,
+      description: "Оплата услуг продвижения ещё не включена. После клика мы собираем только предпочтительный способ оплаты, чтобы выбрать первый gateway. / Promotion checkout is not live yet. We are only collecting preferred payment methods for launch planning.",
+      context: {
         streamerId: selectedStreamerId,
+        streamerName: selectedStreamer?.display_name ?? null,
         serviceId: selectedService.id,
-        link: targetLink.trim(),
+        serviceName: selectedService.name,
+        targetType: selectedService.targetType,
+        targetLink: targetLink.trim(),
         quantity: parsedQuantity,
-        currency: currencyPreference.orderCurrency,
-      });
-
-      setOrders((current) => [
-        {
-          id: result.orderId,
-          serviceName: result.service.name,
-          quantity: result.quantity,
-          quotedAmount: result.customerAmount,
-          currency: result.currency,
-          status: result.status,
-          targetLink: result.link,
-          failureReason: null,
-          createdAt: new Intl.DateTimeFormat("ru-RU", {
-            day: "numeric",
-            month: "short",
-            hour: "2-digit",
-            minute: "2-digit",
-          }).format(new Date()),
-        },
-        ...current,
-      ].slice(0, 8));
-
-      toast.success(result.status === "queued" ? "Заказ поставлен в очередь. Отправим его, когда освободится слот на эфир." : "Заказ услуги принят.");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Не удалось оформить услугу продвижения");
-    } finally {
-      setSubmitting(false);
-    }
+        role,
+        orderCurrency: currencyPreference.orderCurrency,
+      },
+    });
   };
 
   return (
@@ -413,18 +388,22 @@ function ServicesPage() {
             </div>
 
             <div className="mt-5 flex flex-wrap gap-3">
-              <Button onClick={handleCreateOrder} disabled={submitting || !selectedService || (liveTargetSelected && !!selectedStreamer && !selectedStreamer.is_live)} className="bg-gradient-cosmic font-bold text-foreground">
-                {submitting ? "Оформляю заказ…" : "Оформить услугу"}
+              <Button onClick={handleCreateOrder} disabled={!selectedService || (liveTargetSelected && !!selectedStreamer && !selectedStreamer.is_live)} className="bg-gradient-cosmic font-bold text-foreground">
+                Оформить услугу
               </Button>
               {!user && <Link to="/auth"><Button variant="outline">Войти</Button></Link>}
             </div>
+
+            <p className="mt-4 text-xs text-muted-foreground">
+              Онлайн-оплата услуг пока не запущена. По кнопке мы покажем сообщение и спросим, какой способ оплаты удобнее именно тебе.
+            </p>
 
             <div className="mt-6 border-t border-border/50 pt-6">
               <h3 className="font-display text-xl font-bold">Последние заказы</h3>
               <div className="mt-4 space-y-3">
                 {orders.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-border/50 bg-background/20 p-4 text-sm text-muted-foreground">
-                    Здесь появятся последние оформленные заказы.
+                    После запуска оплаты здесь появятся последние оформленные заказы.
                   </div>
                 ) : (
                   orders.map((order) => (
@@ -459,6 +438,7 @@ function ServicesPage() {
           </section>
         </div>
       </div>
+      {surveyDialog}
     </div>
   );
 }

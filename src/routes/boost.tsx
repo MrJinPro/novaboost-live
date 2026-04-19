@@ -3,12 +3,12 @@ import { useEffect, useState } from "react";
 import { z } from "zod";
 import { useAuth } from "@/lib/auth-context";
 import { Header } from "@/components/Header";
+import { usePaymentComingSoonSurvey } from "@/components/PaymentComingSoonDialog";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Crown, Zap } from "lucide-react";
 import { toast } from "sonner";
 import type { StreamerCardData } from "@/lib/mock-platform";
 import { loadStreamerDirectory } from "@/lib/streamers-directory-data";
-import { createBoost } from "@/lib/boost-data";
 
 const searchSchema = z.object({
   streamerId: z.string().optional(),
@@ -38,7 +38,7 @@ function BoostPage() {
   const [streamers, setStreamers] = useState<StreamerCardData[]>([]);
   const [selected, setSelected] = useState<string>(search.streamerId ?? "");
   const [tier, setTier] = useState<number>(1500);
-  const [submitting, setSubmitting] = useState(false);
+  const { openSurvey, surveyDialog } = usePaymentComingSoonSurvey();
 
   useEffect(() => {
     let active = true;
@@ -65,26 +65,24 @@ function BoostPage() {
 
   const streamer = streamers.find((s) => s.id === selected);
 
-  const handleBoost = async () => {
-    if (!user) {
-      toast.error("Войди, чтобы запустить буст");
-      navigate({ to: "/auth" });
-      return;
-    }
+  const handleBoost = () => {
     if (!selected) {
       toast.error("Выбери стримера");
       return;
     }
-    setSubmitting(true);
-    try {
-      await createBoost(user, selected, tier);
-      toast.success(`Буст ${tier} ⚡ запущен! ${streamer?.display_name} поднимается в топ`);
-      navigate({ to: "/streamer/$id", params: { id: selected } });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Не удалось запустить буст");
-    } finally {
-      setSubmitting(false);
-    }
+
+    openSurvey({
+      userId: user?.id ?? null,
+      entryPoint: "boost-page",
+      triggerLabel: "boost-launch",
+      title: `Буст ${tier} для ${streamer?.display_name ?? "стримера"}`,
+      description: "Запуск буста скоро станет платным действием прямо внутри NovaBoost Live. Пока собираем только предпочтительный способ оплаты. / Boost checkout is coming soon, and for now we only collect preferred payment methods.",
+      context: {
+        streamerId: selected,
+        streamerName: streamer?.display_name ?? null,
+        tier,
+      },
+    });
   };
 
   return (
@@ -156,16 +154,16 @@ function BoostPage() {
             </div>
             <Button
               size="lg"
-              disabled={!selected || submitting}
+              disabled={!selected}
               onClick={handleBoost}
               className="bg-gradient-blast text-blast-foreground font-bold shadow-glow gap-2 disabled:opacity-50"
             >
               <Zap className="h-5 w-5" />
-              {submitting ? "Запускаем…" : "Запустить буст"}
+              Запустить буст
             </Button>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            ⚡ Показывает объём выбранного буста перед запуском.
+            ⚡ Пока вместо реального запуска мы покажем короткий опрос по удобному способу оплаты.
           </p>
         </section>
 
@@ -175,6 +173,7 @@ function BoostPage() {
           </div>
         )}
       </div>
+      {surveyDialog}
     </div>
   );
 }
