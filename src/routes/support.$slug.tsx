@@ -99,6 +99,19 @@ function SupportPage() {
     setAmount(formatEditableAmount(convertCurrency(initialBaseAmount, "RUB", "USD")));
   }, [linkData?.id, linkData?.minimum_amount]);
 
+  const minimumAmount = linkData?.minimum_amount ?? 0;
+  const minimumMoney = useMemo(
+    () => getLocalizedMoney(minimumAmount, { baseCurrency: "RUB", preference: currencyPreference }),
+    [currencyPreference, minimumAmount],
+  );
+  const parsedUsdAmount = Number(amount.replace(",", "."));
+  const parsedBaseAmount = Number.isFinite(parsedUsdAmount)
+    ? Math.round(convertCurrency(parsedUsdAmount, "USD", "RUB"))
+    : Number.NaN;
+  const enteredMoney = Number.isFinite(parsedBaseAmount)
+    ? getLocalizedMoney(parsedBaseAmount, { baseCurrency: "RUB", preference: currencyPreference })
+    : minimumMoney;
+
   if (pageLoading) {
     return (
       <div className="min-h-screen">
@@ -119,19 +132,6 @@ function SupportPage() {
       </div>
     );
   }
-
-  const minimumAmount = linkData.minimum_amount;
-  const minimumMoney = useMemo(
-    () => getLocalizedMoney(minimumAmount, { baseCurrency: "RUB", preference: currencyPreference }),
-    [currencyPreference, minimumAmount],
-  );
-  const parsedUsdAmount = Number(amount.replace(",", "."));
-  const parsedBaseAmount = Number.isFinite(parsedUsdAmount)
-    ? Math.round(convertCurrency(parsedUsdAmount, "USD", "RUB"))
-    : Number.NaN;
-  const enteredMoney = Number.isFinite(parsedBaseAmount)
-    ? getLocalizedMoney(parsedBaseAmount, { baseCurrency: "RUB", preference: currencyPreference })
-    : minimumMoney;
 
   const handleDonate = async () => {
     if (!user) {
