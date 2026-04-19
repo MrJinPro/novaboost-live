@@ -96,17 +96,17 @@ function SupportPage() {
     }
 
     const initialBaseAmount = Math.max(250, linkData.minimum_amount);
-    setAmount(formatEditableAmount(convertCurrency(initialBaseAmount, "RUB", "USD")));
-  }, [linkData?.id, linkData?.minimum_amount]);
+    setAmount(formatEditableAmount(convertCurrency(initialBaseAmount, "RUB", currencyPreference.primaryCurrency)));
+  }, [currencyPreference.primaryCurrency, linkData?.id, linkData?.minimum_amount]);
 
   const minimumAmount = linkData?.minimum_amount ?? 0;
   const minimumMoney = useMemo(
     () => getLocalizedMoney(minimumAmount, { baseCurrency: "RUB", preference: currencyPreference }),
     [currencyPreference, minimumAmount],
   );
-  const parsedUsdAmount = Number(amount.replace(",", "."));
-  const parsedBaseAmount = Number.isFinite(parsedUsdAmount)
-    ? Math.round(convertCurrency(parsedUsdAmount, "USD", "RUB"))
+  const parsedEnteredAmount = Number(amount.replace(",", "."));
+  const parsedBaseAmount = Number.isFinite(parsedEnteredAmount)
+    ? Math.round(convertCurrency(parsedEnteredAmount, currencyPreference.primaryCurrency, "RUB"))
     : Number.NaN;
   const enteredMoney = Number.isFinite(parsedBaseAmount)
     ? getLocalizedMoney(parsedBaseAmount, { baseCurrency: "RUB", preference: currencyPreference })
@@ -164,6 +164,8 @@ function SupportPage() {
         donorName,
         amount: parsedBaseAmount,
         message,
+        originalCurrency: currencyPreference.primaryCurrency,
+        originalAmount: parsedEnteredAmount,
       });
       toast.success(`Поддержка ${enteredMoney.primary} отправлена`);
       navigate({ to: "/streamer/$id", params: { id: linkData.streamer_id } });
@@ -215,8 +217,8 @@ function SupportPage() {
               <button
                 key={preset}
                 type="button"
-                onClick={() => setAmount(formatEditableAmount(convertCurrency(Math.max(preset, minimumAmount), "RUB", "USD")))}
-                className={`rounded-2xl border px-4 py-3 text-left ${amount === formatEditableAmount(convertCurrency(Math.max(preset, minimumAmount), "RUB", "USD")) ? "border-blast bg-blast/10" : "border-border/50 bg-background/30"}`}
+                onClick={() => setAmount(formatEditableAmount(convertCurrency(Math.max(preset, minimumAmount), "RUB", currencyPreference.primaryCurrency)))}
+                className={`rounded-2xl border px-4 py-3 text-left ${amount === formatEditableAmount(convertCurrency(Math.max(preset, minimumAmount), "RUB", currencyPreference.primaryCurrency)) ? "border-blast bg-blast/10" : "border-border/50 bg-background/30"}`}
               >
                 <LocalizedPrice
                   amount={Math.max(preset, minimumAmount)}
@@ -233,8 +235,8 @@ function SupportPage() {
             <Field label="Твоё имя в алерте">
               <Input value={donorName} onChange={(e) => setDonorName(e.target.value)} placeholder="Например: NovaFan" />
             </Field>
-            <Field label="Сумма поддержки, USD">
-              <Input type="number" min={convertCurrency(minimumAmount, "RUB", "USD").toFixed(2)} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
+            <Field label={`Сумма поддержки, ${currencyPreference.primaryCurrency}`}>
+              <Input type="number" min={convertCurrency(minimumAmount, "RUB", currencyPreference.primaryCurrency).toFixed(2)} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
               <div className="mt-2 text-xs text-muted-foreground">
                 {enteredMoney.primary}
                 {enteredMoney.secondary ? ` · ${enteredMoney.secondary}` : ""}
@@ -257,7 +259,7 @@ function SupportPage() {
           </div>
 
           <p className="mt-4 text-xs text-muted-foreground">
-            После отправки поддержка появится на странице стримера в списке последних донатов. Основная витрина показывает USD, локальная валюта определяется по региону браузера{currencyPreference.countryCode ? ` (${currencyPreference.countryCode})` : ""}.
+            После отправки поддержка появится на странице стримера в списке последних донатов. Сумма ввода и быстрые кнопки показываются в выбранной валюте браузера{currencyPreference.countryCode ? ` (${currencyPreference.countryCode})` : ""}.
           </p>
         </div>
       </div>

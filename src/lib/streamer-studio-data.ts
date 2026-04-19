@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import {
   type AppUser,
+  type DonationOverlayDisplayMode,
   type DonationOverlaySettings,
   type DonationOverlayVariant,
   type StreamerPageData,
@@ -48,6 +49,8 @@ const DEFAULT_DONATION_OVERLAY: DonationOverlaySettings = {
   soundUrl: "",
   gifUrl: "",
   accessKey: "",
+  displayMode: "original",
+  displayCurrency: "USD",
 };
 
 function createOverlayAccessKey() {
@@ -69,11 +72,18 @@ function parseDonationOverlaySettings(layout: unknown): DonationOverlaySettings 
     ? (layout as { donationOverlay?: Record<string, unknown> }).donationOverlay
     : null;
 
+  const displayMode: DonationOverlayDisplayMode = overlay?.displayMode === "preferred" ? "preferred" : "original";
+  const displayCurrency = overlay?.displayCurrency === "RUB" || overlay?.displayCurrency === "KZT" || overlay?.displayCurrency === "MDL" || overlay?.displayCurrency === "USD"
+    ? overlay.displayCurrency
+    : DEFAULT_DONATION_OVERLAY.displayCurrency;
+
   return {
     variant: resolveDonationOverlayVariant(overlay?.variant),
     soundUrl: typeof overlay?.soundUrl === "string" ? overlay.soundUrl : DEFAULT_DONATION_OVERLAY.soundUrl,
     gifUrl: typeof overlay?.gifUrl === "string" ? overlay.gifUrl : DEFAULT_DONATION_OVERLAY.gifUrl,
     accessKey: typeof overlay?.accessKey === "string" ? overlay.accessKey : DEFAULT_DONATION_OVERLAY.accessKey,
+    displayMode,
+    displayCurrency,
   };
 }
 
@@ -101,6 +111,8 @@ function createEmptyStudioDraft(tiktokUsername: string, displayName: string): St
     donationSoundUrl: DEFAULT_DONATION_OVERLAY.soundUrl,
     donationGifUrl: DEFAULT_DONATION_OVERLAY.gifUrl,
     donationOverlayAccessKey: DEFAULT_DONATION_OVERLAY.accessKey,
+    donationOverlayDisplayMode: DEFAULT_DONATION_OVERLAY.displayMode,
+    donationOverlayDisplayCurrency: DEFAULT_DONATION_OVERLAY.displayCurrency,
   };
 }
 
@@ -381,6 +393,8 @@ function buildDraft(base: StreamerStudioDraft, streamer: DbStreamer, settings: D
     donationSoundUrl: donationOverlay.soundUrl,
     donationGifUrl: donationOverlay.gifUrl,
     donationOverlayAccessKey: donationOverlay.accessKey,
+    donationOverlayDisplayMode: donationOverlay.displayMode,
+    donationOverlayDisplayCurrency: donationOverlay.displayCurrency,
   };
 }
 
@@ -404,6 +418,8 @@ export async function saveStreamerDonationOverlaySettings(user: AppUser, input: 
       soundUrl: input.soundUrl || null,
       gifUrl: input.gifUrl || null,
       accessKey,
+      displayMode: input.displayMode,
+      displayCurrency: input.displayCurrency,
     },
   };
 
@@ -432,6 +448,8 @@ export async function saveStreamerDonationOverlaySettings(user: AppUser, input: 
     soundUrl: input.soundUrl || "",
     gifUrl: input.gifUrl || "",
     accessKey,
+    displayMode: input.displayMode,
+    displayCurrency: input.displayCurrency,
   } satisfies DonationOverlaySettings;
 }
 

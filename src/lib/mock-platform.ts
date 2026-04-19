@@ -65,15 +65,20 @@ export interface StreamerStudioDraft {
   donationSoundUrl: string;
   donationGifUrl: string;
   donationOverlayAccessKey: string;
+  donationOverlayDisplayMode: DonationOverlayDisplayMode;
+  donationOverlayDisplayCurrency: "USD" | "RUB" | "KZT" | "MDL";
 }
 
 export type DonationOverlayVariant = "supernova" | "epic-burst" | "nova-ring";
+export type DonationOverlayDisplayMode = "original" | "preferred";
 
 export interface DonationOverlaySettings {
   variant: DonationOverlayVariant;
   soundUrl: string;
   gifUrl: string;
   accessKey: string;
+  displayMode: DonationOverlayDisplayMode;
+  displayCurrency: "USD" | "RUB" | "KZT" | "MDL";
 }
 
 export interface DonationEventSummary {

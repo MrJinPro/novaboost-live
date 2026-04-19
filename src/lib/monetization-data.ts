@@ -1,4 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
+import { convertCurrency } from "@/lib/currency";
+import type { SupportedCurrency } from "@/lib/currency";
 import type { AppUser, DonationEventSummary, DonationOverlaySettings, DonationOverlayVariant, PostReactionType, SubscriptionPlanKey } from "@/lib/mock-platform";
 import { resolveLinkedStreamer } from "@/lib/streamer-profile-linking";
 
@@ -60,6 +62,13 @@ const DEFAULT_DONATION_OVERLAY: DonationOverlaySettings = {
   soundUrl: "",
   gifUrl: "",
   accessKey: "",
+  displayMode: "original",
+  displayCurrency: "USD",
+};
+
+type DonationEventSourcePayload = {
+  originalCurrency: SupportedCurrency;
+  originalAmount: number;
 };
 
 function resolveDonationOverlayVariant(value: unknown): DonationOverlayVariant {
@@ -75,11 +84,70 @@ function parseDonationOverlaySettings(layout: unknown): DonationOverlaySettings 
     ? (layout as { donationOverlay?: Record<string, unknown> }).donationOverlay
     : null;
 
+  const displayMode = overlay?.displayMode === "preferred" ? "preferred" : "original";
+  const displayCurrency = overlay?.displayCurrency === "RUB" || overlay?.displayCurrency === "KZT" || overlay?.displayCurrency === "MDL" || overlay?.displayCurrency === "USD"
+    ? overlay.displayCurrency
+    : DEFAULT_DONATION_OVERLAY.displayCurrency;
+
   return {
     variant: resolveDonationOverlayVariant(overlay?.variant),
     soundUrl: typeof overlay?.soundUrl === "string" ? overlay.soundUrl : DEFAULT_DONATION_OVERLAY.soundUrl,
     gifUrl: typeof overlay?.gifUrl === "string" ? overlay.gifUrl : DEFAULT_DONATION_OVERLAY.gifUrl,
     accessKey: typeof overlay?.accessKey === "string" ? overlay.accessKey : DEFAULT_DONATION_OVERLAY.accessKey,
+    displayMode,
+    displayCurrency,
+  };
+}
+
+function encodeDonationEventSource(payload: DonationEventSourcePayload) {
+  return `novaboost-donation:${JSON.stringify(payload)}`;
+}
+
+function decodeDonationEventSource(value: string | null | undefined): DonationEventSourcePayload | null {
+  if (!value || !value.startsWith("novaboost-donation:")) {
+    return null;
+  }
+
+  try {
+    const raw = JSON.parse(value.slice("novaboost-donation:".length)) as Partial<DonationEventSourcePayload>;
+    if (
+      (raw.originalCurrency === "USD" || raw.originalCurrency === "RUB" || raw.originalCurrency === "KZT" || raw.originalCurrency === "MDL")
+      && typeof raw.originalAmount === "number"
+      && Number.isFinite(raw.originalAmount)
+    ) {
+      return {
+        originalCurrency: raw.originalCurrency,
+        originalAmount: raw.originalAmount,
+      };
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function resolveOverlayMoney(
+  amountRub: number,
+  overlay: DonationOverlaySettings,
+  source: string | null | undefined,
+) {
+  const original = decodeDonationEventSource(source);
+
+  if (overlay.displayMode === "original" && original) {
+    return {
+      amount: original.originalAmount,
+      currency: original.originalCurrency,
+    };
+  }
+
+  const targetCurrency = overlay.displayMode === "preferred"
+    ? overlay.displayCurrency
+    : original?.originalCurrency ?? "RUB";
+
+  return {
+    amount: convertCurrency(amountRub, "RUB", targetCurrency),
+    currency: targetCurrency,
   };
 }
 
@@ -437,9 +505,20 @@ export async function loadRecentDonationEvents(streamerId: string, limit = 6) {
 }
 
 export async function loadLatestDonationOverlayEvent(streamerId: string): Promise<DonationOverlayEvent | null> {
+  const { data: settings, error: settingsError } = await supabase
+    .from("streamer_page_settings")
+    .select("layout")
+    .eq("streamer_id", streamerId)
+    .maybeSingle();
+
+  if (settingsError) {
+    throw settingsError;
+  }
+
+  const overlay = parseDonationOverlaySettings(settings?.layout ?? null);
   const { data, error } = await supabase
     .from("donation_events")
-    .select("id, donor_name, amount, message, created_at, status")
+    .select("id, donor_name, amount, message, created_at, status, source")
     .eq("streamer_id", streamerId)
     .eq("status", "succeeded")
     .order("created_at", { ascending: false })
@@ -454,11 +533,13 @@ export async function loadLatestDonationOverlayEvent(streamerId: string): Promis
     return null;
   }
 
+  const money = resolveOverlayMoney(data.amount, overlay, data.source);
+
   return {
     id: data.id,
     donorName: data.donor_name,
-    amount: data.amount,
-    currency: "RUB",
+    amount: money.amount,
+    currency: money.currency,
     message: data.message ?? "",
     createdAt: data.created_at,
   };
@@ -471,6 +552,8 @@ export async function createDonationEvent(input: {
   donorName: string;
   amount: number;
   message?: string;
+  originalCurrency?: SupportedCurrency;
+  originalAmount?: number;
 }) {
   const { data, error } = await supabase
     .from("donation_events")
@@ -481,6 +564,12 @@ export async function createDonationEvent(input: {
       donor_name: input.donorName.trim(),
       amount: Math.max(10, Math.round(input.amount)),
       message: input.message?.trim() || null,
+      source: input.originalCurrency && typeof input.originalAmount === "number" && Number.isFinite(input.originalAmount)
+        ? encodeDonationEventSource({
+          originalCurrency: input.originalCurrency,
+          originalAmount: input.originalAmount,
+        })
+        : "novaboost-donation",
       status: "succeeded",
     })
     .select("id, donor_name, amount, message, created_at")

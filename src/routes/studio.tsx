@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/auth-context";
-import type { DonationOverlayVariant } from "@/lib/mock-platform";
+import type { DonationOverlayDisplayMode, DonationOverlayVariant } from "@/lib/mock-platform";
 import type { StreamerPost } from "@/lib/mock-platform";
 import { createDonationLinkDraft, getSubscriptionPlanLabel, loadManagedDonationLink, saveManagedDonationLink, SUBSCRIPTION_PLANS } from "@/lib/monetization-data";
 import { loadStreamerStudioData, publishStreamerPost, saveStreamerDonationOverlaySettings, saveStreamerStudioPage } from "@/lib/streamer-studio-data";
@@ -39,6 +39,8 @@ function createInitialStudioDraft() {
     donationSoundUrl: "",
     donationGifUrl: "",
     donationOverlayAccessKey: "",
+    donationOverlayDisplayMode: "original" as DonationOverlayDisplayMode,
+    donationOverlayDisplayCurrency: "USD" as const,
   };
 }
 
@@ -47,6 +49,8 @@ const DONATION_OVERLAY_VARIANTS: Array<{ key: DonationOverlayVariant; title: str
   { key: "epic-burst", title: "Epic Burst", description: "Короткий неоновый burst с быстрым входом и частицами." },
   { key: "nova-ring", title: "Nova Ring", description: "Чистый sci-fi ринг с импульсом и читаемым текстом." },
 ];
+
+const DONATION_DISPLAY_CURRENCIES = ["USD", "MDL", "RUB", "KZT"] as const;
 
 const STORAGE_EVENT_KEY = "novaboost:donation-overlay-event";
 
@@ -272,8 +276,15 @@ function StreamerStudioPage() {
         soundUrl: pageDraft.donationSoundUrl.trim(),
         gifUrl: pageDraft.donationGifUrl.trim(),
         accessKey: pageDraft.donationOverlayAccessKey,
+        displayMode: pageDraft.donationOverlayDisplayMode,
+        displayCurrency: pageDraft.donationOverlayDisplayCurrency,
       });
-      setPageDraft((current) => ({ ...current, donationOverlayAccessKey: savedOverlay.accessKey }));
+      setPageDraft((current) => ({
+        ...current,
+        donationOverlayAccessKey: savedOverlay.accessKey,
+        donationOverlayDisplayMode: savedOverlay.displayMode,
+        donationOverlayDisplayCurrency: savedOverlay.displayCurrency,
+      }));
       setDonationLinkDraft({
         slug: savedLink.slug,
         title: savedLink.title,
@@ -601,6 +612,39 @@ function StreamerStudioPage() {
                   <Field label="GIF URL / overlay sticker">
                     <Input value={pageDraft.donationGifUrl} onChange={(e) => setPageDraft((current) => ({ ...current, donationGifUrl: e.target.value }))} placeholder="https://.../nova.gif" />
                   </Field>
+                </div>
+                <div className="mt-4 rounded-xl border border-border/50 bg-background/30 p-4 text-sm text-muted-foreground">
+                  <div className="font-medium text-foreground">Валюта алерта в OBS</div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {([
+                      { value: "original", label: "Показывать как отправили" },
+                      { value: "preferred", label: "Показывать в валюте стримера" },
+                    ] as Array<{ value: DonationOverlayDisplayMode; label: string }>).map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setPageDraft((current) => ({ ...current, donationOverlayDisplayMode: option.value }))}
+                        className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${pageDraft.donationOverlayDisplayMode === option.value ? "border-blast bg-blast/10 text-foreground" : "border-border/50 bg-background/30 text-muted-foreground"}`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                  {pageDraft.donationOverlayDisplayMode === "preferred" && (
+                    <div className="mt-3">
+                      <Field label="Валюта стримера по умолчанию">
+                        <select
+                          value={pageDraft.donationOverlayDisplayCurrency}
+                          onChange={(e) => setPageDraft((current) => ({ ...current, donationOverlayDisplayCurrency: e.target.value as typeof DONATION_DISPLAY_CURRENCIES[number] }))}
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        >
+                          {DONATION_DISPLAY_CURRENCIES.map((currency) => (
+                            <option key={currency} value={currency}>{currency}</option>
+                          ))}
+                        </select>
+                      </Field>
+                    </div>
+                  )}
                 </div>
                 <div className="mt-4 rounded-xl border border-border/50 bg-background/30 p-3 text-xs text-muted-foreground">
                   Переменные для alert payload: `username`, `amount`, `currency`, `message`.

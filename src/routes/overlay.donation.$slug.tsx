@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { formatEditableAmount } from "@/lib/currency";
 import { loadDonationOverlayBySlug, loadLatestDonationOverlayEvent } from "@/lib/monetization-data";
 import type { DonationOverlayVariant } from "@/lib/mock-platform";
 
@@ -57,8 +58,10 @@ function DonationOverlayRoute() {
   const [soundUrl, setSoundUrl] = useState("");
   const [triggerKey, setTriggerKey] = useState(0);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
   const [streamerId, setStreamerId] = useState<string | null>(null);
   const lastEventIdRef = useRef<string | null>(null);
+  const hideTimerRef = useRef<number | null>(null);
   const initialPayload = useMemo(
     () => normalizeOverlayPayload({
       username: search.username,
@@ -132,6 +135,13 @@ function DonationOverlayRoute() {
         currency: nextPayload.currency || current.currency,
         message: nextPayload.message || current.message,
       }));
+      setIsVisible(true);
+      if (hideTimerRef.current !== null) {
+        window.clearTimeout(hideTimerRef.current);
+      }
+      hideTimerRef.current = window.setTimeout(() => {
+        setIsVisible(false);
+      }, 6200);
       setTriggerKey((current) => current + 1);
     };
 
@@ -179,6 +189,10 @@ function DonationOverlayRoute() {
       if (timer !== null) {
         window.clearTimeout(timer);
       }
+      if (hideTimerRef.current !== null) {
+        window.clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = null;
+      }
       channel?.close();
       window.removeEventListener("storage", handleStorage);
       delete window.NovaBoostOverlay;
@@ -207,7 +221,7 @@ function DonationOverlayRoute() {
       lastEventIdRef.current = event.id;
       window.NovaBoostOverlay?.showDonation({
         username: event.donorName,
-        amount: String(event.amount),
+        amount: formatEditableAmount(event.amount),
         currency: event.currency,
         message: event.message,
       });
@@ -232,25 +246,19 @@ function DonationOverlayRoute() {
           filter: `streamer_id=eq.${streamerId}`,
         },
         (payload) => {
-          const event = payload.new as {
-            id?: string;
-            donor_name?: string;
-            amount?: number;
-            message?: string | null;
-            status?: string;
-          };
+          const event = payload.new as { id?: string; status?: string };
 
-          if (event.status !== "succeeded" || !event.id || typeof event.donor_name !== "string" || typeof event.amount !== "number") {
+          if (event.status !== "succeeded" || !event.id) {
             return;
           }
 
-          pushEvent({
-            id: event.id,
-            donorName: event.donor_name,
-            amount: event.amount,
-            currency: "RUB",
-            message: event.message ?? "",
-          });
+          void loadLatestDonationOverlayEvent(streamerId)
+            .then((latestEvent) => {
+              if (latestEvent) {
+                pushEvent(latestEvent);
+              }
+            })
+            .catch(() => undefined);
         },
       )
       .subscribe();
@@ -399,14 +407,14 @@ function DonationOverlayRoute() {
       `}</style>
       <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 h-full w-full" />
       {soundUrl && <audio ref={audioRef} src={soundUrl} preload="auto" />}
-      {gifUrl && <img src={gifUrl} alt="overlay gif" className="pointer-events-none absolute right-[8%] top-[8%] max-h-56 max-w-[28vw] object-contain opacity-90" />}
+      {isVisible && gifUrl && <img src={gifUrl} alt="overlay gif" className="pointer-events-none absolute right-[8%] top-[8%] max-h-56 max-w-[28vw] object-contain opacity-90" />}
 
-      <div className="pointer-events-none absolute left-1/2 top-1/2 min-w-105 max-w-[82vw] -translate-x-1/2 -translate-y-1/2 text-center" style={{ animation: `nb-pop-in 820ms ease forwards, nb-pulse-glow 2s ease-in-out infinite alternate` }}>
+      {isVisible && <div className="pointer-events-none absolute left-1/2 top-1/2 min-w-105 max-w-[82vw] -translate-x-1/2 -translate-y-1/2 text-center" style={{ animation: `nb-pop-in 820ms ease forwards, nb-pulse-glow 2s ease-in-out infinite alternate` }}>
         <div className={`font-display text-sm uppercase tracking-[0.5em] ${variantClass.badge}`}>NOVA BOOST</div>
         <div className={`mt-3 font-display text-5xl font-bold md:text-6xl ${variantClass.title}`}>{payload.username}</div>
         <div className={`mt-4 font-display text-7xl font-bold md:text-8xl ${variantClass.amount}`}>{payload.amount} <span className="text-4xl align-top text-amber-300 md:text-5xl">{payload.currency}</span></div>
         {payload.message ? <div className={`mx-auto mt-6 max-w-4xl text-xl leading-8 md:text-3xl ${variantClass.message}`}>{payload.message}</div> : null}
-      </div>
+      </div>}
     </div>
   );
 }
