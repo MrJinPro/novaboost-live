@@ -51,6 +51,9 @@ const DEFAULT_DONATION_OVERLAY: DonationOverlaySettings = {
   accessKey: "",
   displayMode: "original",
   displayCurrency: "USD",
+  goalTitle: "Цель донатов",
+  goalTarget: 100,
+  goalCurrency: "USD",
 };
 
 function createOverlayAccessKey() {
@@ -76,6 +79,12 @@ function parseDonationOverlaySettings(layout: unknown): DonationOverlaySettings 
   const displayCurrency = overlay?.displayCurrency === "RUB" || overlay?.displayCurrency === "KZT" || overlay?.displayCurrency === "MDL" || overlay?.displayCurrency === "USD"
     ? overlay.displayCurrency
     : DEFAULT_DONATION_OVERLAY.displayCurrency;
+  const goalCurrency = overlay?.goalCurrency === "RUB" || overlay?.goalCurrency === "KZT" || overlay?.goalCurrency === "MDL" || overlay?.goalCurrency === "USD"
+    ? overlay.goalCurrency
+    : DEFAULT_DONATION_OVERLAY.goalCurrency;
+  const goalTarget = typeof overlay?.goalTarget === "number" && Number.isFinite(overlay.goalTarget)
+    ? Math.max(1, overlay.goalTarget)
+    : DEFAULT_DONATION_OVERLAY.goalTarget;
 
   return {
     variant: resolveDonationOverlayVariant(overlay?.variant),
@@ -84,6 +93,9 @@ function parseDonationOverlaySettings(layout: unknown): DonationOverlaySettings 
     accessKey: typeof overlay?.accessKey === "string" ? overlay.accessKey : DEFAULT_DONATION_OVERLAY.accessKey,
     displayMode,
     displayCurrency,
+    goalTitle: typeof overlay?.goalTitle === "string" && overlay.goalTitle.trim() ? overlay.goalTitle : DEFAULT_DONATION_OVERLAY.goalTitle,
+    goalTarget,
+    goalCurrency,
   };
 }
 
@@ -113,6 +125,9 @@ function createEmptyStudioDraft(tiktokUsername: string, displayName: string): St
     donationOverlayAccessKey: DEFAULT_DONATION_OVERLAY.accessKey,
     donationOverlayDisplayMode: DEFAULT_DONATION_OVERLAY.displayMode,
     donationOverlayDisplayCurrency: DEFAULT_DONATION_OVERLAY.displayCurrency,
+    donationGoalTitle: DEFAULT_DONATION_OVERLAY.goalTitle,
+    donationGoalTarget: String(DEFAULT_DONATION_OVERLAY.goalTarget),
+    donationGoalCurrency: DEFAULT_DONATION_OVERLAY.goalCurrency,
   };
 }
 
@@ -395,6 +410,9 @@ function buildDraft(base: StreamerStudioDraft, streamer: DbStreamer, settings: D
     donationOverlayAccessKey: donationOverlay.accessKey,
     donationOverlayDisplayMode: donationOverlay.displayMode,
     donationOverlayDisplayCurrency: donationOverlay.displayCurrency,
+    donationGoalTitle: donationOverlay.goalTitle,
+    donationGoalTarget: String(donationOverlay.goalTarget),
+    donationGoalCurrency: donationOverlay.goalCurrency,
   };
 }
 
@@ -420,6 +438,9 @@ export async function saveStreamerDonationOverlaySettings(user: AppUser, input: 
       accessKey,
       displayMode: input.displayMode,
       displayCurrency: input.displayCurrency,
+      goalTitle: input.goalTitle.trim() || DEFAULT_DONATION_OVERLAY.goalTitle,
+      goalTarget: Math.max(1, Math.round(input.goalTarget)),
+      goalCurrency: input.goalCurrency,
     },
   };
 
@@ -450,6 +471,9 @@ export async function saveStreamerDonationOverlaySettings(user: AppUser, input: 
     accessKey,
     displayMode: input.displayMode,
     displayCurrency: input.displayCurrency,
+    goalTitle: input.goalTitle.trim() || DEFAULT_DONATION_OVERLAY.goalTitle,
+    goalTarget: Math.max(1, Math.round(input.goalTarget)),
+    goalCurrency: input.goalCurrency,
   } satisfies DonationOverlaySettings;
 }
 

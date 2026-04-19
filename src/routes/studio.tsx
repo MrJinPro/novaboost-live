@@ -41,6 +41,9 @@ function createInitialStudioDraft() {
     donationOverlayAccessKey: "",
     donationOverlayDisplayMode: "original" as DonationOverlayDisplayMode,
     donationOverlayDisplayCurrency: "USD" as const,
+    donationGoalTitle: "Цель донатов",
+    donationGoalTarget: "100",
+    donationGoalCurrency: "USD" as const,
   };
 }
 
@@ -172,6 +175,14 @@ function StreamerStudioPage() {
   const donationPreviewUrl = donationLinkDraft.slug && pageDraft.donationOverlayAccessKey
     ? `${appOrigin}/overlay/donation/${donationLinkDraft.slug}?key=${pageDraft.donationOverlayAccessKey}`
     : "";
+  const donationWidgetUrls = donationLinkDraft.slug && pageDraft.donationOverlayAccessKey
+    ? {
+        latest: `${appOrigin}/overlay/widget/${donationLinkDraft.slug}/latest?key=${pageDraft.donationOverlayAccessKey}`,
+        topDay: `${appOrigin}/overlay/widget/${donationLinkDraft.slug}/top-day?key=${pageDraft.donationOverlayAccessKey}`,
+        topAllTime: `${appOrigin}/overlay/widget/${donationLinkDraft.slug}/top-all-time?key=${pageDraft.donationOverlayAccessKey}`,
+        goal: `${appOrigin}/overlay/widget/${donationLinkDraft.slug}/goal?key=${pageDraft.donationOverlayAccessKey}`,
+      }
+    : null;
 
   const savePage = async () => {
     setSavingPage(true);
@@ -278,12 +289,18 @@ function StreamerStudioPage() {
         accessKey: pageDraft.donationOverlayAccessKey,
         displayMode: pageDraft.donationOverlayDisplayMode,
         displayCurrency: pageDraft.donationOverlayDisplayCurrency,
+        goalTitle: pageDraft.donationGoalTitle,
+        goalTarget: Number(pageDraft.donationGoalTarget) || 100,
+        goalCurrency: pageDraft.donationGoalCurrency,
       });
       setPageDraft((current) => ({
         ...current,
         donationOverlayAccessKey: savedOverlay.accessKey,
         donationOverlayDisplayMode: savedOverlay.displayMode,
         donationOverlayDisplayCurrency: savedOverlay.displayCurrency,
+        donationGoalTitle: savedOverlay.goalTitle,
+        donationGoalTarget: String(savedOverlay.goalTarget),
+        donationGoalCurrency: savedOverlay.goalCurrency,
       }));
       setDonationLinkDraft({
         slug: savedLink.slug,
@@ -646,6 +663,28 @@ function StreamerStudioPage() {
                     </div>
                   )}
                 </div>
+                <div className="mt-4 rounded-xl border border-border/50 bg-background/30 p-4 text-sm text-muted-foreground">
+                  <div className="font-medium text-foreground">Цель по донатам</div>
+                  <div className="mt-3 grid gap-4 md:grid-cols-[1.4fr_0.8fr_0.8fr]">
+                    <Field label="Название цели">
+                      <Input value={pageDraft.donationGoalTitle} onChange={(e) => setPageDraft((current) => ({ ...current, donationGoalTitle: e.target.value }))} placeholder="Например: Новый микрофон для стрима" />
+                    </Field>
+                    <Field label="Сумма цели">
+                      <Input type="number" min={1} value={pageDraft.donationGoalTarget} onChange={(e) => setPageDraft((current) => ({ ...current, donationGoalTarget: e.target.value }))} />
+                    </Field>
+                    <Field label="Валюта цели">
+                      <select
+                        value={pageDraft.donationGoalCurrency}
+                        onChange={(e) => setPageDraft((current) => ({ ...current, donationGoalCurrency: e.target.value as typeof DONATION_DISPLAY_CURRENCIES[number] }))}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      >
+                        {DONATION_DISPLAY_CURRENCIES.map((currency) => (
+                          <option key={currency} value={currency}>{currency}</option>
+                        ))}
+                      </select>
+                    </Field>
+                  </div>
+                </div>
                 <div className="mt-4 rounded-xl border border-border/50 bg-background/30 p-3 text-xs text-muted-foreground">
                   Переменные для alert payload: `username`, `amount`, `currency`, `message`.
                 </div>
@@ -657,6 +696,21 @@ function StreamerStudioPage() {
                 {donationPreviewUrl && (
                   <div className="mt-4 rounded-xl border border-border/50 bg-background/30 p-3 text-xs text-muted-foreground break-all">
                     {donationPreviewUrl}
+                  </div>
+                )}
+                {donationWidgetUrls && (
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    {[
+                      { label: "Последний донат", url: donationWidgetUrls.latest },
+                      { label: "Топ дня", url: donationWidgetUrls.topDay },
+                      { label: "Топ за всё время", url: donationWidgetUrls.topAllTime },
+                      { label: "Цель по донатам", url: donationWidgetUrls.goal },
+                    ].map((widget) => (
+                      <div key={widget.label} className="rounded-xl border border-border/50 bg-background/30 p-3">
+                        <div className="text-xs font-medium text-foreground">{widget.label}</div>
+                        <div className="mt-2 break-all text-[11px] text-muted-foreground">{widget.url}</div>
+                      </div>
+                    ))}
                   </div>
                 )}
                 <div className="mt-4 flex flex-wrap gap-3">

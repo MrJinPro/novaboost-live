@@ -67,10 +67,29 @@ export interface StreamerStudioDraft {
   donationOverlayAccessKey: string;
   donationOverlayDisplayMode: DonationOverlayDisplayMode;
   donationOverlayDisplayCurrency: "USD" | "RUB" | "KZT" | "MDL";
+  donationGoalTitle: string;
+  donationGoalTarget: string;
+  donationGoalCurrency: "USD" | "RUB" | "KZT" | "MDL";
+}
+
+export interface DonationWidgetEntry {
+  donorName: string;
+  amount: number;
+  currency: "USD" | "RUB" | "KZT" | "MDL";
+  donationCount: number;
+}
+
+export interface DonationGoalProgress {
+  title: string;
+  currentAmount: number;
+  targetAmount: number;
+  currency: "USD" | "RUB" | "KZT" | "MDL";
+  progressPercent: number;
 }
 
 export type DonationOverlayVariant = "supernova" | "epic-burst" | "nova-ring";
 export type DonationOverlayDisplayMode = "original" | "preferred";
+export type DonationWidgetType = "latest" | "top-day" | "top-all-time" | "goal";
 
 export interface DonationOverlaySettings {
   variant: DonationOverlayVariant;
@@ -79,6 +98,9 @@ export interface DonationOverlaySettings {
   accessKey: string;
   displayMode: DonationOverlayDisplayMode;
   displayCurrency: "USD" | "RUB" | "KZT" | "MDL";
+  goalTitle: string;
+  goalTarget: number;
+  goalCurrency: "USD" | "RUB" | "KZT" | "MDL";
 }
 
 export interface DonationEventSummary {

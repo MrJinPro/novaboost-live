@@ -23,6 +23,7 @@ import { Route as StreamerIdRouteImport } from './routes/streamer.$id'
 import { Route as ApiCurrencyPreferenceRouteImport } from './routes/api/currency-preference'
 import { Route as ApiRevealKeyRouteImport } from './routes/api/_reveal-key'
 import { Route as OverlayDonationSlugRouteImport } from './routes/overlay.donation.$slug'
+import { Route as OverlayWidgetSlugWidgetRouteImport } from './routes/overlay.widget.$slug.$widget'
 
 const TasksRoute = TasksRouteImport.update({
   id: '/tasks',
@@ -94,6 +95,11 @@ const OverlayDonationSlugRoute = OverlayDonationSlugRouteImport.update({
   path: '/overlay/donation/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OverlayWidgetSlugWidgetRoute = OverlayWidgetSlugWidgetRouteImport.update({
+  id: '/overlay/widget/$slug/$widget',
+  path: '/overlay/widget/$slug/$widget',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -110,6 +116,7 @@ export interface FileRoutesByFullPath {
   '/streamer/$id': typeof StreamerIdRoute
   '/support/$slug': typeof SupportSlugRoute
   '/overlay/donation/$slug': typeof OverlayDonationSlugRoute
+  '/overlay/widget/$slug/$widget': typeof OverlayWidgetSlugWidgetRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -126,6 +133,7 @@ export interface FileRoutesByTo {
   '/streamer/$id': typeof StreamerIdRoute
   '/support/$slug': typeof SupportSlugRoute
   '/overlay/donation/$slug': typeof OverlayDonationSlugRoute
+  '/overlay/widget/$slug/$widget': typeof OverlayWidgetSlugWidgetRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -143,6 +151,7 @@ export interface FileRoutesById {
   '/streamer/$id': typeof StreamerIdRoute
   '/support/$slug': typeof SupportSlugRoute
   '/overlay/donation/$slug': typeof OverlayDonationSlugRoute
+  '/overlay/widget/$slug/$widget': typeof OverlayWidgetSlugWidgetRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -161,6 +170,7 @@ export interface FileRouteTypes {
     | '/streamer/$id'
     | '/support/$slug'
     | '/overlay/donation/$slug'
+    | '/overlay/widget/$slug/$widget'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -177,6 +187,7 @@ export interface FileRouteTypes {
     | '/streamer/$id'
     | '/support/$slug'
     | '/overlay/donation/$slug'
+    | '/overlay/widget/$slug/$widget'
   id:
     | '__root__'
     | '/'
@@ -193,6 +204,7 @@ export interface FileRouteTypes {
     | '/streamer/$id'
     | '/support/$slug'
     | '/overlay/donation/$slug'
+    | '/overlay/widget/$slug/$widget'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -210,6 +222,7 @@ export interface RootRouteChildren {
   StreamerIdRoute: typeof StreamerIdRoute
   SupportSlugRoute: typeof SupportSlugRoute
   OverlayDonationSlugRoute: typeof OverlayDonationSlugRoute
+  OverlayWidgetSlugWidgetRoute: typeof OverlayWidgetSlugWidgetRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -312,6 +325,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OverlayDonationSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/overlay/widget/$slug/$widget': {
+      id: '/overlay/widget/$slug/$widget'
+      path: '/overlay/widget/$slug/$widget'
+      fullPath: '/overlay/widget/$slug/$widget'
+      preLoaderRoute: typeof OverlayWidgetSlugWidgetRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -330,6 +350,7 @@ const rootRouteChildren: RootRouteChildren = {
   StreamerIdRoute: StreamerIdRoute,
   SupportSlugRoute: SupportSlugRoute,
   OverlayDonationSlugRoute: OverlayDonationSlugRoute,
+  OverlayWidgetSlugWidgetRoute: OverlayWidgetSlugWidgetRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

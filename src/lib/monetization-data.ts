@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { convertCurrency } from "@/lib/currency";
 import type { SupportedCurrency } from "@/lib/currency";
-import type { AppUser, DonationEventSummary, DonationOverlaySettings, DonationOverlayVariant, PostReactionType, SubscriptionPlanKey } from "@/lib/mock-platform";
+import type { AppUser, DonationEventSummary, DonationGoalProgress, DonationOverlaySettings, DonationOverlayVariant, DonationWidgetEntry, PostReactionType, SubscriptionPlanKey } from "@/lib/mock-platform";
 import { resolveLinkedStreamer } from "@/lib/streamer-profile-linking";
 
 export type SubscriptionPlanDefinition = {
@@ -57,6 +57,15 @@ export type DonationOverlayEvent = {
   createdAt: string;
 };
 
+type DonationEventRow = {
+  id: string;
+  donor_name: string;
+  amount: number;
+  message: string | null;
+  created_at: string;
+  source: string;
+};
+
 const DEFAULT_DONATION_OVERLAY: DonationOverlaySettings = {
   variant: "supernova",
   soundUrl: "",
@@ -64,6 +73,9 @@ const DEFAULT_DONATION_OVERLAY: DonationOverlaySettings = {
   accessKey: "",
   displayMode: "original",
   displayCurrency: "USD",
+  goalTitle: "Цель донатов",
+  goalTarget: 100,
+  goalCurrency: "USD",
 };
 
 type DonationEventSourcePayload = {
@@ -88,6 +100,12 @@ function parseDonationOverlaySettings(layout: unknown): DonationOverlaySettings 
   const displayCurrency = overlay?.displayCurrency === "RUB" || overlay?.displayCurrency === "KZT" || overlay?.displayCurrency === "MDL" || overlay?.displayCurrency === "USD"
     ? overlay.displayCurrency
     : DEFAULT_DONATION_OVERLAY.displayCurrency;
+  const goalCurrency = overlay?.goalCurrency === "RUB" || overlay?.goalCurrency === "KZT" || overlay?.goalCurrency === "MDL" || overlay?.goalCurrency === "USD"
+    ? overlay.goalCurrency
+    : DEFAULT_DONATION_OVERLAY.goalCurrency;
+  const goalTarget = typeof overlay?.goalTarget === "number" && Number.isFinite(overlay.goalTarget)
+    ? Math.max(1, overlay.goalTarget)
+    : DEFAULT_DONATION_OVERLAY.goalTarget;
 
   return {
     variant: resolveDonationOverlayVariant(overlay?.variant),
@@ -96,6 +114,9 @@ function parseDonationOverlaySettings(layout: unknown): DonationOverlaySettings 
     accessKey: typeof overlay?.accessKey === "string" ? overlay.accessKey : DEFAULT_DONATION_OVERLAY.accessKey,
     displayMode,
     displayCurrency,
+    goalTitle: typeof overlay?.goalTitle === "string" && overlay.goalTitle.trim() ? overlay.goalTitle : DEFAULT_DONATION_OVERLAY.goalTitle,
+    goalTarget,
+    goalCurrency,
   };
 }
 
@@ -148,6 +169,94 @@ function resolveOverlayMoney(
   return {
     amount: convertCurrency(amountRub, "RUB", targetCurrency),
     currency: targetCurrency,
+  };
+}
+
+function startOfCurrentDayIso() {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  return now.toISOString();
+}
+
+async function loadDonationRows(streamerId: string, options?: { since?: string; limit?: number }) {
+  let query = supabase
+    .from("donation_events")
+    .select("id, donor_name, amount, message, created_at, source")
+    .eq("streamer_id", streamerId)
+    .eq("status", "succeeded")
+    .order("created_at", { ascending: false });
+
+  if (options?.since) {
+    query = query.gte("created_at", options.since);
+  }
+
+  if (options?.limit) {
+    query = query.limit(options.limit);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as DonationEventRow[];
+}
+
+function aggregateDonationRows(rows: DonationEventRow[], currency: SupportedCurrency): DonationWidgetEntry[] {
+  const totals = new Map<string, DonationWidgetEntry>();
+
+  for (const row of rows) {
+    const current = totals.get(row.donor_name) ?? {
+      donorName: row.donor_name,
+      amount: 0,
+      currency,
+      donationCount: 0,
+    };
+
+    current.amount += convertCurrency(row.amount, "RUB", currency);
+    current.donationCount += 1;
+    totals.set(row.donor_name, current);
+  }
+
+  return Array.from(totals.values())
+    .sort((left, right) => right.amount - left.amount || right.donationCount - left.donationCount)
+    .slice(0, 5)
+    .map((entry) => ({
+      ...entry,
+      amount: Number(entry.amount.toFixed(2)),
+    }));
+}
+
+export async function loadDonationWidgetEntries(streamerId: string, widget: "top-day" | "top-all-time", currency: SupportedCurrency) {
+  const rows = await loadDonationRows(streamerId, {
+    since: widget === "top-day" ? startOfCurrentDayIso() : undefined,
+  });
+
+  return aggregateDonationRows(rows, currency);
+}
+
+export async function loadDonationGoalProgress(streamerId: string): Promise<DonationGoalProgress> {
+  const { data: settings, error: settingsError } = await supabase
+    .from("streamer_page_settings")
+    .select("layout")
+    .eq("streamer_id", streamerId)
+    .maybeSingle();
+
+  if (settingsError) {
+    throw settingsError;
+  }
+
+  const overlay = parseDonationOverlaySettings(settings?.layout ?? null);
+  const rows = await loadDonationRows(streamerId);
+  const currentAmount = rows.reduce((sum, row) => sum + convertCurrency(row.amount, "RUB", overlay.goalCurrency), 0);
+
+  return {
+    title: overlay.goalTitle,
+    currentAmount: Number(currentAmount.toFixed(2)),
+    targetAmount: overlay.goalTarget,
+    currency: overlay.goalCurrency,
+    progressPercent: Math.max(0, Math.min(100, (currentAmount / overlay.goalTarget) * 100)),
   };
 }
 
