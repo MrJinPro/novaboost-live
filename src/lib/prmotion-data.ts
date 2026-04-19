@@ -1,3 +1,4 @@
+import { getBackendBaseUrl } from "@/lib/backend-base-url";
 export type TikTokPromotionService = {
   id: number;
   name: string;
@@ -490,10 +491,6 @@ export function groupTikTokPromotionServices(services: TikTokPromotionService[])
       services: normalized.filter((service) => (service.subcategory ?? "Другое") === group.key),
     }))
     .filter((group) => group.services.length > 0);
-}
-
-function getBackendBaseUrl() {
-  return import.meta.env.VITE_BACKEND_URL || process.env.VITE_BACKEND_URL || "http://127.0.0.1:4310";
 }
 
 async function requestJson<TResponse>(path: string, init?: RequestInit) {
