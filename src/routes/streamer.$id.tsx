@@ -422,7 +422,7 @@ function StreamerProfile() {
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard icon={<Eye className="h-5 w-5" />} label="Зрителей сейчас" value={streamer.is_live ? formatNumber(streamer.viewer_count) : "—"} accent="live" />
-          <StatCard icon={<Users className="h-5 w-5" />} label="Подписчиков" value={formatNumber(streamer.followers_count)} />
+          <StatCard icon={<Users className="h-5 w-5" />} label="TikTok подписчиков" value={formatNumber(streamer.followers_count)} />
           <StatCard icon={<Zap className="h-5 w-5" />} label="Поддержка сообщества" value={formatNumber(streamer.total_boost_amount)} accent="blast" />
           <StatCard icon={<TrendingUp className="h-5 w-5" />} label="Подписки в платформе" value={formatNumber(streamer.subscription_count)} />
           <StatCard icon={<Sparkles className="h-5 w-5" />} label="Лайков в эфире" value={formatNumber(streamer.total_likes)} accent="blast" />

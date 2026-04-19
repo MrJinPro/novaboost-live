@@ -12,6 +12,7 @@ interface StreamerCardProps {
 
 export function StreamerCard({ streamer, variant = "default" }: StreamerCardProps) {
   const boosted = streamer.total_boost_amount > 0;
+  const platformSubscriberCount = streamer.subscription_count ?? 0;
   const liveMetrics = [
     { key: "viewers", icon: Eye, value: streamer.viewer_count },
     { key: "likes", icon: Heart, value: streamer.like_count ?? 0 },
@@ -62,7 +63,7 @@ export function StreamerCard({ streamer, variant = "default" }: StreamerCardProp
           ) : (
             <div className="flex items-center gap-1">
               <Users className="h-3 w-3" />
-              {formatNumber(streamer.followers_count)}
+              {formatNumber(platformSubscriberCount)}
             </div>
           )}
         </div>
@@ -128,7 +129,7 @@ export function StreamerCard({ streamer, variant = "default" }: StreamerCardProp
           ) : (
             <span className="inline-flex items-center gap-1 text-muted-foreground">
               <Users className="h-3.5 w-3.5" />
-              {formatNumber(streamer.followers_count)}
+              {formatNumber(platformSubscriberCount)}
             </span>
           )}
         </div>

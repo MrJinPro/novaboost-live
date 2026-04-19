@@ -69,7 +69,7 @@ function LeaderboardPage() {
     };
   }, []);
 
-  const streamers = [...streamerList].sort((a, b) => b.total_boost_amount - a.total_boost_amount).slice(0, 10);
+  const streamers = [...streamerList].sort((a, b) => (b.subscription_count ?? 0) - (a.subscription_count ?? 0)).slice(0, 10);
 
   return (
     <div className="min-h-screen">
@@ -98,7 +98,7 @@ function LeaderboardPage() {
                       <span className="font-semibold truncate">{s.display_name}</span>
                       {s.total_boost_amount > 0 && <span>👑</span>}
                     </div>
-                    <div className="text-xs text-muted-foreground">{formatNumber(s.followers_count)} подписчиков</div>
+                    <div className="text-xs text-muted-foreground">{formatNumber(s.subscription_count ?? 0)} подписчиков в платформе</div>
                   </div>
                   <div className="text-right">
                     <div className="font-bold text-blast">{formatNumber(s.total_boost_amount)} ⚡</div>

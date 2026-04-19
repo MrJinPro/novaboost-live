@@ -24,6 +24,7 @@ export interface StreamerCardData {
   message_count?: number;
   peak_viewer_count?: number;
   followers_count: number;
+  subscription_count?: number;
   needs_boost: boolean;
   total_boost_amount: number;
 }

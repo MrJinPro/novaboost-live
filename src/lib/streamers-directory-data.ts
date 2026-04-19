@@ -21,6 +21,10 @@ type DbStreamerCard = {
   total_boost_amount: number;
 };
 
+type DbStreamerSubscription = {
+  streamer_id: string;
+};
+
 type DbPageSettingsLogo = {
   streamer_id: string;
   logo_url: string | null;
@@ -44,6 +48,7 @@ function normalizeStreamer(row: DbStreamerCard): StreamerCardData {
     message_count: fallback?.message_count ?? 0,
     peak_viewer_count: fallback?.peak_viewer_count ?? 0,
     followers_count: row.followers_count ?? fallback?.followers_count ?? 0,
+    subscription_count: fallback?.subscription_count ?? 0,
     needs_boost: row.needs_boost,
     total_boost_amount: row.total_boost_amount ?? 0,
   };
@@ -67,8 +72,27 @@ export async function loadStreamerDirectory() {
 
   const streamers = (data ?? []) as DbStreamerCard[];
   let pageSettingsLogos = new Map<string, string | null>();
+  let subscriptionCounts = new Map<string, number>();
   let liveStatuses = new Map<string, Awaited<ReturnType<typeof resolveLiveStatuses>> extends Map<string, infer TValue> ? TValue : never>();
   let trackingByStreamerId = new Map<string, Awaited<ReturnType<typeof loadStreamerTrackingDetails>>>();
+
+  try {
+    const { data: subscriptionRows, error: subscriptionError } = await supabase
+      .from("streamer_subscriptions")
+      .select("streamer_id")
+      .in("streamer_id", streamers.map((row) => row.id));
+
+    if (subscriptionError) {
+      throw subscriptionError;
+    }
+
+    subscriptionCounts = ((subscriptionRows ?? []) as DbStreamerSubscription[]).reduce((map, row) => {
+      map.set(row.streamer_id, (map.get(row.streamer_id) ?? 0) + 1);
+      return map;
+    }, new Map<string, number>());
+  } catch {
+    // Keep follower-based fallbacks when subscription rows are unavailable.
+  }
 
   try {
     const { data: pageSettingsData, error: pageSettingsError } = await supabase
@@ -127,7 +151,10 @@ export async function loadStreamerDirectory() {
       message_count: latestSession?.message_count ?? 0,
       peak_viewer_count: latestSession?.peak_viewer_count ?? 0,
     });
-  });
+  }).map((row) => ({
+    ...row,
+    subscription_count: subscriptionCounts.get(row.id) ?? row.subscription_count ?? 0,
+  }));
 
   realStreamers.sort((left, right) => {
     if (left.is_live !== right.is_live) {
@@ -136,6 +163,11 @@ export async function loadStreamerDirectory() {
 
     if (left.total_boost_amount !== right.total_boost_amount) {
       return right.total_boost_amount - left.total_boost_amount;
+    }
+
+    const subscriptionDelta = (right.subscription_count ?? 0) - (left.subscription_count ?? 0);
+    if (subscriptionDelta !== 0) {
+      return subscriptionDelta;
     }
 
     if (left.is_live && right.is_live && left.viewer_count !== right.viewer_count) {

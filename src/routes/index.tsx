@@ -70,7 +70,7 @@ function HomePage() {
   const live = streamers.filter((s) => s.is_live);
   const boosted = streamers.filter((s) => s.total_boost_amount > 0);
   const needsBoost = streamers.filter((s) => s.needs_boost && s.is_live).slice(0, 4);
-  const top = [...streamers].sort((a, b) => b.followers_count - a.followers_count).slice(0, 5);
+  const top = [...streamers].sort((a, b) => (b.subscription_count ?? 0) - (a.subscription_count ?? 0)).slice(0, 5);
   const totalLiveViewers = live.reduce((acc, s) => acc + s.viewer_count, 0);
 
   return (
@@ -207,7 +207,7 @@ function HomePage() {
 
             {/* 🏆 ТОП СТРИМЕРОВ */}
             <BentoBlock className="md:col-span-4">
-              <BlockHeader icon={<Trophy className="h-5 w-5 text-amber" />} title="Топ стримеров" subtitle="По числу подписчиков" />
+              <BlockHeader icon={<Trophy className="h-5 w-5 text-amber" />} title="Топ стримеров" subtitle="По подпискам внутри платформы" />
               <div className="mt-4 space-y-2">
                 {top.map((s, idx) => (
                   <Link
@@ -226,7 +226,7 @@ function HomePage() {
                     <img src={s.avatar_url ?? ""} alt="" className="h-8 w-8 rounded-full bg-surface-2" />
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-semibold truncate">{s.display_name}</div>
-                      <div className="text-[10px] text-muted-foreground">{formatNumber(s.followers_count)} подписчиков</div>
+                      <div className="text-[10px] text-muted-foreground">{formatNumber(s.subscription_count ?? 0)} подписчиков в платформе</div>
                     </div>
                   </Link>
                 ))}
