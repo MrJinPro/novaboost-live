@@ -1,4 +1,4 @@
-export type AppRole = "viewer" | "streamer";
+export type AppRole = "viewer" | "streamer" | "admin";
 export type SubscriptionPlanKey = "free" | "supporter" | "superfan" | "legend";
 export type PostReactionType = "nova" | "flare" | "pulse" | "crown";
 

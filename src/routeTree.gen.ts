@@ -18,6 +18,7 @@ import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as BoostRouteImport } from './routes/boost'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SupportSlugRouteImport } from './routes/support.$slug'
@@ -31,6 +32,7 @@ import { Route as LegalAcceptableUseRouteImport } from './routes/legal.acceptabl
 import { Route as ApiCurrencyPreferenceRouteImport } from './routes/api/currency-preference'
 import { Route as ApiRevealKeyRouteImport } from './routes/api/_reveal-key'
 import { Route as OverlayDonationSlugRouteImport } from './routes/overlay.donation.$slug'
+import { Route as ApiAdminStreamerApplicationsRouteImport } from './routes/api/admin/streamer-applications'
 import { Route as OverlayWidgetSlugWidgetRouteImport } from './routes/overlay.widget.$slug.$widget'
 
 const TasksRoute = TasksRouteImport.update({
@@ -76,6 +78,11 @@ const BoostRoute = BoostRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -143,6 +150,12 @@ const OverlayDonationSlugRoute = OverlayDonationSlugRouteImport.update({
   path: '/overlay/donation/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminStreamerApplicationsRoute =
+  ApiAdminStreamerApplicationsRouteImport.update({
+    id: '/api/admin/streamer-applications',
+    path: '/api/admin/streamer-applications',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const OverlayWidgetSlugWidgetRoute = OverlayWidgetSlugWidgetRouteImport.update({
   id: '/overlay/widget/$slug/$widget',
   path: '/overlay/widget/$slug/$widget',
@@ -152,6 +165,7 @@ const OverlayWidgetSlugWidgetRoute = OverlayWidgetSlugWidgetRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/boost': typeof BoostRoute
   '/help': typeof HelpRoute
@@ -171,12 +185,14 @@ export interface FileRoutesByFullPath {
   '/legal/terms': typeof LegalTermsRoute
   '/streamer/$id': typeof StreamerIdRoute
   '/support/$slug': typeof SupportSlugRoute
+  '/api/admin/streamer-applications': typeof ApiAdminStreamerApplicationsRoute
   '/overlay/donation/$slug': typeof OverlayDonationSlugRoute
   '/overlay/widget/$slug/$widget': typeof OverlayWidgetSlugWidgetRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/boost': typeof BoostRoute
   '/help': typeof HelpRoute
@@ -196,6 +212,7 @@ export interface FileRoutesByTo {
   '/legal/terms': typeof LegalTermsRoute
   '/streamer/$id': typeof StreamerIdRoute
   '/support/$slug': typeof SupportSlugRoute
+  '/api/admin/streamer-applications': typeof ApiAdminStreamerApplicationsRoute
   '/overlay/donation/$slug': typeof OverlayDonationSlugRoute
   '/overlay/widget/$slug/$widget': typeof OverlayWidgetSlugWidgetRoute
 }
@@ -203,6 +220,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/boost': typeof BoostRoute
   '/help': typeof HelpRoute
@@ -222,6 +240,7 @@ export interface FileRoutesById {
   '/legal/terms': typeof LegalTermsRoute
   '/streamer/$id': typeof StreamerIdRoute
   '/support/$slug': typeof SupportSlugRoute
+  '/api/admin/streamer-applications': typeof ApiAdminStreamerApplicationsRoute
   '/overlay/donation/$slug': typeof OverlayDonationSlugRoute
   '/overlay/widget/$slug/$widget': typeof OverlayWidgetSlugWidgetRoute
 }
@@ -230,6 +249,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/about'
+    | '/admin'
     | '/auth'
     | '/boost'
     | '/help'
@@ -249,12 +269,14 @@ export interface FileRouteTypes {
     | '/legal/terms'
     | '/streamer/$id'
     | '/support/$slug'
+    | '/api/admin/streamer-applications'
     | '/overlay/donation/$slug'
     | '/overlay/widget/$slug/$widget'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/about'
+    | '/admin'
     | '/auth'
     | '/boost'
     | '/help'
@@ -274,12 +296,14 @@ export interface FileRouteTypes {
     | '/legal/terms'
     | '/streamer/$id'
     | '/support/$slug'
+    | '/api/admin/streamer-applications'
     | '/overlay/donation/$slug'
     | '/overlay/widget/$slug/$widget'
   id:
     | '__root__'
     | '/'
     | '/about'
+    | '/admin'
     | '/auth'
     | '/boost'
     | '/help'
@@ -299,6 +323,7 @@ export interface FileRouteTypes {
     | '/legal/terms'
     | '/streamer/$id'
     | '/support/$slug'
+    | '/api/admin/streamer-applications'
     | '/overlay/donation/$slug'
     | '/overlay/widget/$slug/$widget'
   fileRoutesById: FileRoutesById
@@ -306,6 +331,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  AdminRoute: typeof AdminRoute
   AuthRoute: typeof AuthRoute
   BoostRoute: typeof BoostRoute
   HelpRoute: typeof HelpRoute
@@ -325,6 +351,7 @@ export interface RootRouteChildren {
   LegalTermsRoute: typeof LegalTermsRoute
   StreamerIdRoute: typeof StreamerIdRoute
   SupportSlugRoute: typeof SupportSlugRoute
+  ApiAdminStreamerApplicationsRoute: typeof ApiAdminStreamerApplicationsRoute
   OverlayDonationSlugRoute: typeof OverlayDonationSlugRoute
   OverlayWidgetSlugWidgetRoute: typeof OverlayWidgetSlugWidgetRoute
 }
@@ -392,6 +419,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -485,6 +519,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OverlayDonationSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/streamer-applications': {
+      id: '/api/admin/streamer-applications'
+      path: '/api/admin/streamer-applications'
+      fullPath: '/api/admin/streamer-applications'
+      preLoaderRoute: typeof ApiAdminStreamerApplicationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/overlay/widget/$slug/$widget': {
       id: '/overlay/widget/$slug/$widget'
       path: '/overlay/widget/$slug/$widget'
@@ -498,6 +539,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
   BoostRoute: BoostRoute,
   HelpRoute: HelpRoute,
@@ -517,6 +559,7 @@ const rootRouteChildren: RootRouteChildren = {
   LegalTermsRoute: LegalTermsRoute,
   StreamerIdRoute: StreamerIdRoute,
   SupportSlugRoute: SupportSlugRoute,
+  ApiAdminStreamerApplicationsRoute: ApiAdminStreamerApplicationsRoute,
   OverlayDonationSlugRoute: OverlayDonationSlugRoute,
   OverlayWidgetSlugWidgetRoute: OverlayWidgetSlugWidgetRoute,
 }

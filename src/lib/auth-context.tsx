@@ -29,6 +29,21 @@ async function getProfile(userId: string) {
   return getAuthProfileCompat(userId);
 }
 
+async function resolveAppRole(userId: string, hasVerifiedStreamerProfile: boolean): Promise<AppRole> {
+  const { data, error } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("role", "admin")
+    .maybeSingle();
+
+  if (!error && data?.role === "admin") {
+    return "admin";
+  }
+
+  return hasVerifiedStreamerProfile ? "streamer" : "viewer";
+}
+
 async function buildAppUser(session: Session): Promise<AppUser> {
   const profile = await getProfile(session.user.id);
   const streamer = await resolveLinkedStreamer({
@@ -36,6 +51,7 @@ async function buildAppUser(session: Session): Promise<AppUser> {
     tiktokUsername: profile?.tiktok_username ?? session.user.user_metadata.tiktok_username ?? "",
   });
   const hasVerifiedStreamerProfile = streamer?.verification_status === "verified";
+  const role = await resolveAppRole(session.user.id, hasVerifiedStreamerProfile);
 
   const username = profile?.username ?? session.user.user_metadata.username ?? session.user.email?.split("@")[0] ?? "user";
   const displayName = (hasVerifiedStreamerProfile ? streamer?.display_name : null) ?? profile?.display_name ?? session.user.user_metadata.display_name ?? username;
@@ -43,7 +59,7 @@ async function buildAppUser(session: Session): Promise<AppUser> {
 
   return {
     id: session.user.id,
-    role: hasVerifiedStreamerProfile ? "streamer" : "viewer",
+    role,
     email: session.user.email ?? "",
     username,
     displayName,

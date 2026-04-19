@@ -4,7 +4,7 @@ import { Logo } from "./Logo";
 import { CurrencySwitcher } from "@/components/CurrencySwitcher";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, LogOut, User as UserIcon } from "lucide-react";
+import { ExternalLink, LogOut, ShieldCheck, User as UserIcon } from "lucide-react";
 import { getOwnedStreamerPublicPage } from "@/lib/streamer-studio-data";
 
 const BASE_NAV = [
@@ -18,9 +18,11 @@ export function Header() {
   const { user, signOut } = useAuth();
   const location = useLocation();
   const [publicPageId, setPublicPageId] = useState<string | null>(null);
-  const navItems = user?.role === "streamer"
-    ? [...BASE_NAV, { to: "/services" as const, label: "Продвижение" }, { to: "/studio" as const, label: "Студия" }]
-    : BASE_NAV;
+  const navItems = [
+    ...BASE_NAV,
+    ...(user?.role === "streamer" ? [{ to: "/services" as const, label: "Продвижение" }, { to: "/studio" as const, label: "Студия" }] : []),
+    ...(user?.role === "admin" ? [{ to: "/admin" as const, label: "Админка" }] : []),
+  ];
 
   useEffect(() => {
     let active = true;
@@ -94,6 +96,14 @@ export function Header() {
                   <span className="hidden sm:inline">{user.role === "streamer" ? "Кабинет" : "Профиль"}</span>
                 </Button>
               </Link>
+              {user.role === "admin" && (
+                <Link to="/admin">
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <ShieldCheck className="h-4 w-4" />
+                    <span className="hidden sm:inline">Админка</span>
+                  </Button>
+                </Link>
+              )}
               <Button variant="ghost" size="sm" onClick={signOut} aria-label="Выйти">
                 <LogOut className="h-4 w-4" />
               </Button>
