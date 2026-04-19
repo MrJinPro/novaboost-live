@@ -5,6 +5,7 @@ export type TikTokProfileData = {
   displayName: string | null;
   avatarUrl: string | null;
   bio: string | null;
+  followersCount: number | null;
   secUid: string | null;
   source: "universal-data" | "next-data" | "meta-tags";
 };

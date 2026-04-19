@@ -12,6 +12,7 @@ type StreamerProfileRow = {
   avatar_url: string | null;
   logo_url: string | null;
   bio: string | null;
+  followers_count: number | null;
 };
 
 const PROFILE_SYNC_BATCH_SIZE = 250;
@@ -67,7 +68,7 @@ export class TikTokProfileSyncService {
     try {
       const { data, error } = await this.supabase
         .from("streamers")
-        .select("id, user_id, display_name, tiktok_username, avatar_url, logo_url, bio")
+        .select("id, user_id, display_name, tiktok_username, avatar_url, logo_url, bio, followers_count")
         .not("tiktok_username", "is", null)
         .neq("tiktok_username", "")
         .order("updated_at", { ascending: true })
@@ -91,6 +92,7 @@ export class TikTokProfileSyncService {
           const nextDisplayName = profile.displayName?.trim() || streamer.display_name;
           const nextAvatarUrl = profile.avatarUrl?.trim() || streamer.avatar_url || streamer.logo_url || null;
           const nextBio = profile.bio?.trim() || streamer.bio || null;
+          const nextFollowersCount = profile.followersCount ?? streamer.followers_count ?? 0;
 
           const { error: streamerError } = await this.supabase
             .from("streamers")
@@ -99,6 +101,7 @@ export class TikTokProfileSyncService {
               avatar_url: nextAvatarUrl,
               logo_url: nextAvatarUrl,
               bio: nextBio,
+              followers_count: nextFollowersCount,
               updated_at: new Date().toISOString(),
             })
             .eq("id", streamer.id);

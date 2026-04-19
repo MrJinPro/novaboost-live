@@ -130,6 +130,7 @@ export async function saveProfileSettings(user: AppUser, draft: ProfileSettingsD
   const tiktokProfile = tiktokUsername ? await lookupTikTokProfile(tiktokUsername).catch(() => null) : null;
   const resolvedBio = draft.bio.trim() || tiktokProfile?.bio || null;
   const resolvedAvatarUrl = draft.avatarUrl.trim() || tiktokProfile?.avatarUrl || null;
+  const resolvedFollowersCount = tiktokProfile?.followersCount ?? 0;
 
   if (!displayName) {
     throw new Error("Укажи отображаемое имя.");
@@ -183,6 +184,7 @@ export async function saveProfileSettings(user: AppUser, draft: ProfileSettingsD
       bio: resolvedBio,
       avatar_url: resolvedAvatarUrl,
       logo_url: resolvedAvatarUrl,
+      followers_count: resolvedFollowersCount,
       banner_url: draft.streamerBannerUrl.trim() || null,
       tagline: draft.streamerTagline.trim() || null,
       telegram_channel: draft.streamerTelegramChannel.trim() || null,

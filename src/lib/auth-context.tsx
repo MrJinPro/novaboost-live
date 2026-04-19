@@ -92,6 +92,7 @@ async function enrichTikTokProfileIfNeeded(input: {
     || input.streamer?.bio
     || input.profile?.bio
     || null;
+  const followersCount = tiktokProfile.followersCount ?? 0;
 
   await upsertAuthProfileCompat({
     id: input.session.user.id,
@@ -110,6 +111,7 @@ async function enrichTikTokProfileIfNeeded(input: {
         avatar_url: avatarUrl,
         logo_url: avatarUrl,
         bio,
+        followers_count: followersCount,
         updated_at: new Date().toISOString(),
       })
       .eq("id", input.streamer.id);

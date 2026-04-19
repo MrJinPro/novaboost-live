@@ -3,6 +3,7 @@ type TikTokProfileLookupResult = {
   displayName: string | null;
   avatarUrl: string | null;
   bio: string | null;
+  followersCount: number | null;
   secUid: string | null;
   source: "universal-data" | "next-data" | "meta-tags";
 };
@@ -77,6 +78,7 @@ function tryExtractFromMetaTags(html: string, username: string) {
     displayName: cleanupMetaTitle(title, username),
     avatarUrl,
     bio: cleanupText(description),
+    followersCount: null,
     secUid: null,
     source: "meta-tags",
   } satisfies TikTokProfileLookupResult;
@@ -146,9 +148,33 @@ function buildLookupResult(candidate: Record<string, unknown>, username: string,
     displayName: cleanupText(stringOrNull(candidate.nickname) ?? stringOrNull(candidate.nickName) ?? stringOrNull(candidate.display_name)),
     avatarUrl: extractAvatarUrl(candidate),
     bio: extractBio(candidate),
+    followersCount: extractFollowersCount(candidate),
     secUid: cleanupText(stringOrNull(candidate.secUid) ?? stringOrNull(candidate.sec_uid)),
     source,
   } satisfies TikTokProfileLookupResult;
+}
+
+function extractFollowersCount(candidate: Record<string, unknown>) {
+  return (
+    extractNumber(candidate, [
+      ["followerCount"],
+      ["follower_count"],
+      ["fans"],
+      ["stats", "followerCount"],
+      ["stats", "follower_count"],
+      ["stats", "fans"],
+      ["statsV2", "followerCount"],
+      ["statsV2", "follower_count"],
+      ["userInfo", "stats", "followerCount"],
+      ["userInfo", "stats", "follower_count"],
+      ["authorStats", "followerCount"],
+      ["authorStats", "follower_count"],
+      ["user", "stats", "followerCount"],
+      ["user", "stats", "follower_count"],
+      ["statsInfo", "followerCount"],
+      ["statsInfo", "follower_count"],
+    ])
+  );
 }
 
 function extractAvatarUrl(candidate: Record<string, unknown>) {
@@ -218,6 +244,46 @@ function extractImageUrl(value: unknown): string | null {
   }
 
   return extractImageUrl(record.urlList) ?? extractImageUrl(record.urls) ?? null;
+}
+
+function extractNumber(root: unknown, paths: string[][]) {
+  for (const path of paths) {
+    let current: unknown = root;
+
+    for (const segment of path) {
+      if (!current || typeof current !== "object") {
+        current = null;
+        break;
+      }
+
+      current = (current as Record<string, unknown>)[segment];
+    }
+
+    const normalized = numberOrNull(current);
+    if (normalized !== null) {
+      return normalized;
+    }
+  }
+
+  return null;
+}
+
+function numberOrNull(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const digitsOnly = value.replace(/[^0-9.-]/g, "");
+    if (!digitsOnly) {
+      return null;
+    }
+
+    const parsed = Number(digitsOnly);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
 }
 
 function safeJsonParse(raw: string | undefined) {
