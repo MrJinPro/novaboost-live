@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { Header } from "@/components/Header";
+import { HowItWorksLink } from "@/components/HowItWorksLink";
 import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -177,6 +178,10 @@ function TasksPage() {
               </div>
             );
           })}
+        </div>
+
+        <div className="mt-8 flex justify-center">
+          <HowItWorksLink />
         </div>
 
         <div className="mt-10">

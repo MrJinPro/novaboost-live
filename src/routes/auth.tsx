@@ -7,10 +7,9 @@ import { PlatformDisclaimer } from "@/components/PlatformDisclaimer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useStreamerDirectory } from "@/hooks/use-streamer-directory";
 import { Eye, EyeOff, Search } from "lucide-react";
 import { toast } from "sonner";
-import type { StreamerCardData } from "@/lib/mock-platform";
-import { loadStreamerDirectory } from "@/lib/streamers-directory-data";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({ meta: [{ title: "Вход и регистрация — NovaBoost Live" }] }),
@@ -30,7 +29,7 @@ function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [referralQuery, setReferralQuery] = useState("");
-  const [directoryStreamers, setDirectoryStreamers] = useState<StreamerCardData[]>([]);
+  const { streamers: directoryStreamers, error: directoryError } = useStreamerDirectory();
   const [referralStreamer, setReferralStreamer] = useState<StreamerCardData | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -39,27 +38,10 @@ function AuthPage() {
   }, [user, navigate]);
 
   useEffect(() => {
-    let active = true;
-
-    const syncDirectory = async () => {
-      try {
-        const data = await loadStreamerDirectory();
-        if (active) {
-          setDirectoryStreamers(data);
-        }
-      } catch (error) {
-        if (active) {
-          toast.error(error instanceof Error ? error.message : "Не удалось загрузить каталог стримеров");
-        }
-      }
-    };
-
-    void syncDirectory();
-
-    return () => {
-      active = false;
-    };
-  }, []);
+    if (directoryError) {
+      toast.error(directoryError.message);
+    }
+  }, [directoryError]);
 
   const referralMatches = referralQuery
     ? directoryStreamers.filter((s) =>

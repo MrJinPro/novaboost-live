@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth-context";
 import { Header } from "@/components/Header";
 import { LiveIndicator } from "@/components/LiveIndicator";
 import { CurrencySwitcher } from "@/components/CurrencySwitcher";
+import { HowItWorksLink } from "@/components/HowItWorksLink";
 import { LocalizedPrice } from "@/components/LocalizedPrice";
 import { BoostBadge } from "@/components/BoostBadge";
 import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
@@ -436,6 +437,10 @@ function StreamerProfile() {
           <StatCard icon={<Wallet className="h-5 w-5" />} label="Подарков" value={formatNumber(streamer.total_gifts)} />
           <StatCard icon={<Bell className="h-5 w-5" />} label="Сообщений в чате" value={formatNumber(streamer.total_messages ?? 0)} />
           <StatCard icon={<Play className="h-5 w-5" />} label="Пик зрителей" value={formatNumber(streamer.peak_viewer_count ?? 0)} accent="live" />
+        </div>
+
+        <div className="mt-8 flex justify-center">
+          <HowItWorksLink />
         </div>
 
         <div className="mt-6 grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">

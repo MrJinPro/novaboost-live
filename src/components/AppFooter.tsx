@@ -1,5 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { Logo } from "@/components/Logo";
+import { ExternalLink, Smartphone } from "lucide-react";
+
+const PLAY_TESTING_URL = "https://play.google.com/apps/testing/com.novaboost.live";
 
 export function AppFooter() {
   return (
@@ -9,6 +12,19 @@ export function AppFooter() {
           <Logo size="sm" showText />
           <p className="mt-3 max-w-md text-sm leading-6 text-muted-foreground">
             NovaBoost Live - независимый сервис вокруг TikTok LIVE: каталог стримеров, viewer points, бусты, контент между эфирами, OBS-виджеты и вовлечение аудитории.
+          </p>
+          <a
+            href={PLAY_TESTING_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 inline-flex items-center gap-2 rounded-2xl border border-cosmic/35 bg-cosmic/10 px-4 py-3 text-sm font-medium text-foreground transition-colors hover:border-cosmic/60 hover:bg-cosmic/15"
+          >
+            <Smartphone className="h-4 w-4 text-cosmic" />
+            Вступить в закрытое тестирование Android
+            <ExternalLink className="h-4 w-4 text-muted-foreground" />
+          </a>
+          <p className="mt-2 max-w-md text-xs leading-5 text-muted-foreground">
+            Ссылка ведёт на закрытый тест в Google Play для пакета com.novaboost.live.
           </p>
         </div>
 

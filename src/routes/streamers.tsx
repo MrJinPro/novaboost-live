@@ -1,13 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
+import { HowItWorksLink } from "@/components/HowItWorksLink";
 import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
 import { StreamerCard } from "@/components/StreamerCard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useStreamerDirectory } from "@/hooks/use-streamer-directory";
 import { Search } from "lucide-react";
-import type { StreamerCardData } from "@/lib/mock-platform";
-import { loadStreamerDirectory } from "@/lib/streamers-directory-data";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/streamers")({
@@ -25,30 +25,13 @@ type Filter = "all" | "live" | "boosted" | "needs_boost";
 function StreamersPage() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
-  const [streamers, setStreamers] = useState<StreamerCardData[]>([]);
+  const { streamers, isInitialLoading, isRefreshing, error } = useStreamerDirectory();
 
   useEffect(() => {
-    let active = true;
-
-    const syncStreamers = async () => {
-      try {
-        const data = await loadStreamerDirectory();
-        if (active) {
-          setStreamers(data);
-        }
-      } catch (error) {
-        if (active) {
-          toast.error(error instanceof Error ? error.message : "Не удалось загрузить каталог стримеров");
-        }
-      }
-    };
-
-    void syncStreamers();
-
-    return () => {
-      active = false;
-    };
-  }, []);
+    if (error) {
+      toast.error(error.message);
+    }
+  }, [error]);
 
   const filtered = streamers.filter((s) => {
     if (query && !`${s.display_name} ${s.tiktok_username}`.toLowerCase().includes(query.toLowerCase())) return false;
@@ -122,12 +105,28 @@ function StreamersPage() {
           </div>
         </div>
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((s) => <StreamerCard key={s.id} streamer={s} />)}
-        </div>
-        {filtered.length === 0 && (
+        {isRefreshing && !isInitialLoading && (
+          <div className="mt-4 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+            Обновляю live-статусы и каталог…
+          </div>
+        )}
+
+        {isInitialLoading ? (
+          <div className="mt-6 rounded-3xl border border-border/50 bg-surface/40 p-6 text-sm text-muted-foreground">
+            Загружаю каталог стримеров и текущие live-статусы…
+          </div>
+        ) : (
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filtered.map((s) => <StreamerCard key={s.id} streamer={s} />)}
+          </div>
+        )}
+        {!isInitialLoading && filtered.length === 0 && (
           <div className="text-center py-16 text-muted-foreground">Никого не нашли по этому запросу</div>
         )}
+
+        <div className="mt-8 flex justify-center">
+          <HowItWorksLink />
+        </div>
 
         <div className="mt-10">
           {helpPanel}

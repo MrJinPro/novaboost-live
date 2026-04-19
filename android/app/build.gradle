@@ -9,10 +9,10 @@ if (hasReleaseKeystore) {
 }
 
 def appVersionCode = Integer.parseInt(
-    project.findProperty('appVersionCode') ?: System.getenv('NOVABOOST_ANDROID_VERSION_CODE') ?: '10001'
+    project.findProperty('appVersionCode') ?: System.getenv('NOVABOOST_ANDROID_VERSION_CODE') ?: '10002'
 )
 def appVersionName =
-    project.findProperty('appVersionName') ?: System.getenv('NOVABOOST_ANDROID_VERSION_NAME') ?: '1.0.0-beta.1'
+    project.findProperty('appVersionName') ?: System.getenv('NOVABOOST_ANDROID_VERSION_NAME') ?: '1.0.0-beta.2'
 
 def isReleaseBuildRequested = gradle.startParameter.taskNames.any { taskName ->
     taskName.toLowerCase().contains('release')

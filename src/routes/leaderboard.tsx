@@ -1,11 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
+import { useStreamerDirectory } from "@/hooks/use-streamer-directory";
 import { Trophy, Crown, Users } from "lucide-react";
 import { formatNumber } from "@/lib/format";
 import { Link } from "@tanstack/react-router";
-import type { StreamerCardData } from "@/lib/mock-platform";
-import { loadStreamerDirectory } from "@/lib/streamers-directory-data";
 import { loadViewerLeaderboard, type ViewerLeaderboardEntry } from "@/lib/leaderboard-data";
 import { toast } from "sonner";
 
@@ -20,31 +19,14 @@ export const Route = createFileRoute("/leaderboard")({
 });
 
 function LeaderboardPage() {
-  const [streamerList, setStreamerList] = useState<StreamerCardData[]>([]);
+  const { streamers: streamerList, isInitialLoading: streamerListLoading, error: streamerListError } = useStreamerDirectory();
   const [viewers, setViewers] = useState<ViewerLeaderboardEntry[]>([]);
 
   useEffect(() => {
-    let active = true;
-
-    const syncStreamers = async () => {
-      try {
-        const data = await loadStreamerDirectory();
-        if (active) {
-          setStreamerList(data);
-        }
-      } catch (error) {
-        if (active) {
-          toast.error(error instanceof Error ? error.message : "Не удалось загрузить рейтинг стримеров");
-        }
-      }
-    };
-
-    void syncStreamers();
-
-    return () => {
-      active = false;
-    };
-  }, []);
+    if (streamerListError) {
+      toast.error(streamerListError.message);
+    }
+  }, [streamerListError]);
 
   useEffect(() => {
     let active = true;
@@ -89,7 +71,11 @@ function LeaderboardPage() {
               <h2 className="font-display font-bold text-xl">Топ стримеров</h2>
             </div>
             <div className="space-y-2">
-              {streamers.map((s, idx) => (
+              {streamerListLoading ? (
+                <div className="rounded-2xl border border-border/50 bg-background/20 p-4 text-sm text-muted-foreground">
+                  Загружаю рейтинг стримеров и live-данные…
+                </div>
+              ) : streamers.map((s, idx) => (
                 <Link key={s.id} to="/streamer/$id" params={{ id: s.id }} className="flex items-center gap-3 rounded-lg p-2 hover:bg-surface-2 transition-colors">
                   <RankBadge rank={idx + 1} />
                   <img src={s.avatar_url ?? ""} className="h-10 w-10 rounded-full bg-surface-2" alt="" />

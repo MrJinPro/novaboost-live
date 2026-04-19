@@ -4,16 +4,16 @@ import { z } from "zod";
 import { Header } from "@/components/Header";
 import { CurrencySwitcher } from "@/components/CurrencySwitcher";
 import { HelpTooltip } from "@/components/HelpTooltip";
+import { HowItWorksLink } from "@/components/HowItWorksLink";
 import { LocalizedPrice } from "@/components/LocalizedPrice";
 import { usePaymentComingSoonSurvey } from "@/components/PaymentComingSoonDialog";
 import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
 import { Button } from "@/components/ui/button";
+import { useStreamerDirectory } from "@/hooks/use-streamer-directory";
 import { useAuth } from "@/lib/auth-context";
 import { getLocalizedMoney, resolveSupportedCurrency, useCurrencyPreference } from "@/lib/currency";
 import { calculateCustomerAmount, getPromotionTargetMeta, groupTikTokPromotionServices, loadTikTokPromotionServices, type TikTokPromotionService } from "@/lib/prmotion-data";
 import { loadMyPromotionOrders, type PromotionOrderSummary } from "@/lib/promotion-orders-data";
-import { loadStreamerDirectory } from "@/lib/streamers-directory-data";
-import type { StreamerCardData } from "@/lib/mock-platform";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
@@ -38,7 +38,7 @@ function ServicesPage() {
   const { user } = useAuth();
   const currencyPreference = useCurrencyPreference();
   const search = Route.useSearch();
-  const [streamers, setStreamers] = useState<StreamerCardData[]>([]);
+  const { streamers, error: streamerDirectoryError } = useStreamerDirectory();
   const [selectedStreamerId, setSelectedStreamerId] = useState(search.streamerId ?? "");
   const [services, setServices] = useState<TikTokPromotionService[]>([]);
   const [servicesLoading, setServicesLoading] = useState(false);
@@ -50,27 +50,10 @@ function ServicesPage() {
   const { openSurvey, surveyDialog } = usePaymentComingSoonSurvey();
 
   useEffect(() => {
-    let active = true;
-
-    const syncStreamers = async () => {
-      try {
-        const data = await loadStreamerDirectory();
-        if (active) {
-          setStreamers(data);
-        }
-      } catch (error) {
-        if (active) {
-          toast.error(error instanceof Error ? error.message : "Не удалось загрузить список стримеров");
-        }
-      }
-    };
-
-    void syncStreamers();
-
-    return () => {
-      active = false;
-    };
-  }, []);
+    if (streamerDirectoryError) {
+      toast.error(streamerDirectoryError.message);
+    }
+  }, [streamerDirectoryError]);
 
   useEffect(() => {
     let active = true;
@@ -463,6 +446,10 @@ function ServicesPage() {
               </div>
             </div>
           </section>
+        </div>
+
+        <div className="mt-8 flex justify-center">
+          <HowItWorksLink />
         </div>
 
         <div className="mt-10">

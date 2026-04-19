@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { CurrencySwitcher } from "@/components/CurrencySwitcher";
+import { HowItWorksLink } from "@/components/HowItWorksLink";
 import { Header } from "@/components/Header";
 import { HelpTooltip } from "@/components/HelpTooltip";
 import { LocalizedPrice } from "@/components/LocalizedPrice";
@@ -261,6 +262,10 @@ function SupportPage() {
           <p className="mt-4 text-xs text-muted-foreground">
             Пока вместо оплаты мы показываем короткий survey по платёжным методам. Сумма ввода и быстрые кнопки всё равно остаются, чтобы мы понимали ожидаемый чек и валюту браузера{currencyPreference.countryCode ? ` (${currencyPreference.countryCode})` : ""}.
           </p>
+
+          <div className="mt-8 flex justify-center">
+            <HowItWorksLink />
+          </div>
 
           <div className="mt-8">
             {helpPanel}

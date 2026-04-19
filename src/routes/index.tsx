@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
+import { HowItWorksLink } from "@/components/HowItWorksLink";
 import { PlatformDisclaimer } from "@/components/PlatformDisclaimer";
 import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
 import { StreamerCard } from "@/components/StreamerCard";
@@ -9,12 +10,13 @@ import { LiveIndicator } from "@/components/LiveIndicator";
 import { BoostBadge } from "@/components/BoostBadge";
 import { Button } from "@/components/ui/button";
 import { AppAvatar } from "@/components/AppAvatar";
-import { ArrowRight, Crown, Eye, Flame, Send, Sparkles, Trophy, Zap } from "lucide-react";
+import { useStreamerDirectory } from "@/hooks/use-streamer-directory";
+import { ArrowRight, Crown, Eye, ExternalLink, Flame, Send, Smartphone, Sparkles, Trophy, Zap } from "lucide-react";
 import { formatNumber } from "@/lib/format";
-import type { StreamerCardData } from "@/lib/mock-platform";
-import { loadStreamerDirectory } from "@/lib/streamers-directory-data";
 import { loadHomeActivityFeed, type HomeActivityItem } from "@/lib/home-activity-data";
 import { toast } from "sonner";
+
+const PLAY_TESTING_URL = "https://play.google.com/apps/testing/com.novaboost.live";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -27,29 +29,21 @@ export const Route = createFileRoute("/")({
 });
 
 function HomePage() {
-  const [streamers, setStreamers] = useState<StreamerCardData[]>([]);
   const [activityFeed, setActivityFeed] = useState<HomeActivityItem[]>([]);
+  const { streamers, isInitialLoading, error } = useStreamerDirectory();
+
+  useEffect(() => {
+    if (error) {
+      toast.error(error.message);
+    }
+  }, [error]);
 
   useEffect(() => {
     let active = true;
 
-    const syncStreamers = async () => {
-      try {
-        const data = await loadStreamerDirectory();
-        if (active) {
-          setStreamers(data);
-        }
-      } catch (error) {
-        if (active) {
-          toast.error(error instanceof Error ? error.message : "Не удалось обновить главную витрину стримеров");
-        }
-      }
-    };
-
     const syncActivity = async () => {
       try {
-        const data = await loadStreamerDirectory();
-        const activity = await loadHomeActivityFeed(data);
+        const activity = await loadHomeActivityFeed(streamers);
         if (active) {
           setActivityFeed(activity);
         }
@@ -60,13 +54,16 @@ function HomePage() {
       }
     };
 
-    void syncStreamers();
-    void syncActivity();
+    if (streamers.length > 0) {
+      void syncActivity();
+    } else if (!isInitialLoading) {
+      setActivityFeed([]);
+    }
 
     return () => {
       active = false;
     };
-  }, []);
+  }, [isInitialLoading, streamers]);
 
   const live = streamers.filter((s) => s.is_live);
   const boosted = streamers.filter((s) => s.total_boost_amount > 0);
@@ -142,6 +139,25 @@ function HomePage() {
                   </Button>
                 </Link>
               </div>
+              <div className="mt-4 rounded-2xl border border-cosmic/30 bg-cosmic/8 p-4 backdrop-blur">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <div className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-cosmic">
+                      <Smartphone className="h-3.5 w-3.5" /> Android closed test
+                    </div>
+                    <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+                      Хочешь попасть в ранний доступ? Вступай в закрытое тестирование NovaBoost Live в Google Play и ставь Android-сборку напрямую через Play Market.
+                    </p>
+                  </div>
+                  <a href={PLAY_TESTING_URL} target="_blank" rel="noopener noreferrer" className="sm:min-w-fit">
+                    <Button size="lg" variant="outline" className="w-full gap-2 border-cosmic/40 hover:bg-cosmic/10 sm:w-auto">
+                      <Smartphone className="h-4 w-4 text-cosmic" />
+                      Вступить в тест
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  </a>
+                </div>
+              </div>
               <div className="mt-8 grid grid-cols-2 gap-4 text-sm sm:flex sm:flex-wrap sm:gap-x-8 sm:gap-y-3">
                 <Stat label="В эфире" value={live.length} accent="live" />
                 <Stat label="Зрителей сейчас" value={formatNumber(totalLiveViewers)} accent="blast" />
@@ -176,9 +192,17 @@ function HomePage() {
                 </Link>
               </div>
               <div className="grid sm:grid-cols-2 gap-3">
-                {live.slice(0, 4).map((s) => (
-                  <StreamerCard key={s.id} streamer={s} />
-                ))}
+                {isInitialLoading
+                  ? Array.from({ length: 4 }).map((_, index) => (
+                      <div key={index} className="rounded-2xl border border-border/40 bg-surface/30 p-5">
+                        <div className="h-5 w-28 rounded bg-surface-2" />
+                        <div className="mt-4 h-4 w-40 rounded bg-surface-2" />
+                        <div className="mt-2 h-4 w-32 rounded bg-surface-2" />
+                      </div>
+                    ))
+                  : live.slice(0, 4).map((s) => (
+                      <StreamerCard key={s.id} streamer={s} />
+                    ))}
               </div>
             </BentoBlock>
 
@@ -286,6 +310,10 @@ function HomePage() {
                 <p>Это удерживает аудиторию между эфирами и делает NovaBoost Live мини-соцсетью вокруг стримов.</p>
               </div>
             </BentoBlock>
+          </div>
+
+          <div className="mt-6 flex justify-center md:mt-8">
+            <HowItWorksLink />
           </div>
       </section>
 

@@ -2,14 +2,14 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { useAuth } from "@/lib/auth-context";
+import { HowItWorksLink } from "@/components/HowItWorksLink";
 import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
+import { useStreamerDirectory } from "@/hooks/use-streamer-directory";
 import { ArrowLeft, Crown, Zap } from "lucide-react";
 import { toast } from "sonner";
-import type { StreamerCardData } from "@/lib/mock-platform";
 import { createBoost } from "@/lib/boost-data";
-import { loadStreamerDirectory } from "@/lib/streamers-directory-data";
 import { loadViewerProfileData } from "@/lib/user-profile-data";
 
 const searchSchema = z.object({
@@ -37,34 +37,17 @@ function BoostPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const search = Route.useSearch();
-  const [streamers, setStreamers] = useState<StreamerCardData[]>([]);
+  const { streamers, isInitialLoading, error } = useStreamerDirectory();
   const [selected, setSelected] = useState<string>(search.streamerId ?? "");
   const [tier, setTier] = useState<number>(60);
   const [availablePoints, setAvailablePoints] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    let active = true;
-
-    const syncStreamers = async () => {
-      try {
-        const data = await loadStreamerDirectory();
-        if (active) {
-          setStreamers(data);
-        }
-      } catch (error) {
-        if (active) {
-          toast.error(error instanceof Error ? error.message : "Не удалось загрузить список стримеров");
-        }
-      }
-    };
-
-    void syncStreamers();
-
-    return () => {
-      active = false;
-    };
-  }, []);
+    if (error) {
+      toast.error(error.message);
+    }
+  }, [error]);
 
   useEffect(() => {
     let active = true;
@@ -198,9 +181,10 @@ function BoostPage() {
           <select
             value={selected}
             onChange={(e) => setSelected(e.target.value)}
+            disabled={isInitialLoading}
             className="w-full rounded-lg border border-border bg-surface px-4 py-3 text-foreground"
           >
-            <option value="">— Выбрать стримера —</option>
+            <option value="">{isInitialLoading ? "Загружаю стримеров…" : "— Выбрать стримера —"}</option>
             {streamers.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.display_name} (@{s.tiktok_username}) {s.is_live ? "🔴" : ""}
@@ -266,6 +250,10 @@ function BoostPage() {
             Чтобы запустить буст, <Link to="/auth" className="text-blast underline">войди или зарегистрируйся</Link>.
           </div>
         )}
+
+        <div className="mt-8 flex justify-center">
+          <HowItWorksLink />
+        </div>
 
         <div className="mt-10">
           {helpPanel}

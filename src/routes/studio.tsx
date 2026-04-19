@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
+import { HowItWorksLink } from "@/components/HowItWorksLink";
 import { HelpTooltip } from "@/components/HelpTooltip";
 import { PlatformDisclaimer } from "@/components/PlatformDisclaimer";
 import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
@@ -969,6 +970,10 @@ function StreamerStudioPage() {
             <TabsTrigger value="engagement">Активности</TabsTrigger>
             <TabsTrigger value="donations">Донаты и OBS</TabsTrigger>
           </TabsList>
+
+          <div className="mt-6 flex justify-center">
+            <HowItWorksLink />
+          </div>
 
           <TabsContent value="page" className="mt-6">
             <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
