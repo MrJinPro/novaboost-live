@@ -2,9 +2,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth-context";
 import { AdminApiError, loadAdminStreamerApplications, reviewAdminStreamerApplication, type AdminApplicationStatus, type AdminStreamerApplication } from "@/lib/admin-moderation-data";
-import { BadgeCheck, ShieldAlert, ShieldCheck, UserRound } from "lucide-react";
+import { ArrowUpDown, History, Search, ShieldAlert, ShieldCheck, UserRound } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin")({
@@ -23,6 +24,30 @@ const STATUS_LABELS: Record<"all" | AdminApplicationStatus, string> = {
   verified: "Подтверждены",
   rejected: "Отклонены",
 };
+
+type SortMode = "newest" | "oldest" | "pending-first" | "name";
+
+const SORT_LABELS: Record<SortMode, string> = {
+  newest: "Сначала новые",
+  oldest: "Сначала старые",
+  "pending-first": "Сначала pending",
+  name: "По имени стримера",
+};
+
+const STATUS_PRIORITY: Record<AdminApplicationStatus, number> = {
+  pending: 0,
+  verified: 1,
+  rejected: 2,
+};
+
+function toTimestamp(value: string | null) {
+  if (!value) {
+    return 0;
+  }
+
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
 
 function formatDateTime(value: string | null) {
   if (!value) {
@@ -49,6 +74,8 @@ function AdminPage() {
   const [pageError, setPageError] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
   const [activeFilter, setActiveFilter] = useState<"all" | AdminApplicationStatus>("pending");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortMode, setSortMode] = useState<SortMode>("pending-first");
   const [actionKey, setActionKey] = useState<string | null>(null);
 
   const syncApplications = async () => {
@@ -90,13 +117,69 @@ function AdminPage() {
     rejected: applications.filter((item) => item.status === "rejected").length,
   }), [applications]);
 
-  const visibleApplications = useMemo(() => {
-    if (activeFilter === "all") {
-      return applications;
+  const historyByStreamer = useMemo(() => {
+    const map = new Map<string, AdminStreamerApplication[]>();
+
+    for (const application of applications) {
+      const current = map.get(application.streamerId) ?? [];
+      current.push(application);
+      map.set(application.streamerId, current);
     }
 
-    return applications.filter((item) => item.status === activeFilter);
-  }, [activeFilter, applications]);
+    for (const [streamerId, items] of map) {
+      map.set(streamerId, [...items].sort((left, right) => toTimestamp(right.createdAt) - toTimestamp(left.createdAt)));
+    }
+
+    return map;
+  }, [applications]);
+
+  const visibleApplications = useMemo(() => {
+    const normalizedSearch = searchQuery.trim().toLowerCase();
+
+    const filtered = applications.filter((item) => {
+      if (activeFilter !== "all" && item.status !== activeFilter) {
+        return false;
+      }
+
+      if (!normalizedSearch) {
+        return true;
+      }
+
+      const haystack = [
+        item.streamerDisplayName,
+        item.streamerTikTokUsername,
+        item.submitterDisplayName,
+        item.submitterUsername,
+        item.evidenceType,
+        item.evidenceValue,
+        item.notes,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(normalizedSearch);
+    });
+
+    return [...filtered].sort((left, right) => {
+      if (sortMode === "name") {
+        return left.streamerDisplayName.localeCompare(right.streamerDisplayName, "ru");
+      }
+
+      if (sortMode === "oldest") {
+        return toTimestamp(left.createdAt) - toTimestamp(right.createdAt);
+      }
+
+      if (sortMode === "pending-first") {
+        const statusDiff = STATUS_PRIORITY[left.status] - STATUS_PRIORITY[right.status];
+        if (statusDiff !== 0) {
+          return statusDiff;
+        }
+      }
+
+      return toTimestamp(right.createdAt) - toTimestamp(left.createdAt);
+    });
+  }, [activeFilter, applications, searchQuery, sortMode]);
 
   const handleReview = async (application: AdminStreamerApplication, decision: Exclude<AdminApplicationStatus, "pending">) => {
     if (!session) {
@@ -196,6 +279,36 @@ function AdminPage() {
           ))}
         </div>
 
+        <div className="mt-6 grid gap-3 lg:grid-cols-[1fr_260px]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Поиск по имени, @username, доказательству или комментарию"
+              className="pl-10"
+            />
+          </div>
+          <label className="flex items-center gap-3 rounded-xl border border-border/50 bg-surface/60 px-3 py-2 text-sm text-muted-foreground">
+            <ArrowUpDown className="h-4 w-4" />
+            <select
+              value={sortMode}
+              onChange={(event) => setSortMode(event.target.value as SortMode)}
+              className="w-full bg-transparent text-foreground outline-none"
+            >
+              {(Object.keys(SORT_LABELS) as SortMode[]).map((mode) => (
+                <option key={mode} value={mode} className="bg-background text-foreground">
+                  {SORT_LABELS[mode]}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="mt-4 text-sm text-muted-foreground">
+          Показано {visibleApplications.length} из {applications.length} заявок.
+        </div>
+
         {pageError && (
           <div className="mt-6 rounded-3xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive-foreground">
             {pageError}
@@ -210,6 +323,12 @@ function AdminPage() {
           ) : (
             visibleApplications.map((application) => (
               <article key={application.verificationId} className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+                {historyByStreamer.get(application.streamerId) && (historyByStreamer.get(application.streamerId)?.length ?? 0) > 1 && (
+                  <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cosmic/30 bg-cosmic/10 px-3 py-1 text-xs text-cosmic">
+                    <History className="h-3.5 w-3.5" />
+                    {historyByStreamer.get(application.streamerId)!.length} заявок по этому стримеру
+                  </div>
+                )}
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-3">
@@ -293,6 +412,36 @@ function AdminPage() {
                     </div>
                   </section>
                 </div>
+
+                {(historyByStreamer.get(application.streamerId)?.length ?? 0) > 1 && (
+                  <section className="mt-4 rounded-2xl border border-border/50 bg-background/40 p-4">
+                    <h3 className="text-sm font-semibold text-foreground">История заявок по стримеру</h3>
+                    <div className="mt-3 space-y-3">
+                      {historyByStreamer.get(application.streamerId)?.map((historyItem) => (
+                        <div
+                          key={historyItem.verificationId}
+                          className={`rounded-2xl border px-4 py-3 text-sm ${historyItem.verificationId === application.verificationId ? "border-cosmic/40 bg-cosmic/10" : "border-border/40 bg-surface/40"}`}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <div className={`rounded-full px-2.5 py-1 text-xs font-semibold ${statusToneClass(historyItem.status)}`}>
+                                {STATUS_LABELS[historyItem.status]}
+                              </div>
+                              <span className="text-muted-foreground">{formatDateTime(historyItem.createdAt)}</span>
+                            </div>
+                            {historyItem.verificationId === application.verificationId && (
+                              <span className="text-xs font-medium text-cosmic">Текущая карточка</span>
+                            )}
+                          </div>
+                          <div className="mt-2 grid gap-2 text-muted-foreground md:grid-cols-2">
+                            <p>Тип: <span className="text-foreground">{historyItem.evidenceType || historyItem.verificationMethod || "Не указано"}</span></p>
+                            <p>Решение: <span className="text-foreground">{formatDateTime(historyItem.reviewedAt)}</span></p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
               </article>
             ))
           )}
