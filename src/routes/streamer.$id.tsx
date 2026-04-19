@@ -585,7 +585,7 @@ function StreamerProfile() {
 
           <section className="space-y-4">
             {streamer.donation_link_slug ? (
-              <div className="lg:sticky lg:top-20 lg:z-20">
+              <div>
                 <div className="overflow-hidden rounded-4xl border border-blast/30 bg-[radial-gradient(circle_at_top,rgba(255,133,32,0.18),transparent_58%),linear-gradient(180deg,rgba(19,13,44,0.96),rgba(14,11,34,0.96))] p-5 sm:p-6 shadow-glow">
                   <div className="flex items-center gap-2">
                     <Wallet className="h-5 w-5 text-blast" />
