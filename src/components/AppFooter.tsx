@@ -45,8 +45,14 @@ export function AppFooter() {
             <Link to="/legal/payments" className="text-muted-foreground transition-colors hover:text-foreground">
               Политика платежей
             </Link>
+            <Link to="/legal/refunds" className="text-muted-foreground transition-colors hover:text-foreground">
+              Политика возвратов
+            </Link>
             <Link to="/legal/acceptable-use" className="text-muted-foreground transition-colors hover:text-foreground">
               Правила допустимого использования
+            </Link>
+            <Link to="/legal/content-policy" className="text-muted-foreground transition-colors hover:text-foreground">
+              Контент и модерация
             </Link>
           </div>
           <p className="mt-4 text-xs leading-5 text-muted-foreground">

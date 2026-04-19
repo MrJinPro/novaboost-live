@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
+import { HelpTooltip } from "@/components/HelpTooltip";
 import { PlatformDisclaimer } from "@/components/PlatformDisclaimer";
 import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
 import { Button } from "@/components/ui/button";
@@ -568,17 +569,17 @@ function StreamerStudioPage() {
       </p>
 
       <div className="mt-5 space-y-4">
-        <Field label="Заголовок задания">
+        <Field label="Заголовок задания" hint="Это название задания, которое увидит зритель в разделе задач и в связанной активности стримера.">
           <Input value={codeTaskTitle} onChange={(e) => setCodeTaskTitle(e.target.value)} placeholder="Например: Кодовое слово сегодняшнего эфира" />
         </Field>
-        <Field label="Описание для зрителя">
+        <Field label="Описание для зрителя" hint="Объясни, где искать кодовое слово и за что именно зритель получит очки, чтобы задание было понятно без лишних вопросов.">
           <Textarea value={codeTaskDescription} onChange={(e) => setCodeTaskDescription(e.target.value)} placeholder="Где искать слово и что получит зритель" className="min-h-24 bg-background" />
         </Field>
         <div className="grid gap-4 md:grid-cols-2">
-          <Field label="Кодовое слово">
+          <Field label="Кодовое слово" hint="Это слово зритель услышит или увидит на эфире, а затем введёт в приложении для получения очков один раз.">
             <Input value={codeTaskWord} onChange={(e) => setCodeTaskWord(e.target.value.toUpperCase())} placeholder="Например: NOVA" />
           </Field>
-          <Field label="Очки за ввод">
+          <Field label="Очки за ввод" hint="Награда за успешный ввод кодового слова. Она пополнит viewer points зрителя и влияет на его прогресс внутри NovaBoost Live.">
             <Input value={codeTaskReward} onChange={(e) => setCodeTaskReward(e.target.value)} inputMode="numeric" placeholder="50" />
           </Field>
         </div>
@@ -640,16 +641,16 @@ function StreamerStudioPage() {
       </p>
 
       <div className="mt-5 space-y-4">
-        <Field label="Короткий адрес страницы">
+        <Field label="Короткий адрес страницы" hint="Это slug публичной support-страницы стримера. Его можно будет давать зрителям как короткую ссылку внутри NovaBoost Live.">
           <Input value={donationLinkDraft.slug} onChange={(e) => setDonationLinkDraft((current) => ({ ...current, slug: e.target.value }))} placeholder="alina-luna-support" />
         </Field>
-        <Field label="Заголовок страницы поддержки">
+        <Field label="Заголовок страницы поддержки" hint="Этот заголовок увидит зритель на отдельной странице поддержки, когда откроет donation link стримера.">
           <Input value={donationLinkDraft.title} onChange={(e) => setDonationLinkDraft((current) => ({ ...current, title: e.target.value }))} placeholder="Поддержать эфир" />
         </Field>
-        <Field label="Описание">
+        <Field label="Описание" hint="Коротко объясни, зачем зрителю поддерживать именно этот эфир, стрим или цель. Это часть продуктовой страницы, а не просто техническое поле.">
           <Textarea value={donationLinkDraft.description} onChange={(e) => setDonationLinkDraft((current) => ({ ...current, description: e.target.value }))} className="min-h-24 bg-background" placeholder="Короткое описание, зачем поддерживать именно этот эфир" />
         </Field>
-        <Field label="Минимальная сумма">
+        <Field label="Минимальная сумма" hint="Минимальный ожидаемый донат для этой страницы. Даже пока оплата не активна, значение помогает формировать будущий support-flow и UX быстрых сумм.">
           <Input type="number" min={10} value={String(donationLinkDraft.minimumAmount)} onChange={(e) => setDonationLinkDraft((current) => ({ ...current, minimumAmount: Number(e.target.value) || 10 }))} />
         </Field>
         <button
@@ -731,13 +732,13 @@ function StreamerStudioPage() {
               </div>
             </div>
             <div className="mt-4 grid gap-4 md:grid-cols-[1.6fr_0.7fr_0.7fr]">
-              <Field label="На что собираем">
+              <Field label="На что собираем" hint="Это название donation goal для widget overlay. Например: новый микрофон, камера, поездка, оформление студии или другой понятный зрителю сбор.">
                 <Input value={pageDraft.donationGoalTitle} onChange={(e) => setPageDraft((current) => ({ ...current, donationGoalTitle: e.target.value }))} placeholder="Например: Новый микрофон для стрима" />
               </Field>
-              <Field label="Сколько нужно собрать">
+              <Field label="Сколько нужно собрать" hint="Целевая сумма для progress-bar в donation goal widget. Она нужна именно для визуального прогресса цели, а не для минимального доната.">
                 <Input type="number" min={1} value={pageDraft.donationGoalTarget} onChange={(e) => setPageDraft((current) => ({ ...current, donationGoalTarget: e.target.value }))} />
               </Field>
-              <Field label="Валюта цели">
+              <Field label="Валюта цели" hint="Эта валюта используется для отображения progress goal в widget overlay, чтобы зритель видел понятную для стримера цель.">
                 <select
                   value={pageDraft.donationGoalCurrency}
                   onChange={(e) => setPageDraft((current) => ({ ...current, donationGoalCurrency: e.target.value as typeof DONATION_DISPLAY_CURRENCIES[number] }))}
@@ -1019,10 +1020,10 @@ function StreamerStudioPage() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div>
-      <Label className="mb-1.5 block">{label}</Label>
+      <Label className="mb-1.5 flex items-center gap-2">{label}{hint ? <HelpTooltip text={hint} /> : null}</Label>
       {children}
     </div>
   );

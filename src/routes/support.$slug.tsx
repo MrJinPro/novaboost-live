@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { CurrencySwitcher } from "@/components/CurrencySwitcher";
 import { Header } from "@/components/Header";
+import { HelpTooltip } from "@/components/HelpTooltip";
 import { LocalizedPrice } from "@/components/LocalizedPrice";
 import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
 import { Button } from "@/components/ui/button";
@@ -231,17 +232,17 @@ function SupportPage() {
           </div>
 
           <div className="mt-6 space-y-4">
-            <Field label="Твоё имя в алерте">
+            <Field label="Твоё имя в алерте" hint="Это имя будет использовано в будущем donation alert и в публичной ленте поддержек внутри NovaBoost Live.">
               <Input value={donorName} onChange={(e) => setDonorName(e.target.value)} placeholder="Например: NovaFan" />
             </Field>
-            <Field label={`Сумма поддержки, ${currencyPreference.primaryCurrency}`}>
+            <Field label={`Сумма поддержки, ${currencyPreference.primaryCurrency}`} hint="Поле нужно, чтобы понять ожидаемый размер поддержки и будущий формат платежа, даже пока реальная оплата не включена.">
               <Input type="number" min={convertCurrency(minimumAmount, "RUB", currencyPreference.primaryCurrency).toFixed(2)} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
               <div className="mt-2 text-xs text-muted-foreground">
                 {enteredMoney.primary}
                 {enteredMoney.secondary ? ` · ${enteredMoney.secondary}` : ""}
               </div>
             </Field>
-            <Field label="Сообщение стримеру">
+            <Field label="Сообщение стримеру" hint="Это сообщение задумано как текст для будущего alert-сценария и публичного блока последних поддержек.">
               <Textarea value={message} onChange={(e) => setMessage(e.target.value)} className="min-h-24 bg-background" placeholder="Например: удачного эфира и побольше онлайна" />
             </Field>
           </div>
@@ -267,10 +268,10 @@ function SupportPage() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div>
-      <Label className="mb-1.5 block">{label}</Label>
+      <Label className="mb-1.5 flex items-center gap-2">{label}{hint ? <HelpTooltip text={hint} /> : null}</Label>
       {children}
     </div>
   );

@@ -23,8 +23,10 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as SupportSlugRouteImport } from './routes/support.$slug'
 import { Route as StreamerIdRouteImport } from './routes/streamer.$id'
 import { Route as LegalTermsRouteImport } from './routes/legal.terms'
+import { Route as LegalRefundsRouteImport } from './routes/legal.refunds'
 import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
 import { Route as LegalPaymentsRouteImport } from './routes/legal.payments'
+import { Route as LegalContentPolicyRouteImport } from './routes/legal.content-policy'
 import { Route as LegalAcceptableUseRouteImport } from './routes/legal.acceptable-use'
 import { Route as ApiCurrencyPreferenceRouteImport } from './routes/api/currency-preference'
 import { Route as ApiRevealKeyRouteImport } from './routes/api/_reveal-key'
@@ -101,6 +103,11 @@ const LegalTermsRoute = LegalTermsRouteImport.update({
   path: '/legal/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LegalRefundsRoute = LegalRefundsRouteImport.update({
+  id: '/legal/refunds',
+  path: '/legal/refunds',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LegalPrivacyRoute = LegalPrivacyRouteImport.update({
   id: '/legal/privacy',
   path: '/legal/privacy',
@@ -109,6 +116,11 @@ const LegalPrivacyRoute = LegalPrivacyRouteImport.update({
 const LegalPaymentsRoute = LegalPaymentsRouteImport.update({
   id: '/legal/payments',
   path: '/legal/payments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalContentPolicyRoute = LegalContentPolicyRouteImport.update({
+  id: '/legal/content-policy',
+  path: '/legal/content-policy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LegalAcceptableUseRoute = LegalAcceptableUseRouteImport.update({
@@ -152,8 +164,10 @@ export interface FileRoutesByFullPath {
   '/api': typeof ApiRevealKeyRoute
   '/api/currency-preference': typeof ApiCurrencyPreferenceRoute
   '/legal/acceptable-use': typeof LegalAcceptableUseRoute
+  '/legal/content-policy': typeof LegalContentPolicyRoute
   '/legal/payments': typeof LegalPaymentsRoute
   '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/refunds': typeof LegalRefundsRoute
   '/legal/terms': typeof LegalTermsRoute
   '/streamer/$id': typeof StreamerIdRoute
   '/support/$slug': typeof SupportSlugRoute
@@ -175,8 +189,10 @@ export interface FileRoutesByTo {
   '/api': typeof ApiRevealKeyRoute
   '/api/currency-preference': typeof ApiCurrencyPreferenceRoute
   '/legal/acceptable-use': typeof LegalAcceptableUseRoute
+  '/legal/content-policy': typeof LegalContentPolicyRoute
   '/legal/payments': typeof LegalPaymentsRoute
   '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/refunds': typeof LegalRefundsRoute
   '/legal/terms': typeof LegalTermsRoute
   '/streamer/$id': typeof StreamerIdRoute
   '/support/$slug': typeof SupportSlugRoute
@@ -199,8 +215,10 @@ export interface FileRoutesById {
   '/api/_reveal-key': typeof ApiRevealKeyRoute
   '/api/currency-preference': typeof ApiCurrencyPreferenceRoute
   '/legal/acceptable-use': typeof LegalAcceptableUseRoute
+  '/legal/content-policy': typeof LegalContentPolicyRoute
   '/legal/payments': typeof LegalPaymentsRoute
   '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/refunds': typeof LegalRefundsRoute
   '/legal/terms': typeof LegalTermsRoute
   '/streamer/$id': typeof StreamerIdRoute
   '/support/$slug': typeof SupportSlugRoute
@@ -224,8 +242,10 @@ export interface FileRouteTypes {
     | '/api'
     | '/api/currency-preference'
     | '/legal/acceptable-use'
+    | '/legal/content-policy'
     | '/legal/payments'
     | '/legal/privacy'
+    | '/legal/refunds'
     | '/legal/terms'
     | '/streamer/$id'
     | '/support/$slug'
@@ -247,8 +267,10 @@ export interface FileRouteTypes {
     | '/api'
     | '/api/currency-preference'
     | '/legal/acceptable-use'
+    | '/legal/content-policy'
     | '/legal/payments'
     | '/legal/privacy'
+    | '/legal/refunds'
     | '/legal/terms'
     | '/streamer/$id'
     | '/support/$slug'
@@ -270,8 +292,10 @@ export interface FileRouteTypes {
     | '/api/_reveal-key'
     | '/api/currency-preference'
     | '/legal/acceptable-use'
+    | '/legal/content-policy'
     | '/legal/payments'
     | '/legal/privacy'
+    | '/legal/refunds'
     | '/legal/terms'
     | '/streamer/$id'
     | '/support/$slug'
@@ -294,8 +318,10 @@ export interface RootRouteChildren {
   ApiRevealKeyRoute: typeof ApiRevealKeyRoute
   ApiCurrencyPreferenceRoute: typeof ApiCurrencyPreferenceRoute
   LegalAcceptableUseRoute: typeof LegalAcceptableUseRoute
+  LegalContentPolicyRoute: typeof LegalContentPolicyRoute
   LegalPaymentsRoute: typeof LegalPaymentsRoute
   LegalPrivacyRoute: typeof LegalPrivacyRoute
+  LegalRefundsRoute: typeof LegalRefundsRoute
   LegalTermsRoute: typeof LegalTermsRoute
   StreamerIdRoute: typeof StreamerIdRoute
   SupportSlugRoute: typeof SupportSlugRoute
@@ -403,6 +429,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LegalTermsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/legal/refunds': {
+      id: '/legal/refunds'
+      path: '/legal/refunds'
+      fullPath: '/legal/refunds'
+      preLoaderRoute: typeof LegalRefundsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/legal/privacy': {
       id: '/legal/privacy'
       path: '/legal/privacy'
@@ -415,6 +448,13 @@ declare module '@tanstack/react-router' {
       path: '/legal/payments'
       fullPath: '/legal/payments'
       preLoaderRoute: typeof LegalPaymentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/content-policy': {
+      id: '/legal/content-policy'
+      path: '/legal/content-policy'
+      fullPath: '/legal/content-policy'
+      preLoaderRoute: typeof LegalContentPolicyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/legal/acceptable-use': {
@@ -470,8 +510,10 @@ const rootRouteChildren: RootRouteChildren = {
   ApiRevealKeyRoute: ApiRevealKeyRoute,
   ApiCurrencyPreferenceRoute: ApiCurrencyPreferenceRoute,
   LegalAcceptableUseRoute: LegalAcceptableUseRoute,
+  LegalContentPolicyRoute: LegalContentPolicyRoute,
   LegalPaymentsRoute: LegalPaymentsRoute,
   LegalPrivacyRoute: LegalPrivacyRoute,
+  LegalRefundsRoute: LegalRefundsRoute,
   LegalTermsRoute: LegalTermsRoute,
   StreamerIdRoute: StreamerIdRoute,
   SupportSlugRoute: SupportSlugRoute,

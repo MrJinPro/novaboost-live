@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { Header } from "@/components/Header";
 import { CurrencySwitcher } from "@/components/CurrencySwitcher";
+import { HelpTooltip } from "@/components/HelpTooltip";
 import { LocalizedPrice } from "@/components/LocalizedPrice";
 import { usePaymentComingSoonSurvey } from "@/components/PaymentComingSoonDialog";
 import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
@@ -372,7 +373,7 @@ function ServicesPage() {
 
             <div className="mt-5 space-y-4">
               <div>
-                <label className="mb-1.5 block text-sm font-medium">Кого продвигаем</label>
+                <label className="mb-1.5 flex items-center gap-2 text-sm font-medium">Кого продвигаем <HelpTooltip text="Здесь выбирается стример, чью TikTok-ссылку или эфир ты хочешь продвигать внутри будущего paid-сценария." /></label>
                 <select value={selectedStreamerId} onChange={(event) => setSelectedStreamerId(event.target.value)} className="w-full rounded-lg border border-border bg-surface px-4 py-3 text-foreground">
                   <option value="">— Выбери стримера —</option>
                   {streamers.map((streamer) => (
@@ -382,7 +383,7 @@ function ServicesPage() {
               </div>
 
               <div>
-                <label className="mb-1.5 block text-sm font-medium">{selectedService?.targetLabel ?? "Ссылка TikTok"}</label>
+                <label className="mb-1.5 flex items-center gap-2 text-sm font-medium">{selectedService?.targetLabel ?? "Ссылка TikTok"} <HelpTooltip text="Сюда вставляется целевая TikTok-ссылка: эфир, видео, профиль или другой target, который нужен выбранной услуге." /></label>
                 <input value={targetLink} onChange={(event) => setTargetLink(event.target.value)} placeholder={selectedService?.targetPlaceholder ?? getPromotionTargetMeta(selectedService?.targetType).placeholder} className="w-full rounded-lg border border-border bg-surface px-4 py-3 text-foreground" />
                 <div className="mt-2 text-xs text-muted-foreground">{selectedService?.targetHelp ?? getPromotionTargetMeta(selectedService?.targetType).help}</div>
                 {liveTargetSelected && selectedStreamer && !selectedStreamer.is_live && (
@@ -393,7 +394,7 @@ function ServicesPage() {
               </div>
 
               <div>
-                <label className="mb-1.5 block text-sm font-medium">Количество</label>
+                <label className="mb-1.5 flex items-center gap-2 text-sm font-medium">Количество <HelpTooltip text="Это объём услуги. Пока checkout ещё не активен, поле нужно для оценки спроса и ожидаемого чека будущего заказа." /></label>
                 <input type="number" min={selectedService?.min ?? 1} max={selectedService?.max ?? 1_000_000} value={quantity} onChange={(event) => setQuantity(event.target.value)} className="w-full rounded-lg border border-border bg-surface px-4 py-3 text-foreground" />
               </div>
 
