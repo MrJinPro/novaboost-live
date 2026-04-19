@@ -1,3 +1,5 @@
+import { getBackendBaseUrl } from "@/lib/backend-base-url";
+
 export type TikTokProfileData = {
   username: string;
   displayName: string | null;
@@ -6,10 +8,6 @@ export type TikTokProfileData = {
   secUid: string | null;
   source: "universal-data" | "next-data" | "meta-tags";
 };
-
-function getBackendBaseUrl() {
-  return import.meta.env.VITE_BACKEND_URL || process.env.VITE_BACKEND_URL || "http://127.0.0.1:4310";
-}
 
 export function normalizeTikTokUsername(value: string) {
   return value.trim().replace(/^https?:\/\/www\.tiktok\.com\//i, "").replace(/^@+/, "").replace(/\/live$/i, "").trim().toLowerCase();

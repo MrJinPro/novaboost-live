@@ -1,6 +1,7 @@
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { AppUser } from "@/lib/mock-platform";
+import { getBackendBaseUrl } from "@/lib/backend-base-url";
 import { getAuthProfileCompat, upsertAuthProfileCompat } from "@/lib/profile-schema-compat";
 import { ensureLinkedStreamer, normalizeTikTokUsername } from "@/lib/streamer-profile-linking";
 import { lookupTikTokProfile } from "@/lib/tiktok-profile-data";
@@ -57,10 +58,6 @@ export type StreamerApplicationState = {
 };
 
 type UploadMediaKind = "viewer-avatar" | "streamer-avatar" | "streamer-banner";
-
-function getBackendBaseUrl() {
-  return import.meta.env.VITE_BACKEND_URL || process.env.VITE_BACKEND_URL || "http://127.0.0.1:4310";
-}
 
 export async function loadProfileSettings(user: AppUser): Promise<ProfileSettingsDraft> {
   const [profileCompat, profileResult, streamerResult] = await Promise.all([

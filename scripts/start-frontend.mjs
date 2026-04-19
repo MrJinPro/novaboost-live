@@ -11,6 +11,8 @@ const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(currentDirectory, "..");
 const clientRoot = path.join(projectRoot, "dist", "client");
 const publicRoot = path.join(projectRoot, "public");
+const backendOrigin = process.env.INTERNAL_BACKEND_URL ?? `http://127.0.0.1:${process.env.BACKEND_PORT ?? "4310"}`;
+const backendProxyPrefixes = ["/tracking", "/tiktok", "/notifications", "/growth", "/media"];
 
 const contentTypes = new Map([
   [".css", "text/css; charset=utf-8"],
@@ -53,6 +55,10 @@ function resolveStaticFile(requestPathname) {
   }
 
   return null;
+}
+
+function shouldProxyToBackend(requestPathname) {
+  return backendProxyPrefixes.some((prefix) => requestPathname === prefix || requestPathname.startsWith(`${prefix}/`));
 }
 
 function writeStaticResponse(nodeResponse, filePath) {
@@ -113,9 +119,44 @@ async function writeResponse(nodeResponse, webResponse) {
   Readable.fromWeb(webResponse.body).pipe(nodeResponse);
 }
 
+async function proxyBackendRequest(nodeRequest, nodeResponse) {
+  const requestUrl = new URL(nodeRequest.url ?? "/", `http://${nodeRequest.headers.host ?? `${host}:${port}`}`);
+  const targetUrl = new URL(requestUrl.pathname + requestUrl.search, backendOrigin);
+  const method = nodeRequest.method ?? "GET";
+  const headers = toWebHeaders(nodeRequest.headers);
+  const forwardedProto = nodeRequest.headers["x-forwarded-proto"];
+  const forwardedHost = nodeRequest.headers["x-forwarded-host"] ?? nodeRequest.headers.host;
+
+  if (forwardedProto && typeof forwardedProto === "string") {
+    headers.set("x-forwarded-proto", forwardedProto);
+  }
+
+  if (forwardedHost) {
+    headers.set("x-forwarded-host", Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost);
+  }
+
+  headers.set("host", targetUrl.host);
+
+  const isBodyAllowed = method !== "GET" && method !== "HEAD";
+  const response = await fetch(targetUrl, {
+    method,
+    headers,
+    body: isBodyAllowed ? Readable.toWeb(nodeRequest) : undefined,
+    duplex: isBodyAllowed ? "half" : undefined,
+  });
+
+  await writeResponse(nodeResponse, response);
+}
+
 const httpServer = http.createServer(async (req, res) => {
   try {
     const requestUrl = new URL(req.url ?? "/", `http://${req.headers.host ?? `${host}:${port}`}`);
+
+    if (shouldProxyToBackend(requestUrl.pathname)) {
+      await proxyBackendRequest(req, res);
+      return;
+    }
+
     const staticFile = resolveStaticFile(requestUrl.pathname);
 
     if (staticFile) {

@@ -1,3 +1,5 @@
+import { getBackendBaseUrl } from "@/lib/backend-base-url";
+
 type LiveStatusResponse = {
   statuses: Array<{
     tiktokUsername: string;
@@ -43,10 +45,6 @@ type StreamTrackingResponse = {
 };
 
 export type ResolvedLiveStatus = LiveStatusResponse["statuses"][number];
-
-function getBackendBaseUrl() {
-  return import.meta.env.VITE_BACKEND_URL || process.env.VITE_BACKEND_URL || "http://127.0.0.1:4310";
-}
 
 function normalizeTikTokUsername(username: string) {
   return username.trim().replace(/^@+/, "").toLowerCase();

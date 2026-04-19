@@ -35,6 +35,7 @@ const envSchema = z.object({
   TELEGRAM_BOT_TOKEN: optionalString(),
   PLATFORM_TELEGRAM_CHAT_ID: optionalString(),
   TIKTOK_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(30_000).default(10_000),
+  TIKTOK_PROFILE_SYNC_INTERVAL_MS: z.coerce.number().int().min(0).max(86_400_000).default(21_600_000),
   TIKTOK_SIGN_API_KEY: optionalString(),
   TIKTOK_SESSION_ID: optionalString(),
   TIKTOK_TT_TARGET_IDC: optionalString(),

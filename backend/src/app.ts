@@ -12,6 +12,7 @@ import { createLiveStorage } from "./storage/create-live-storage.js";
 import { TelegramService } from "./modules/telegram/telegram-service.js";
 import { TrackingService } from "./modules/tracking/tracking-service.js";
 import { NotificationRoutingRepository } from "./repositories/notification-routing-repository.js";
+import { TikTokProfileSyncService } from "./modules/tiktok/tiktok-profile-sync-service.js";
 
 export function bootstrapBackend() {
   const env = loadEnv();
@@ -27,6 +28,7 @@ export function bootstrapBackend() {
   const telegram = new TelegramService(logger);
   const notifications = new NotificationService(logger, telegram, notificationRoutingRepository);
   const prmotion = new PRMotionService(env, logger, promotionOrderRepository, trackingStore);
+  const tiktokProfileSync = supabaseAdmin ? new TikTokProfileSyncService(supabaseAdmin, logger, env) : null;
 
   if (trackingStore) {
     tracking.attachLiveEventBridge(new TrackingLiveEventBridge({
@@ -58,7 +60,8 @@ export function bootstrapBackend() {
   tracking.attachSocketHub(trackingSocketHub);
 
   tracking.scheduleRegisteredStreamers();
+  tiktokProfileSync?.scheduleStreamerProfileSync();
   prmotion.scheduleOrderQueue();
 
-  return { env, logger, server, tracking, scoring, notifications, telegram, prmotion };
+  return { env, logger, server, tracking, scoring, notifications, telegram, prmotion, tiktokProfileSync };
 }
