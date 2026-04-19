@@ -90,7 +90,7 @@ function StreamerProfile() {
   useEffect(() => {
     let active = true;
 
-    if (!user || streamer.owner_user_id === user.id) {
+    if (!streamer || !user || streamer.owner_user_id === user.id) {
       setSubscribed(false);
       return;
     }
@@ -113,7 +113,7 @@ function StreamerProfile() {
     return () => {
       active = false;
     };
-  }, [id, streamer.owner_user_id, user]);
+  }, [id, streamer, user]);
 
   useEffect(() => {
     let active = true;
