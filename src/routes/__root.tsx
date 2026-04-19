@@ -1,7 +1,8 @@
-import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { Outlet, Link, createRootRoute, HeadContent, Scripts, useLocation } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth-context";
 import { CurrencyProvider } from "@/lib/currency";
 import { Toaster } from "@/components/ui/sonner";
+import { AppFooter } from "@/components/AppFooter";
 
 import appCss from "../styles.css?url";
 
@@ -74,10 +75,14 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
+  const location = useLocation();
+  const hideFooter = location.pathname.startsWith("/overlay");
+
   return (
     <CurrencyProvider>
       <AuthProvider>
         <Outlet />
+        {!hideFooter && <AppFooter />}
         <Toaster />
       </AuthProvider>
     </CurrencyProvider>

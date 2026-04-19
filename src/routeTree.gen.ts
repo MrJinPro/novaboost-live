@@ -17,9 +17,12 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as BoostRouteImport } from './routes/boost'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SupportSlugRouteImport } from './routes/support.$slug'
 import { Route as StreamerIdRouteImport } from './routes/streamer.$id'
+import { Route as LegalTermsRouteImport } from './routes/legal.terms'
+import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
 import { Route as ApiCurrencyPreferenceRouteImport } from './routes/api/currency-preference'
 import { Route as ApiRevealKeyRouteImport } from './routes/api/_reveal-key'
 import { Route as OverlayDonationSlugRouteImport } from './routes/overlay.donation.$slug'
@@ -65,6 +68,11 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -78,6 +86,16 @@ const SupportSlugRoute = SupportSlugRouteImport.update({
 const StreamerIdRoute = StreamerIdRouteImport.update({
   id: '/streamer/$id',
   path: '/streamer/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalTermsRoute = LegalTermsRouteImport.update({
+  id: '/legal/terms',
+  path: '/legal/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalPrivacyRoute = LegalPrivacyRouteImport.update({
+  id: '/legal/privacy',
+  path: '/legal/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiCurrencyPreferenceRoute = ApiCurrencyPreferenceRouteImport.update({
@@ -103,6 +121,7 @@ const OverlayWidgetSlugWidgetRoute = OverlayWidgetSlugWidgetRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/boost': typeof BoostRoute
   '/leaderboard': typeof LeaderboardRoute
@@ -113,6 +132,8 @@ export interface FileRoutesByFullPath {
   '/tasks': typeof TasksRoute
   '/api': typeof ApiRevealKeyRoute
   '/api/currency-preference': typeof ApiCurrencyPreferenceRoute
+  '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/terms': typeof LegalTermsRoute
   '/streamer/$id': typeof StreamerIdRoute
   '/support/$slug': typeof SupportSlugRoute
   '/overlay/donation/$slug': typeof OverlayDonationSlugRoute
@@ -120,6 +141,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/boost': typeof BoostRoute
   '/leaderboard': typeof LeaderboardRoute
@@ -130,6 +152,8 @@ export interface FileRoutesByTo {
   '/tasks': typeof TasksRoute
   '/api': typeof ApiRevealKeyRoute
   '/api/currency-preference': typeof ApiCurrencyPreferenceRoute
+  '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/terms': typeof LegalTermsRoute
   '/streamer/$id': typeof StreamerIdRoute
   '/support/$slug': typeof SupportSlugRoute
   '/overlay/donation/$slug': typeof OverlayDonationSlugRoute
@@ -138,6 +162,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/boost': typeof BoostRoute
   '/leaderboard': typeof LeaderboardRoute
@@ -148,6 +173,8 @@ export interface FileRoutesById {
   '/tasks': typeof TasksRoute
   '/api/_reveal-key': typeof ApiRevealKeyRoute
   '/api/currency-preference': typeof ApiCurrencyPreferenceRoute
+  '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/terms': typeof LegalTermsRoute
   '/streamer/$id': typeof StreamerIdRoute
   '/support/$slug': typeof SupportSlugRoute
   '/overlay/donation/$slug': typeof OverlayDonationSlugRoute
@@ -157,6 +184,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/about'
     | '/auth'
     | '/boost'
     | '/leaderboard'
@@ -167,6 +195,8 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/api'
     | '/api/currency-preference'
+    | '/legal/privacy'
+    | '/legal/terms'
     | '/streamer/$id'
     | '/support/$slug'
     | '/overlay/donation/$slug'
@@ -174,6 +204,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/about'
     | '/auth'
     | '/boost'
     | '/leaderboard'
@@ -184,6 +215,8 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/api'
     | '/api/currency-preference'
+    | '/legal/privacy'
+    | '/legal/terms'
     | '/streamer/$id'
     | '/support/$slug'
     | '/overlay/donation/$slug'
@@ -191,6 +224,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/about'
     | '/auth'
     | '/boost'
     | '/leaderboard'
@@ -201,6 +235,8 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/api/_reveal-key'
     | '/api/currency-preference'
+    | '/legal/privacy'
+    | '/legal/terms'
     | '/streamer/$id'
     | '/support/$slug'
     | '/overlay/donation/$slug'
@@ -209,6 +245,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AboutRoute: typeof AboutRoute
   AuthRoute: typeof AuthRoute
   BoostRoute: typeof BoostRoute
   LeaderboardRoute: typeof LeaderboardRoute
@@ -219,6 +256,8 @@ export interface RootRouteChildren {
   TasksRoute: typeof TasksRoute
   ApiRevealKeyRoute: typeof ApiRevealKeyRoute
   ApiCurrencyPreferenceRoute: typeof ApiCurrencyPreferenceRoute
+  LegalPrivacyRoute: typeof LegalPrivacyRoute
+  LegalTermsRoute: typeof LegalTermsRoute
   StreamerIdRoute: typeof StreamerIdRoute
   SupportSlugRoute: typeof SupportSlugRoute
   OverlayDonationSlugRoute: typeof OverlayDonationSlugRoute
@@ -283,6 +322,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -302,6 +348,20 @@ declare module '@tanstack/react-router' {
       path: '/streamer/$id'
       fullPath: '/streamer/$id'
       preLoaderRoute: typeof StreamerIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/terms': {
+      id: '/legal/terms'
+      path: '/legal/terms'
+      fullPath: '/legal/terms'
+      preLoaderRoute: typeof LegalTermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/privacy': {
+      id: '/legal/privacy'
+      path: '/legal/privacy'
+      fullPath: '/legal/privacy'
+      preLoaderRoute: typeof LegalPrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/currency-preference': {
@@ -337,6 +397,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AboutRoute: AboutRoute,
   AuthRoute: AuthRoute,
   BoostRoute: BoostRoute,
   LeaderboardRoute: LeaderboardRoute,
@@ -347,6 +408,8 @@ const rootRouteChildren: RootRouteChildren = {
   TasksRoute: TasksRoute,
   ApiRevealKeyRoute: ApiRevealKeyRoute,
   ApiCurrencyPreferenceRoute: ApiCurrencyPreferenceRoute,
+  LegalPrivacyRoute: LegalPrivacyRoute,
+  LegalTermsRoute: LegalTermsRoute,
   StreamerIdRoute: StreamerIdRoute,
   SupportSlugRoute: SupportSlugRoute,
   OverlayDonationSlugRoute: OverlayDonationSlugRoute,

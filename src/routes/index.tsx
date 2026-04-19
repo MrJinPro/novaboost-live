@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { PlatformDisclaimer } from "@/components/PlatformDisclaimer";
+import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
 import { StreamerCard } from "@/components/StreamerCard";
 import { Logo } from "@/components/Logo";
 import { LiveIndicator } from "@/components/LiveIndicator";
@@ -128,6 +129,30 @@ function HomePage() {
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="container mx-auto px-4 py-10">
+        <ProjectHelpPanel
+          title="Что здесь можно делать"
+          description="Этот блок объясняет продукт простыми словами: что именно делает NovaBoost Live, чем отличаются очки, бусты, каталог и инструменты стримера."
+          items={[
+            {
+              key: "project",
+              title: "Что такое NovaBoost Live",
+              body: "Это отдельная платформа вокруг TikTok LIVE. Она помогает стримерам и зрителям взаимодействовать между эфирами: находить друг друга, поддерживать рост, публиковать контент и участвовать в активностях.",
+            },
+            {
+              key: "catalog",
+              title: "Что показывает каталог стримеров",
+              body: "Каталог показывает, кто сейчас в эфире, кому нужен буст, кто уже продвигается и какие стримеры заметнее внутри самой экосистемы NovaBoost Live.",
+            },
+            {
+              key: "boost",
+              title: "Что дают viewer points и бусты",
+              body: "Зрители получают очки за активность и могут тратить их на бусты. Буст поднимает стримера выше внутри NovaBoost Live, но не обещает внешний трафик или метрики TikTok сам по себе.",
+            },
+          ]}
+        />
       </section>
 
       {/* BENTO GRID */}
@@ -263,13 +288,6 @@ function HomePage() {
           </div>
       </section>
 
-      <footer className="border-t border-border/40 mt-12">
-        <div className="container mx-auto px-4 py-6 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
-          <Logo size="sm" showText />
-          <div>© 2025 NovaBoost Live · Независимый сервис для TikTok LIVE-стримеров</div>
-          <div className="max-w-md text-right">Не связан с TikTok и не представляет TikTok. Используется как сторонняя платформа вокруг live-эфиров.</div>
-        </div>
-      </footer>
     </div>
   );
 }

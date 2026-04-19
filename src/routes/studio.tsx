@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { PlatformDisclaimer } from "@/components/PlatformDisclaimer";
+import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -948,6 +949,36 @@ function StreamerStudioPage() {
 
         <div className="mt-6">
           <PlatformDisclaimer compact />
+        </div>
+
+        <div className="mt-6">
+          <ProjectHelpPanel
+            badge="Подсказки для стримера"
+            title="Что за что отвечает в студии"
+            description="Студия - это центр управления твоим присутствием внутри NovaBoost Live. Подсказки ниже помогают быстро понять назначение основных вкладок."
+            items={[
+              {
+                key: "page",
+                title: "Вкладка “Страница”",
+                body: "Здесь ты оформляешь публичную страницу внутри NovaBoost Live: баннер, логотип, headline, bio, ссылку на Telegram и общее позиционирование стримера для аудитории между эфирами.",
+              },
+              {
+                key: "content",
+                title: "Вкладка “Контент”",
+                body: "Здесь создаются посты, анонсы и другие публикации, которые помогают удерживать зрителя даже тогда, когда ты не в прямом эфире.",
+              },
+              {
+                key: "engagement",
+                title: "Вкладка “Активности”",
+                body: "Этот раздел нужен для вовлечения зрителей: задания, кодовые слова, reward points и сценарии, которые побуждают аудиторию возвращаться и участвовать в росте канала.",
+              },
+              {
+                key: "donations",
+                title: "Вкладка “Донаты и OBS”",
+                body: "Здесь настраиваются donation links, overlay-сцены и OBS-виджеты. Это визуальный и интерактивный слой поддержки стримера внутри NovaBoost Live.",
+              },
+            ]}
+          />
         </div>
 
         <Tabs defaultValue="page" className="mt-6">

@@ -11,6 +11,9 @@ export function PlatformDisclaimer({ compact = false }: PlatformDisclaimerProps)
       <p className="mt-1">
         Платформа не связана с TikTok, не представляет TikTok и не выдаёт себя за официальный продукт TikTok.
       </p>
+      <p className="mt-1">
+        Внутренние механики NovaBoost Live, включая бусты, задания, viewer points и каталоги, относятся к экосистеме NovaBoost Live и сами по себе не означают обещание внешних метрик на TikTok.
+      </p>
     </div>
   );
 }

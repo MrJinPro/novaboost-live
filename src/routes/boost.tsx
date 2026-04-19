@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { useAuth } from "@/lib/auth-context";
+import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Crown, Zap } from "lucide-react";
@@ -166,6 +167,31 @@ function BoostPage() {
             </div>
           </div>
         </section>
+
+        <div className="mt-6">
+          <ProjectHelpPanel
+            badge="Как работает boost"
+            title="Что именно даёт boost стримеру"
+            description="Эта механика специально объяснена прямо на странице, чтобы зритель понимал, за что он тратит свои очки, а стример - какой эффект получает."
+            items={[
+              {
+                key: "effect",
+                title: "Какой эффект получает стример",
+                body: "Boost усиливает видимость стримера внутри NovaBoost Live: даёт более высокую позицию в каталоге, выделяет карточку, помогает чаще попадать в подборки live-эфиров и показывает волну поддержки от зрителей.",
+              },
+              {
+                key: "not-external",
+                title: "Чего boost не обещает",
+                body: "Boost не покупает трафик TikTok, не обещает лайки, зрителей или продвижение алгоритмами TikTok. Его задача - усиливать стримера именно внутри NovaBoost Live.",
+              },
+              {
+                key: "points",
+                title: "Почему boost тратится за points, а не за деньги",
+                body: "В текущей логике это социальная механика вовлечения. Зрители получают points за активность и решают, какого стримера поддержать, чтобы разгонять платформу через участие сообщества, а не только через оплату.",
+              },
+            ]}
+          />
+        </div>
 
         <section className="mt-8">
           <h2 className="font-display font-bold text-lg mb-3">1. Выбери стримера</h2>
