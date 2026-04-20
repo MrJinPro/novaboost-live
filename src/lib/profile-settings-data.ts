@@ -193,7 +193,7 @@ export async function saveProfileSettings(user: AppUser, draft: ProfileSettingsD
     throw profileError;
   }
 
-  if (user.role !== "streamer") {
+  if (!user.isStreamer) {
     return { publicPageId: null };
   }
 

@@ -17,6 +17,8 @@ export type StreamerMembershipSettings = {
 export interface AppUser {
   id: string;
   role: AppRole;
+  isAdmin: boolean;
+  isStreamer: boolean;
   email: string;
   username: string;
   displayName: string;

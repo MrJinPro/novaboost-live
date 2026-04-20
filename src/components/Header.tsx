@@ -22,8 +22,8 @@ export function Header() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const navItems = [
     ...BASE_NAV,
-    ...(user?.role === "streamer" ? [{ to: "/services" as const, label: "Продвижение" }, { to: "/studio" as const, label: "Студия" }] : []),
-    ...(user?.role === "admin" ? [{ to: "/admin" as const, label: "Админка" }] : []),
+    ...(user?.isStreamer ? [{ to: "/services" as const, label: "Продвижение" }, { to: "/studio" as const, label: "Студия" }] : []),
+    ...(user?.isAdmin ? [{ to: "/admin" as const, label: "Админка" }] : []),
   ];
 
   useEffect(() => {
@@ -33,7 +33,7 @@ export function Header() {
   useEffect(() => {
     let active = true;
 
-    if (!user || user.role !== "streamer") {
+    if (!user || !user.isStreamer) {
       setPublicPageId(null);
       return;
     }
@@ -88,7 +88,7 @@ export function Header() {
           <CurrencySwitcher />
           {user ? (
             <>
-              {user.role === "streamer" && publicPageId && (
+              {user.isStreamer && publicPageId && (
                 <Link to="/streamer/$id" params={{ id: publicPageId }}>
                   <Button variant="ghost" size="sm" className="hidden gap-2 sm:inline-flex">
                     <ExternalLink className="h-4 w-4" />
@@ -99,10 +99,10 @@ export function Header() {
               <Link to="/profile">
                 <Button variant="ghost" size="sm" className="gap-2">
                   <UserIcon className="h-4 w-4" />
-                  <span className="hidden sm:inline">{user.role === "streamer" ? "Кабинет" : "Профиль"}</span>
+                  <span className="hidden sm:inline">{user.isStreamer ? "Кабинет" : "Профиль"}</span>
                 </Button>
               </Link>
-              {user.role === "admin" && (
+              {user.isAdmin && (
                 <Link to="/admin">
                   <Button variant="ghost" size="sm" className="hidden gap-2 sm:inline-flex">
                     <ShieldCheck className="h-4 w-4" />
@@ -175,7 +175,7 @@ export function Header() {
                     </div>
 
                     <div className="grid gap-2">
-                      {user.role === "streamer" && publicPageId && (
+                      {user.isStreamer && publicPageId && (
                         <SheetClose asChild>
                           <Link to="/streamer/$id" params={{ id: publicPageId }}>
                             <Button variant="outline" className="w-full justify-start gap-2 border-border/60">
@@ -190,7 +190,7 @@ export function Header() {
                         <Link to="/profile">
                           <Button variant="outline" className="w-full justify-start gap-2 border-border/60">
                             <UserIcon className="h-4 w-4" />
-                            {user.role === "streamer" ? "Кабинет" : "Профиль"}
+                            {user.isStreamer ? "Кабинет" : "Профиль"}
                           </Button>
                         </Link>
                       </SheetClose>

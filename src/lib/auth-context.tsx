@@ -32,7 +32,7 @@ async function getProfile(userId: string) {
   return getAuthProfileCompat(userId);
 }
 
-async function resolveAppRole(userId: string, declaredRole: Exclude<AppRole, "admin"> | null, hasVerifiedStreamerProfile: boolean): Promise<AppRole> {
+async function resolveAccountCapabilities(userId: string, declaredRole: Exclude<AppRole, "admin"> | null, hasVerifiedStreamerProfile: boolean) {
   const { data, error } = await supabase
     .from("user_roles")
     .select("role")
@@ -40,15 +40,14 @@ async function resolveAppRole(userId: string, declaredRole: Exclude<AppRole, "ad
     .eq("role", "admin")
     .maybeSingle();
 
-  if (!error && data?.role === "admin") {
-    return "admin";
-  }
+  const isAdmin = !error && data?.role === "admin";
+  const isStreamer = declaredRole === "streamer" || hasVerifiedStreamerProfile;
 
-  if (declaredRole === "streamer" || hasVerifiedStreamerProfile) {
-    return "streamer";
-  }
-
-  return "viewer";
+  return {
+    isAdmin,
+    isStreamer,
+    role: isAdmin ? "admin" : isStreamer ? "streamer" : "viewer",
+  } satisfies { isAdmin: boolean; isStreamer: boolean; role: AppRole };
 }
 
 async function enrichTikTokProfileIfNeeded(input: {
@@ -143,7 +142,7 @@ async function buildAppUser(session: Session): Promise<AppUser> {
         tiktokUsername: normalizedTikTokUsername,
       });
   const hasVerifiedStreamerProfile = streamer?.verification_status === "verified";
-  const role = await resolveAppRole(session.user.id, declaredRole, hasVerifiedStreamerProfile);
+  const capabilities = await resolveAccountCapabilities(session.user.id, declaredRole, hasVerifiedStreamerProfile);
 
   const enrichedTikTokProfile = await enrichTikTokProfileIfNeeded({
     session,
@@ -160,7 +159,9 @@ async function buildAppUser(session: Session): Promise<AppUser> {
 
   return {
     id: session.user.id,
-    role,
+    role: capabilities.role,
+    isAdmin: capabilities.isAdmin,
+    isStreamer: capabilities.isStreamer,
     email: session.user.email ?? "",
     username,
     displayName,

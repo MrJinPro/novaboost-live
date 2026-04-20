@@ -145,7 +145,7 @@ function ProfilePage() {
   useEffect(() => {
     let active = true;
 
-    if (!user || user.role !== "streamer") {
+    if (!user || !user.isStreamer) {
       return;
     }
 
@@ -185,7 +185,7 @@ function ProfilePage() {
     );
   }
 
-  const isStreamer = user.role === "streamer";
+  const isStreamer = user.isStreamer;
   const points = viewerProfile?.points ?? 0;
   const progression = getViewerProgression(points);
   const level = progression.level;
