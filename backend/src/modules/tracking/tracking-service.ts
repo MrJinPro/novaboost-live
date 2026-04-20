@@ -154,15 +154,20 @@ export class TrackingService {
         }
       : state;
 
-    const mergedLatestSession = realtimeState && latestSession
+    const mergedLatestSession = realtimeState
       ? {
-          ...latestSession,
-          status: realtimeState.isLive ? "live" : latestSession.status,
+          id: latestSession?.id ?? realtimeState.streamId ?? `realtime:${streamerId}`,
+          streamer_id: latestSession?.streamer_id ?? streamerId,
+          source: latestSession?.source ?? realtimeState.source,
+          status: realtimeState.isLive ? "live" : (latestSession?.status ?? "ended"),
+          started_at: latestSession?.started_at ?? realtimeState.lastUpdate,
+          ended_at: realtimeState.isLive ? null : (latestSession?.ended_at ?? realtimeState.lastUpdate),
+          peak_viewer_count: Math.max(latestSession?.peak_viewer_count ?? 0, realtimeState.viewerCount),
           current_viewer_count: realtimeState.viewerCount,
-          peak_viewer_count: Math.max(latestSession.peak_viewer_count, realtimeState.viewerCount),
           like_count: realtimeState.likeCount,
           gift_count: realtimeState.giftCount,
           message_count: realtimeState.messageCount,
+          raw_snapshot: latestSession?.raw_snapshot ?? {},
         }
       : latestSession;
 

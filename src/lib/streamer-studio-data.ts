@@ -763,15 +763,29 @@ export async function loadPublicStreamerPage(idOrUsername: string) {
     shouldLookupTikTokProfile ? lookupTikTokProfile(streamer.tiktok_username).catch(() => null) : Promise.resolve(null),
   ]);
 
-  const resolvedSession = trackingDetails?.latestSession ?? latestSession;
+  const trackingRealtimeState = trackingDetails?.realtimeState ?? null;
+  const resolvedSession = trackingDetails?.latestSession
+    ?? (trackingRealtimeState
+      ? {
+          like_count: trackingRealtimeState.likeCount,
+          gift_count: trackingRealtimeState.giftCount,
+          message_count: trackingRealtimeState.messageCount,
+          current_viewer_count: trackingRealtimeState.viewerCount,
+          peak_viewer_count: trackingRealtimeState.viewerCount,
+          status: trackingRealtimeState.isLive ? "live" : "ended",
+          started_at: trackingRealtimeState.lastUpdate,
+        }
+      : null)
+    ?? latestSession;
   const resolvedEvents = trackingDetails?.recentEvents?.length
     ? trackingDetails.recentEvents.map(mapLiveEvent)
     : recentLiveEvents;
-  const currentViewerCount = trackingDetails?.state?.viewer_count
+  const currentViewerCount = trackingRealtimeState?.viewerCount
+    ?? trackingDetails?.state?.viewer_count
     ?? resolvedSession?.current_viewer_count
     ?? liveStatus?.viewerCount
     ?? streamer.viewer_count;
-  const isLive = trackingDetails?.state?.is_live ?? liveStatus?.isLive ?? streamer.is_live;
+  const isLive = trackingRealtimeState?.isLive ?? trackingDetails?.state?.is_live ?? liveStatus?.isLive ?? streamer.is_live;
   const resolvedDisplayName = tiktokProfile?.displayName?.trim()
     && streamer.display_name.trim().toLowerCase() === streamer.tiktok_username.trim().toLowerCase()
     ? tiktokProfile.displayName.trim()
@@ -809,12 +823,12 @@ export async function loadPublicStreamerPage(idOrUsername: string) {
     membership_settings: parseStreamerMembershipSettings(settings?.layout ?? null),
     next_event: posts[0]?.title ? `Актуальный анонс: ${posts[0].title}` : "Следующий анонс появится после первой публикации в студии.",
     support_goal: streamer.needs_boost ? "Сейчас стримеру нужен дополнительный буст и трафик из платформы." : "Страница активна, следи за анонсами и новыми постами.",
-    total_likes: resolvedSession?.like_count ?? 0,
-    total_gifts: resolvedSession?.gift_count ?? 0,
-    total_messages: resolvedSession?.message_count ?? 0,
-    peak_viewer_count: resolvedSession?.peak_viewer_count ?? 0,
-    current_session_status: resolvedSession?.status ?? null,
-    current_session_started_at: resolvedSession?.started_at ?? null,
+    total_likes: trackingRealtimeState?.likeCount ?? resolvedSession?.like_count ?? 0,
+    total_gifts: trackingRealtimeState?.giftCount ?? resolvedSession?.gift_count ?? 0,
+    total_messages: trackingRealtimeState?.messageCount ?? resolvedSession?.message_count ?? 0,
+    peak_viewer_count: resolvedSession?.peak_viewer_count ?? trackingRealtimeState?.viewerCount ?? 0,
+    current_session_status: trackingRealtimeState?.isLive ? "live" : (resolvedSession?.status ?? null),
+    current_session_started_at: resolvedSession?.started_at ?? trackingRealtimeState?.lastUpdate ?? null,
     accent: settings?.accent_color ?? getStreamerThemeSeed(streamer.tiktok_username, streamer.display_name).accent,
     tags: (() => {
       const layout = (settings?.layout ?? {}) as { tags?: string[] };
