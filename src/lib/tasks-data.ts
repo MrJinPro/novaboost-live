@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { AppUser } from "@/lib/mock-platform";
 import { getViewerProfileStatsCompat, resolveNextActivityStreak, updateViewerProfileProgressCompat } from "./profile-schema-compat";
 import { resolveLinkedStreamer } from "./streamer-profile-linking";
+import { calculateCodeWordReward, getViewerLevel, validateCodeWord } from "./viewer-levels";
 
 export type LiveTask = {
   id: string;
@@ -11,6 +12,7 @@ export type LiveTask = {
   type: "visit" | "code" | "boost" | "referral";
   code: string | null;
   streamer_id: string | null;
+  stream_session_id?: string | null;
   streamer_name?: string | null;
   streamer_tiktok_username?: string | null;
   expires_at?: string | null;
@@ -24,6 +26,7 @@ type RawTaskRow = {
   type: "visit" | "code" | "boost" | "referral";
   code: string | null;
   streamer_id: string | null;
+  stream_session_id?: string | null;
   expires_at?: string | null;
   streamers?: {
     display_name: string;
@@ -40,6 +43,7 @@ function normalizeLiveTask(row: RawTaskRow): LiveTask {
     type: row.type,
     code: row.code,
     streamer_id: row.streamer_id,
+    stream_session_id: row.stream_session_id ?? null,
     streamer_name: row.streamers?.display_name ?? null,
     streamer_tiktok_username: row.streamers?.tiktok_username ?? null,
     expires_at: row.expires_at ?? null,
@@ -62,7 +66,7 @@ export type StreamerCodeWordTask = {
 export async function loadTasksData(userId?: string) {
   const { data: tasks, error: tasksError } = await supabase
     .from("tasks")
-    .select("id, title, description, reward_points, type, code, streamer_id, expires_at, streamers(display_name, tiktok_username)")
+    .select("id, title, description, reward_points, type, code, streamer_id, stream_session_id, expires_at, streamers(display_name, tiktok_username)")
     .eq("active", true)
     .order("created_at", { ascending: false });
 
@@ -71,11 +75,28 @@ export async function loadTasksData(userId?: string) {
   }
 
   if (!userId) {
+    const publicTasks = ((tasks ?? []) as RawTaskRow[])
+      .filter((task) => task.type !== "code")
+      .map(normalizeLiveTask);
+
     return {
-      tasks: (tasks ?? []) as LiveTask[],
+      tasks: publicTasks,
       completedIds: new Set<string>(),
     };
   }
+
+  const { data: subscriptions, error: subscriptionsError } = await supabase
+    .from("streamer_subscriptions")
+    .select("streamer_id")
+    .eq("user_id", userId);
+
+  if (subscriptionsError) {
+    throw subscriptionsError;
+  }
+
+  const subscribedStreamerIds = new Set(
+    ((subscriptions ?? []) as Array<{ streamer_id: string }>).map((row) => row.streamer_id),
+  );
 
   const { data: completions, error: completionsError } = await supabase
     .from("task_completions")
@@ -86,8 +107,12 @@ export async function loadTasksData(userId?: string) {
     throw completionsError;
   }
 
+  const filteredTasks = ((tasks ?? []) as RawTaskRow[])
+    .filter((task) => task.type !== "code" || (task.streamer_id ? subscribedStreamerIds.has(task.streamer_id) : false))
+    .map(normalizeLiveTask);
+
   return {
-    tasks: ((tasks ?? []) as RawTaskRow[]).map(normalizeLiveTask),
+    tasks: filteredTasks,
     completedIds: new Set(((completions ?? []) as Array<{ task_id: string }>).map((row) => row.task_id)),
   };
 }
@@ -110,7 +135,48 @@ export async function completeLiveTask(user: AppUser, task: LiveTask) {
 
   const current = await getProfileStats(user.id);
   const nextPoints = (current.points ?? 0) + task.reward_points;
-  const nextLevel = Math.floor(nextPoints / 100) + 1;
+  const nextLevel = getViewerLevel(nextPoints);
+
+  if (task.streamer_id) {
+    const ledgerMetadata = {
+      task_id: task.id,
+      task_type: task.type,
+      streamer_id: task.streamer_id,
+      code: task.type === "code" ? task.code : null,
+    };
+
+    const { error: actionError } = await supabase
+      .from("viewer_stream_actions")
+      .insert({
+        user_id: user.id,
+        streamer_id: task.streamer_id,
+        stream_session_id: task.stream_session_id ?? null,
+        action_type: task.type === "code" ? "code_submission" : task.type === "boost" ? "boost_participation" : task.type === "referral" ? "referral_join" : "stream_visit",
+        points_awarded: task.reward_points,
+        metadata: ledgerMetadata,
+        occurred_at: new Date().toISOString(),
+      });
+
+    if (actionError) {
+      throw actionError;
+    }
+
+    const { error: ledgerError } = await supabase
+      .from("viewer_points_ledger")
+      .insert({
+        user_id: user.id,
+        source_type: task.type === "code" ? "task.code_submission" : `task.${task.type}`,
+        source_id: task.id,
+        delta: task.reward_points,
+        balance_after: nextPoints,
+        reason: `Task completed: ${task.title}`,
+        metadata: ledgerMetadata,
+      });
+
+    if (ledgerError) {
+      throw ledgerError;
+    }
+  }
 
   await updateViewerProfileProgressCompat({
     userId: user.id,
@@ -182,18 +248,15 @@ export async function publishStreamerCodeWordTask(user: AppUser, input: {
   title: string;
   description?: string;
   code: string;
-  rewardPoints: number;
+  rewardPoints?: number;
 }) {
   const streamerId = await getManagedStreamerId(user);
-  const normalizedCode = input.code.trim().toUpperCase();
+  const normalizedCode = validateCodeWord(input.code);
   const activeStreamSessionId = await getLatestActiveStreamSession(streamerId);
+  const rewardPoints = calculateCodeWordReward(normalizedCode);
 
-  if (!normalizedCode) {
-    throw new Error("Кодовое слово не может быть пустым.");
-  }
-
-  if (input.rewardPoints < 1) {
-    throw new Error("Нужно указать хотя бы 1 очко награды.");
+  if (!activeStreamSessionId) {
+    throw new Error("Кодовое слово можно публиковать только во время активного эфира.");
   }
 
   const { error: deactivateError } = await supabase
@@ -213,12 +276,12 @@ export async function publishStreamerCodeWordTask(user: AppUser, input: {
       streamer_id: streamerId,
       title: input.title.trim(),
       description: input.description?.trim() || null,
-      reward_points: input.rewardPoints,
+      reward_points: rewardPoints,
       type: "code",
       code: normalizedCode,
       active: true,
       stream_session_id: activeStreamSessionId,
-      auto_disable_on_live_end: Boolean(activeStreamSessionId),
+      auto_disable_on_live_end: true,
     })
     .select("id, title, description, reward_points, code, active, created_at, expires_at, stream_session_id, auto_disable_on_live_end")
     .single();

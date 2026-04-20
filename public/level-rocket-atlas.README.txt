@@ -1,0 +1,22 @@
+Place your sprite sheet here as:
+level-rocket-atlas.png
+
+Current component expectations:
+- atlas grid: 12 columns x 6 rows
+- default rocket rows used by UI:
+  row 0: columns 0-9 for levels 1-10
+  row 1: columns 1-10 for levels 11-20
+  row 2: columns 1-10 for levels 21-30
+  row 3: columns 1-10 for levels 31-40
+  row 4: columns 1-10 for levels 41-50
+- milestone star cells used by UI:
+  level 10 -> col 11 row 0
+  level 20 -> col 0 row 1
+  level 30 -> col 0 row 2
+  level 40 -> col 0 row 3
+  level 50 -> col 11 row 5
+
+If your exact cell positions differ, edit:
+src/components/LevelRocketBadge.tsx
+
+The UI already has a fallback and will not break if the png is missing.

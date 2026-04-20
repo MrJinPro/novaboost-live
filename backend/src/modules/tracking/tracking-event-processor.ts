@@ -18,9 +18,27 @@ type TrackingEventProcessorOptions = {
   intervalMs?: number;
 };
 
+type RewardDecision = {
+  profilePoints: number;
+  teamPoints: number;
+  shouldRecordAction: boolean;
+  watchSeconds?: number;
+  ledgerReason?: string;
+};
+
+type ScheduledVisitReward = {
+  userId: string;
+  streamerId: string;
+  streamSessionId: string;
+  occurredAt: string;
+  source: string;
+  event: LiveEngagementEvent;
+};
+
 export class TrackingEventProcessor {
   private poller: NodeJS.Timeout | null = null;
   private processing = false;
+  private readonly pendingVisitRewards = new Map<string, NodeJS.Timeout>();
 
   constructor(private readonly options: TrackingEventProcessorOptions) {}
 
@@ -45,11 +63,19 @@ export class TrackingEventProcessor {
 
   stop() {
     if (!this.poller) {
+      for (const timer of this.pendingVisitRewards.values()) {
+        clearTimeout(timer);
+      }
+      this.pendingVisitRewards.clear();
       return;
     }
 
     clearInterval(this.poller);
     this.poller = null;
+    for (const timer of this.pendingVisitRewards.values()) {
+      clearTimeout(timer);
+    }
+    this.pendingVisitRewards.clear();
   }
 
   private async runTick() {
@@ -182,7 +208,49 @@ export class TrackingEventProcessor {
       return;
     }
 
+    if (normalizedEvent.type === "viewer_joined") {
+      this.scheduleStreamVisitReward(eligibleViewer.userId, normalizedEvent);
+      return;
+    }
+
     await this.applyGamification(eligibleViewer, normalizedEvent);
+  }
+
+  private scheduleStreamVisitReward(userId: string, event: LiveEngagementEvent) {
+    const rewardKey = createVisitRewardKey(userId, event.streamerId, event.occurredAt);
+    if (this.pendingVisitRewards.has(rewardKey)) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      this.pendingVisitRewards.delete(rewardKey);
+      void this.applyDelayedStreamVisitReward({
+        userId,
+        streamerId: event.streamerId,
+        streamSessionId: event.streamSessionId,
+        occurredAt: new Date().toISOString(),
+        source: event.source,
+        event,
+      });
+    }, 30_000);
+
+    this.pendingVisitRewards.set(rewardKey, timer);
+  }
+
+  private async applyDelayedStreamVisitReward(input: ScheduledVisitReward) {
+    if (!this.options.engagementRepository) {
+      return;
+    }
+
+    const viewer = await this.options.engagementRepository.getViewerProfile(input.userId);
+    if (!viewer) {
+      return;
+    }
+
+    await this.applyGamification(viewer, {
+      ...input.event,
+      occurredAt: input.occurredAt,
+    });
   }
 
   private async updateRealtimeStateForEngagement(event: LiveEngagementEvent) {
@@ -223,25 +291,24 @@ export class TrackingEventProcessor {
       bio: event.externalViewerBio,
     });
 
-    const reward = this.options.scoringService.getViewerReward({
-      type: event.type,
-      likeCount: event.likeCount,
-      giftCount: event.giftCount,
-      giftDiamondCount: event.giftDiamondCount,
-    });
     const membership = await this.options.engagementRepository.getTeamMembership(event.streamerId, eligibleViewer.userId);
     const unlockedKeys = new Set(await this.options.engagementRepository.getAchievementKeys(event.streamerId, eligibleViewer.userId));
+    const reward = await this.resolveRewardDecision(eligibleViewer.userId, event);
+
+    if (!reward.shouldRecordAction) {
+      return;
+    }
+
     const nextProgress = applyProgressDelta(membership, event, reward.teamPoints);
     const newlyUnlockedAchievements = this.options.scoringService
       .getAchievementDefinitions()
       .filter((achievement) => !unlockedKeys.has(achievement.key) && achievement.isUnlocked(nextProgress));
 
-    const achievementProfilePoints = newlyUnlockedAchievements.reduce((sum, achievement) => sum + achievement.profilePoints, 0);
     const achievementTeamPoints = newlyUnlockedAchievements.reduce((sum, achievement) => sum + achievement.teamPoints, 0);
     const nextTeamPoints = nextProgress.teamPoints + achievementTeamPoints;
     const nextTeamLevel = this.options.scoringService.getTeamLevel(nextTeamPoints);
     const nextFeatures = this.options.scoringService.getTeamFeatures(nextTeamLevel);
-    const nextProfilePoints = eligibleViewer.points + reward.profilePoints + achievementProfilePoints;
+    const nextProfilePoints = eligibleViewer.points + reward.profilePoints;
     const nextProfileLevel = this.options.scoringService.getViewerLevel(nextProfilePoints);
 
     await this.options.engagementRepository.insertViewerStreamAction({
@@ -250,6 +317,7 @@ export class TrackingEventProcessor {
       streamSessionId: event.streamSessionId,
       actionType: mapEventToViewerAction(event.type),
       pointsAwarded: reward.profilePoints,
+      watchSeconds: reward.watchSeconds,
       metadata: {
         source: event.source,
         external_viewer_username: event.externalViewerUsername,
@@ -272,7 +340,7 @@ export class TrackingEventProcessor {
       sourceId: event.streamSessionId,
       delta: reward.profilePoints,
       balanceAfter: eligibleViewer.points + reward.profilePoints,
-      reason: buildLedgerReason(event.type),
+      reason: reward.ledgerReason ?? buildLedgerReason(event.type),
       metadata: {
         streamer_id: event.streamerId,
         stream_session_id: event.streamSessionId,
@@ -280,9 +348,7 @@ export class TrackingEventProcessor {
       },
     });
 
-    let runningBalance = eligibleViewer.points + reward.profilePoints;
     for (const achievement of newlyUnlockedAchievements) {
-      runningBalance += achievement.profilePoints;
       await this.options.engagementRepository.insertAchievementUnlock({
         userId: eligibleViewer.userId,
         streamerId: event.streamerId,
@@ -297,20 +363,6 @@ export class TrackingEventProcessor {
           external_viewer_username: event.externalViewerUsername,
         },
         unlockedAt: event.occurredAt,
-      });
-
-      await this.options.engagementRepository.insertViewerLedgerEntry({
-        userId: eligibleViewer.userId,
-        sourceType: "achievement.unlock",
-        sourceId: event.streamSessionId,
-        delta: achievement.profilePoints,
-        balanceAfter: runningBalance,
-        reason: `Achievement unlocked: ${achievement.title}`,
-        metadata: {
-          streamer_id: event.streamerId,
-          achievement_key: achievement.key,
-          reward_team_points: achievement.teamPoints,
-        },
       });
     }
 
@@ -336,6 +388,86 @@ export class TrackingEventProcessor {
       achievementCount: nextProgress.achievementCount + newlyUnlockedAchievements.length,
       lastEventAt: event.occurredAt,
     });
+  }
+
+  private async resolveRewardDecision(userId: string, event: LiveEngagementEvent): Promise<RewardDecision> {
+    if (!this.options.engagementRepository) {
+      return { profilePoints: 0, teamPoints: 0, shouldRecordAction: false };
+    }
+
+    const dayStart = startOfUtcDay(event.occurredAt);
+    const dayActions = await this.options.engagementRepository.listViewerStreamActions({
+      userId,
+      occurredAfter: dayStart,
+      actionTypes: ["stream_visit", "chat_message", "gift", "like"],
+      limit: 500,
+    });
+
+    switch (event.type) {
+      case "viewer_joined": {
+        const streamVisitsToday = dayActions.filter((action) => action.actionType === "stream_visit");
+        if (streamVisitsToday.some((action) => action.streamerId === event.streamerId)) {
+          return { profilePoints: 0, teamPoints: 0, shouldRecordAction: false };
+        }
+
+        const pointsSoFar = streamVisitsToday.reduce((sum, action) => sum + action.pointsAwarded, 0);
+        if (pointsSoFar >= 55) {
+          return { profilePoints: 0, teamPoints: 0, shouldRecordAction: false };
+        }
+
+        const basePoints = streamVisitsToday.length === 0 ? 15 : 5;
+        return {
+          profilePoints: Math.max(0, Math.min(basePoints, 55 - pointsSoFar)),
+          teamPoints: 1,
+          shouldRecordAction: true,
+          ledgerReason: streamVisitsToday.length === 0 ? "Первое посещение эфира за день" : "Посещение нового эфира за день",
+        };
+      }
+      case "chat_message": {
+        const normalizedComment = normalizeCommentText(event.commentText);
+        if (!normalizedComment) {
+          return { profilePoints: 0, teamPoints: 0, shouldRecordAction: false };
+        }
+
+        const commentActionsToday = dayActions.filter((action) => action.actionType === "chat_message");
+        const lastComment = commentActionsToday[0] ?? null;
+        if (lastComment && toTimestamp(lastComment.occurredAt) >= toTimestamp(event.occurredAt) - 5_000) {
+          return { profilePoints: 0, teamPoints: 0, shouldRecordAction: false };
+        }
+
+        if (commentActionsToday.some((action) => normalizeCommentText(readMetadataText(action.metadata, "comment_text")) === normalizedComment)) {
+          return { profilePoints: 0, teamPoints: 0, shouldRecordAction: false };
+        }
+
+        const streamerCommentsToday = commentActionsToday.filter((action) => action.streamerId === event.streamerId);
+        const firstCommentBonus = commentActionsToday.length === 0 ? 25 : 0;
+        const tenCommentBonus = streamerCommentsToday.length === 9 ? 50 : 0;
+
+        return {
+          profilePoints: 2 + firstCommentBonus + tenCommentBonus,
+          teamPoints: 1,
+          shouldRecordAction: true,
+          ledgerReason: tenCommentBonus > 0 ? "Комментарий и бонус за 10 сообщений у стримера" : firstCommentBonus > 0 ? "Первый комментарий за день" : "Комментарий в эфире",
+        };
+      }
+      case "gift_received": {
+        const diamonds = Math.max(0, event.giftDiamondCount ?? 0);
+        return {
+          profilePoints: diamonds,
+          teamPoints: 5 + Math.floor(diamonds / 10),
+          shouldRecordAction: diamonds > 0,
+          ledgerReason: "Подарок в эфире",
+        };
+      }
+      case "like_received": {
+        return {
+          profilePoints: 0,
+          teamPoints: 0,
+          shouldRecordAction: true,
+          ledgerReason: "Лайк в эфире",
+        };
+      }
+    }
   }
 }
 
@@ -456,4 +588,25 @@ export function createTrackingQueueEvent(input: Omit<TrackingQueueEvent, "id">):
     id: randomUUID(),
     ...input,
   };
+}
+
+function startOfUtcDay(value: string) {
+  return `${value.slice(0, 10)}T00:00:00.000Z`;
+}
+
+function createVisitRewardKey(userId: string, streamerId: string, occurredAt: string) {
+  return `${userId}:${streamerId}:${occurredAt.slice(0, 10)}`;
+}
+
+function normalizeCommentText(value?: string | null) {
+  return (value ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function readMetadataText(metadata: Record<string, unknown>, key: string) {
+  const value = metadata[key];
+  return typeof value === "string" ? value : null;
+}
+
+function toTimestamp(value: string) {
+  return new Date(value).getTime();
 }

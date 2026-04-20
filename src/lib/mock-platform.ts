@@ -2,6 +2,18 @@ export type AppRole = "viewer" | "streamer" | "admin";
 export type SubscriptionPlanKey = "free" | "supporter" | "superfan" | "legend";
 export type PostReactionType = "nova" | "flare" | "pulse" | "crown";
 
+export type StreamerSocialLinks = {
+  telegram: string;
+  instagram: string;
+  facebook: string;
+  twitter: string;
+};
+
+export type StreamerMembershipSettings = {
+  paidEnabled: boolean;
+  highlightedPlanKey: Exclude<SubscriptionPlanKey, "free">;
+};
+
 export interface AppUser {
   id: string;
   role: AppRole;
@@ -71,6 +83,8 @@ export interface StreamerStudioDraft {
   donationGoalTitle: string;
   donationGoalTarget: string;
   donationGoalCurrency: "USD" | "RUB" | "KZT" | "MDL";
+  membershipPaidEnabled: boolean;
+  membershipHighlightedPlanKey: Exclude<SubscriptionPlanKey, "free">;
 }
 
 export interface DonationWidgetEntry {
@@ -120,6 +134,8 @@ export interface StreamerPageData extends StreamerCardData {
   featured_video_url?: string | null;
   subscription_count: number;
   telegram_channel: string;
+  social_links?: StreamerSocialLinks;
+  membership_settings?: StreamerMembershipSettings;
   next_event: string;
   support_goal: string;
   total_likes: number;

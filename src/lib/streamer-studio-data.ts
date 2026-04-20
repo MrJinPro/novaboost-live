@@ -1,4 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
+import { getViewerProfileStatsCompat, resolveNextActivityStreak, updateViewerProfileProgressCompat } from "@/lib/profile-schema-compat";
+import { getViewerLevel } from "@/lib/viewer-levels";
 import type { Tables } from "@/integrations/supabase/types";
 import {
   type AppUser,
@@ -12,6 +14,7 @@ import {
 import { loadActiveBoostTotals } from "@/lib/boost-data";
 import { loadStreamerTrackingDetails, resolveLiveStatus } from "@/lib/live-status-data";
 import { loadDonationLinkByStreamerId, loadRecentDonationEvents } from "@/lib/monetization-data";
+import { buildStreamerPageLayout, DEFAULT_STREAMER_MEMBERSHIP_SETTINGS, EMPTY_STREAMER_SOCIAL_LINKS, parseStreamerMembershipSettings, parseStreamerSocialLinks } from "@/lib/streamer-page-config";
 import { resolveLinkedStreamer, type LinkedStreamerRow } from "@/lib/streamer-profile-linking";
 
 type DbStreamer = LinkedStreamerRow;
@@ -222,6 +225,8 @@ function createEmptyStudioDraft(tiktokUsername: string, displayName: string): St
     donationGoalTitle: DEFAULT_DONATION_OVERLAY.goalTitle,
     donationGoalTarget: String(DEFAULT_DONATION_OVERLAY.goalTarget),
     donationGoalCurrency: DEFAULT_DONATION_OVERLAY.goalCurrency,
+    membershipPaidEnabled: DEFAULT_STREAMER_MEMBERSHIP_SETTINGS.paidEnabled,
+    membershipHighlightedPlanKey: DEFAULT_STREAMER_MEMBERSHIP_SETTINGS.highlightedPlanKey,
   };
 }
 
@@ -487,6 +492,7 @@ function buildDraft(base: StreamerStudioDraft, streamer: DbStreamer, settings: D
   const layout = (settings?.layout ?? {}) as { tags?: string[] };
   const tags = Array.isArray(layout.tags) ? layout.tags : [];
   const donationOverlay = parseDonationOverlaySettings(settings?.layout ?? null);
+  const membership = parseStreamerMembershipSettings(settings?.layout ?? null);
 
   return {
     bannerUrl: settings?.banner_url ?? streamer.banner_url ?? base.bannerUrl,
@@ -506,6 +512,8 @@ function buildDraft(base: StreamerStudioDraft, streamer: DbStreamer, settings: D
     donationGoalTitle: donationOverlay.goalTitle,
     donationGoalTarget: String(donationOverlay.goalTarget),
     donationGoalCurrency: donationOverlay.goalCurrency,
+    membershipPaidEnabled: membership.paidEnabled,
+    membershipHighlightedPlanKey: membership.highlightedPlanKey,
   };
 }
 
@@ -645,8 +653,15 @@ export async function saveStreamerStudioPage(user: AppUser, draft: StreamerStudi
         description: draft.bio || null,
         featured_video_url: draft.featuredVideoUrl || null,
         layout: {
-          ...currentLayout,
-          tags,
+          ...buildStreamerPageLayout({
+            currentLayout,
+            tags,
+            socialLinks: parseStreamerSocialLinks(currentLayout),
+            membership: {
+              paidEnabled: draft.membershipPaidEnabled,
+              highlightedPlanKey: draft.membershipHighlightedPlanKey,
+            },
+          }),
         },
       },
       { onConflict: "streamer_id" }
@@ -758,7 +773,16 @@ export async function loadPublicStreamerPage(id: string) {
     needs_boost: streamer.needs_boost,
     total_boost_amount: boostTotals.get(streamer.id) ?? streamer.total_boost_amount,
     subscription_count: subscriptionCount,
-    telegram_channel: streamer.telegram_channel ?? "@telegram_channel",
+    telegram_channel: streamer.telegram_channel ?? "",
+    social_links: (() => {
+      const socialLinks = parseStreamerSocialLinks(settings?.layout ?? null);
+      return {
+        ...EMPTY_STREAMER_SOCIAL_LINKS,
+        ...socialLinks,
+        telegram: socialLinks.telegram || streamer.telegram_channel || "",
+      };
+    })(),
+    membership_settings: parseStreamerMembershipSettings(settings?.layout ?? null),
     next_event: posts[0]?.title ? `Актуальный анонс: ${posts[0].title}` : "Следующий анонс появится после первой публикации в студии.",
     support_goal: streamer.needs_boost ? "Сейчас стримеру нужен дополнительный буст и трафик из платформы." : "Страница активна, следи за анонсами и новыми постами.",
     total_likes: resolvedSession?.like_count ?? 0,
@@ -829,6 +853,53 @@ export async function toggleStreamerSubscription(streamerId: string, userId: str
 
   if (error) {
     throw error;
+  }
+
+  const { count, error: rewardLookupError } = await supabase
+    .from("viewer_points_ledger")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("source_type", "streamer.subscription")
+    .eq("source_id", streamerId);
+
+  if (rewardLookupError) {
+    throw rewardLookupError;
+  }
+
+  if ((count ?? 0) === 0) {
+    const profile = await getViewerProfileStatsCompat(userId);
+    const nextPoints = (profile.points ?? 0) + 10;
+    const nextLevel = getViewerLevel(nextPoints);
+    const streakDays = resolveNextActivityStreak({
+      currentStreak: profile.streak_days,
+      lastActivityAt: profile.last_activity_at,
+    });
+
+    await updateViewerProfileProgressCompat({
+      userId,
+      points: nextPoints,
+      level: nextLevel,
+      streak_days: streakDays,
+    });
+
+    const { error: ledgerError } = await supabase
+      .from("viewer_points_ledger")
+      .insert({
+        user_id: userId,
+        source_type: "streamer.subscription",
+        source_id: streamerId,
+        delta: 10,
+        balance_after: nextPoints,
+        reason: "Первичная подписка на стримера",
+        metadata: {
+          streamer_id: streamerId,
+          awarded_once: true,
+        },
+      });
+
+    if (ledgerError) {
+      throw ledgerError;
+    }
   }
 
   return true;

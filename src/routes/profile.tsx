@@ -3,15 +3,19 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { Header } from "@/components/Header";
 import { HowItWorksLink } from "@/components/HowItWorksLink";
+import { LevelRocketBadge, LevelRocketStrip } from "@/components/LevelRocketBadge";
 import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Award, BadgeCheck, Camera, Crown, ExternalLink, ImagePlus, LogOut, Save, Send, Sparkles, Trophy, UserRound, Wallpaper, Zap } from "lucide-react";
+import { Facebook, Instagram, Twitter } from "lucide-react";
 import { formatNumber } from "@/lib/format";
+import { SUBSCRIPTION_PLANS, getPaidSubscriptionPlans, getSubscriptionPlanLabel } from "@/lib/monetization-data";
 import { loadViewerProfileData, type ViewerProfileData } from "@/lib/user-profile-data";
 import { getOwnedStreamerPublicPage } from "@/lib/streamer-studio-data";
 import { loadProfileSettings, loadStreamerApplicationState, saveProfileSettings, submitStreamerApplication, uploadProfileMedia, type ProfileSettingsDraft, type StreamerApplicationState } from "@/lib/profile-settings-data";
+import { getViewerProgression } from "@/lib/viewer-levels";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/profile")({
@@ -183,8 +187,8 @@ function ProfilePage() {
 
   const isStreamer = user.role === "streamer";
   const points = viewerProfile?.points ?? 0;
-  const level = viewerProfile?.level ?? 1;
-  const progress = points % 100;
+  const progression = getViewerProgression(points);
+  const level = progression.level;
   const favoriteStreamers = viewerProfile?.subscriptions ?? [];
   const avatarPreview = settings?.avatarUrl.trim() ?? "";
   const bannerPreview = settings?.streamerBannerUrl.trim() ?? "";
@@ -359,13 +363,47 @@ function ProfilePage() {
           </div>
 
           {!isStreamer && (
-            <div className="mt-6">
-              <div className="mb-2 flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">До уровня {level + 1}</span>
-                <span className="font-bold">{progress}/100</span>
+            <div className="mt-6 rounded-3xl border border-border/50 bg-background/20 p-4 sm:p-5">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div className="flex items-center gap-4">
+                  <LevelRocketBadge level={level} size="lg" />
+                  <div>
+                    <div className="text-[11px] uppercase tracking-[0.3em] text-cyan-200/70">Rocket tier</div>
+                    <div className="mt-1 font-display text-2xl font-bold text-white">Уровень {level}</div>
+                    <div className="mt-1 text-sm text-muted-foreground">
+                      {progression.nextLevel
+                        ? `До следующей ракеты осталось ${formatNumber(progression.pointsRemainingToNextLevel ?? 0)} очков`
+                        : "Финальная ракета уже открыта"}
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-border/40 bg-surface/50 px-4 py-3 text-sm text-muted-foreground">
+                  <div className="text-[11px] uppercase tracking-[0.24em] text-fuchsia-200/75">Milestone</div>
+                  <div className="mt-1 font-display text-lg font-bold text-white">
+                    {level % 10 === 0 ? `Звезда уровня ${level}` : `Следующая звезда на ${Math.ceil(level / 10) * 10}`}
+                  </div>
+                </div>
               </div>
-              <div className="h-3 overflow-hidden rounded-full bg-surface-2">
-                <div className="h-full bg-gradient-blast transition-all" style={{ width: `${progress}%` }} />
+
+              <div className="mt-5">
+                <div className="mb-3 flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {progression.nextLevel ? `До уровня ${progression.nextLevel}` : "Максимальный уровень достигнут"}
+                  </span>
+                  <span className="font-bold">
+                    {progression.maxLevelReached
+                      ? `${formatNumber(points)} очков`
+                      : `${formatNumber(progression.pointsIntoLevel)}/${formatNumber(progression.pointsRequiredForNextLevel ?? 0)}`}
+                  </span>
+                </div>
+                <div className="h-3 overflow-hidden rounded-full bg-surface-2">
+                  <div className="h-full bg-gradient-nova transition-all" style={{ width: `${progression.progressPercent}%` }} />
+                </div>
+              </div>
+
+              <div className="mt-5">
+                <div className="mb-3 text-[11px] uppercase tracking-[0.28em] text-cyan-200/70">Текущий сектор уровней</div>
+                <LevelRocketStrip level={level} />
               </div>
             </div>
           )}
@@ -447,9 +485,54 @@ function ProfilePage() {
                     <Field label="Короткий tagline" description="Короткая фраза в верхней части публичной страницы.">
                       <Input value={settings?.streamerTagline ?? ""} onChange={(event) => updateSettings("streamerTagline", event.target.value)} disabled={!settings} placeholder="Например, live-разборы, анонсы и клуб подписчиков" />
                     </Field>
-                    <Field label="Telegram-канал" description="Показывается как контакт и точка входа для аудитории.">
+                    <Field label="Telegram" description="Можно указать username или полную ссылку. На публичной странице будет только компактная иконка.">
                       <Input value={settings?.streamerTelegramChannel ?? ""} onChange={(event) => updateSettings("streamerTelegramChannel", event.target.value)} disabled={!settings} placeholder="@novaboost_live" />
                     </Field>
+                    <div className="grid gap-4 md:grid-cols-3">
+                      <Field label="Instagram" description="Username или ссылка.">
+                        <Input value={settings?.streamerInstagram ?? ""} onChange={(event) => updateSettings("streamerInstagram", event.target.value)} disabled={!settings} placeholder="@creator" />
+                      </Field>
+                      <Field label="Facebook" description="Username или ссылка.">
+                        <Input value={settings?.streamerFacebook ?? ""} onChange={(event) => updateSettings("streamerFacebook", event.target.value)} disabled={!settings} placeholder="creator.page" />
+                      </Field>
+                      <Field label="X / Twitter" description="Username или ссылка.">
+                        <Input value={settings?.streamerTwitter ?? ""} onChange={(event) => updateSettings("streamerTwitter", event.target.value)} disabled={!settings} placeholder="@creator" />
+                      </Field>
+                    </div>
+                    <div className="rounded-2xl border border-border/50 bg-background/30 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="font-medium text-foreground">Платные Boost-подписки</div>
+                          <div className="mt-1 text-xs text-muted-foreground">Если выключены, на публичной странице остаётся только обычная подписка. Если включены, стример сможет помечать посты ценой доступа.</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => updateSettings("streamerPaidMembershipEnabled", !(settings?.streamerPaidMembershipEnabled ?? false))}
+                          className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${(settings?.streamerPaidMembershipEnabled ?? false) ? "border-blast bg-blast/10 text-foreground" : "border-border/50 bg-background/30 text-muted-foreground"}`}
+                        >
+                          {(settings?.streamerPaidMembershipEnabled ?? false) ? "Включены" : "Выключены"}
+                        </button>
+                      </div>
+                      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                        {getPaidSubscriptionPlans().map((plan) => {
+                          const active = settings?.streamerHighlightedPlanKey === plan.key;
+                          return (
+                            <button
+                              key={plan.key}
+                              type="button"
+                              onClick={() => updateSettings("streamerHighlightedPlanKey", plan.key)}
+                              className={`rounded-2xl border p-3 text-left transition-colors ${active ? "border-blast bg-blast/10 text-foreground" : "border-border/50 bg-background/20 text-muted-foreground"}`}
+                            >
+                              <div className="font-display text-base font-bold">{plan.title}</div>
+                              <div className="mt-1 text-xs">Доступ к контенту этого уровня</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="mt-3 rounded-xl border border-crown/30 bg-crown/5 px-4 py-3 text-xs leading-5 text-muted-foreground">
+                        NovaBoost удерживает 13% комиссии с платной подписки. Остальное остаётся стримеру.
+                      </div>
+                    </div>
                     <div className="rounded-2xl border border-border/50 bg-background/30 p-4 text-sm text-muted-foreground">
                       Публичная страница, студия и шапка стримера теперь опираются на один источник данных. Баннер и аватар лучше менять здесь, а в студии работать уже с контентом, донатами и публикациями.
                     </div>

@@ -265,33 +265,37 @@ const PLAN_DURATION_DAYS = 30;
 export const SUBSCRIPTION_PLANS: SubscriptionPlanDefinition[] = [
   {
     key: "free",
-    title: "Открытый доступ",
+    title: "Подписка",
     price: 0,
-    description: "Базовое наблюдение за стримером, без закрытого контента.",
+    description: "Базовая подписка на стримера внутри NovaBoost без платного доступа.",
     perks: ["общедоступные посты", "анонсы эфиров"],
   },
   {
     key: "supporter",
-    title: "Поддержка",
-    price: 199,
-    description: "Поддержка стримера и ранние сигналы перед эфиром.",
-    perks: ["ранние анонсы", "бейдж поддержки", "список донатов"],
+    title: "Boost 2.90",
+    price: 2.9,
+    description: "Первый платный уровень доступа к контенту стримера.",
+    perks: ["платные посты 2.90", "ранние анонсы"],
   },
   {
     key: "superfan",
-    title: "Суперфан",
-    price: 499,
-    description: "Доступ к закрытым анонсам, кодам и премиум-постам.",
-    perks: ["закрытые посты", "скрытые кодовые анонсы", "приоритетные сигналы"],
+    title: "Boost 5.90",
+    price: 5.9,
+    description: "Расширенный платный доступ к более глубокому контенту.",
+    perks: ["платные посты 5.90", "закрытые анонсы", "доп. сигналы"],
   },
   {
     key: "legend",
-    title: "Легенда",
-    price: 990,
-    description: "Максимальный уровень поддержки для ядра комьюнити.",
-    perks: ["все преимущества Суперфан", "легендарный бейдж", "спец-алерты в донатах"],
+    title: "Boost 10.90",
+    price: 10.9,
+    description: "Максимальный платный доступ для ядра аудитории.",
+    perks: ["платные посты 10.90", "все уровни ниже", "макс. доступ"],
   },
 ];
+
+export function getPaidSubscriptionPlans() {
+  return SUBSCRIPTION_PLANS.filter((plan) => plan.key !== "free");
+}
 
 export function getSubscriptionPlanLabel(planKey: SubscriptionPlanKey) {
   return getPlanDefinition(planKey).title;

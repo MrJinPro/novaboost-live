@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { AppUser, StreamerCardData } from "@/lib/mock-platform";
 import { getViewerProfileStatsCompat } from "./profile-schema-compat";
 import { resolveLinkedStreamer } from "./streamer-profile-linking";
+import { getViewerLevel } from "./viewer-levels";
 
 type SubscriptionStreamerRow = {
   id: string;
@@ -156,7 +157,7 @@ export async function loadViewerProfileData(user: AppUser): Promise<ViewerProfil
 
   return {
     points: profile?.points ?? 0,
-    level: profile?.level ?? 1,
+    level: getViewerLevel(profile?.points ?? 0),
     streakDays: Math.max(profile?.streak_days ?? 0, liveStreak),
     completedTasks,
     boostsJoined,

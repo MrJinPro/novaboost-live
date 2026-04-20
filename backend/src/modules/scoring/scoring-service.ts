@@ -143,11 +143,64 @@ const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
 
 const MAX_VIEWER_LEVEL = 50;
 
+const VIEWER_LEVEL_THRESHOLDS = [
+  1,
+  8,
+  18,
+  34,
+  56,
+  90,
+  140,
+  220,
+  340,
+  530,
+  820,
+  1260,
+  1920,
+  2480,
+  4340,
+  6420,
+  9280,
+  13500,
+  19400,
+  27800,
+  39600,
+  54600,
+  75800,
+  105000,
+  144000,
+  196000,
+  265000,
+  357000,
+  578000,
+  637000,
+  845000,
+  1120000,
+  1470000,
+  1920000,
+  2500000,
+  3230000,
+  4180000,
+  5430000,
+  6890000,
+  8780000,
+  11200000,
+  14100000,
+  17800000,
+  22300000,
+  28000000,
+  37500000,
+  47500000,
+  65700000,
+  75000000,
+  97500000,
+] as const;
+
 const VIEWER_LEVELS: ViewerLevelDefinition[] = Array.from({ length: MAX_VIEWER_LEVEL }, (_, index) => {
   const level = index + 1;
   return {
     level,
-    minPoints: level === 1 ? 0 : calculateViewerLevelThreshold(level),
+    minPoints: level === 1 ? 0 : VIEWER_LEVEL_THRESHOLDS[level - 1],
     title: getViewerLevelTitle(level),
   };
 });
@@ -291,11 +344,6 @@ export class ScoringService {
       achievements: ACHIEVEMENT_DEFINITIONS.map((achievement) => achievement.key),
     };
   }
-}
-
-function calculateViewerLevelThreshold(level: number) {
-  const normalizedLevel = Math.max(1, level - 1);
-  return Math.round(90 * normalizedLevel ** 2.2 + normalizedLevel * 150);
 }
 
 function getViewerLevelTitle(level: number) {

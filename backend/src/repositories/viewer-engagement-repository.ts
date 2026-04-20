@@ -22,6 +22,15 @@ export type EligibleViewer = {
   level: number;
 };
 
+type ViewerStreamActionRow = {
+  action_type: "stream_visit" | "watch_time" | "code_submission" | "boost_participation" | "like" | "gift" | "chat_message" | "referral_join";
+  points_awarded: number;
+  watch_seconds: number;
+  occurred_at: string;
+  streamer_id: string;
+  metadata: Record<string, unknown> | null;
+};
+
 export type TeamMembershipSnapshot = {
   id: string;
   team_points: number;
@@ -41,6 +50,30 @@ export type AchievementUnlockRow = {
 
 export class ViewerEngagementRepository implements ViewerEngagementStore {
   constructor(private readonly supabase: SupabaseClient) {}
+
+  async getViewerProfile(userId: string) {
+    const { data, error } = await this.supabase
+      .from("profiles")
+      .select("id, points, level, display_name, tiktok_username")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data) {
+      return null;
+    }
+
+    return {
+      userId: data.id,
+      displayName: data.display_name,
+      tiktokUsername: data.tiktok_username,
+      points: data.points,
+      level: data.level,
+    } satisfies EligibleViewer;
+  }
 
   async findEligibleViewer(streamerId: string, externalViewerUsername?: string | null) {
     const usernameVariants = normalizeUsernameVariants(externalViewerUsername);
@@ -159,6 +192,50 @@ export class ViewerEngagementRepository implements ViewerEngagementStore {
     }
 
     return ((data ?? []) as AchievementUnlockRow[]).map((row) => row.achievement_key);
+  }
+
+  async listViewerStreamActions(input: {
+    userId: string;
+    occurredAfter: string;
+    occurredBefore?: string;
+    streamerId?: string;
+    actionTypes?: Array<"stream_visit" | "watch_time" | "code_submission" | "boost_participation" | "like" | "gift" | "chat_message" | "referral_join">;
+    limit?: number;
+  }) {
+    let query = this.supabase
+      .from("viewer_stream_actions")
+      .select("action_type, points_awarded, watch_seconds, occurred_at, streamer_id, metadata")
+      .eq("user_id", input.userId)
+      .gte("occurred_at", input.occurredAfter)
+      .order("occurred_at", { ascending: false })
+      .limit(input.limit ?? 500);
+
+    if (input.occurredBefore) {
+      query = query.lt("occurred_at", input.occurredBefore);
+    }
+
+    if (input.streamerId) {
+      query = query.eq("streamer_id", input.streamerId);
+    }
+
+    if (input.actionTypes?.length) {
+      query = query.in("action_type", input.actionTypes);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw error;
+    }
+
+    return ((data ?? []) as ViewerStreamActionRow[]).map((row) => ({
+      actionType: row.action_type,
+      pointsAwarded: row.points_awarded,
+      watchSeconds: row.watch_seconds,
+      occurredAt: row.occurred_at,
+      streamerId: row.streamer_id,
+      metadata: row.metadata ?? {},
+    }));
   }
 
   async insertViewerStreamAction(input: {

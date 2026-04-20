@@ -15,6 +15,15 @@ type StreamerProfileRow = {
   followers_count: number | null;
 };
 
+type ViewerProfileRow = {
+  id: string;
+  username: string;
+  display_name: string | null;
+  tiktok_username: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+};
+
 const PROFILE_SYNC_BATCH_SIZE = 250;
 
 export class TikTokProfileSyncService {
@@ -27,7 +36,7 @@ export class TikTokProfileSyncService {
     private readonly env: BackendEnv,
   ) {}
 
-  scheduleStreamerProfileSync() {
+  scheduleProfileSync() {
     if (this.env.TIKTOK_PROFILE_SYNC_INTERVAL_MS <= 0) {
       this.logger.warn("TikTok profile sync scheduler is disabled by env.");
       return;
@@ -37,15 +46,19 @@ export class TikTokProfileSyncService {
       return;
     }
 
-    void this.runStreamerProfileSync();
+    void this.runProfileSync();
     this.poller = setInterval(() => {
-      void this.runStreamerProfileSync();
+      void this.runProfileSync();
     }, this.env.TIKTOK_PROFILE_SYNC_INTERVAL_MS);
 
     this.logger.info("TikTok profile sync scheduler started", {
       intervalMs: this.env.TIKTOK_PROFILE_SYNC_INTERVAL_MS,
       batchSize: PROFILE_SYNC_BATCH_SIZE,
     });
+  }
+
+  scheduleStreamerProfileSync() {
+    this.scheduleProfileSync();
   }
 
   stop() {
@@ -58,13 +71,26 @@ export class TikTokProfileSyncService {
     this.logger.info("TikTok profile sync scheduler stopped");
   }
 
-  async runStreamerProfileSync() {
+  async runProfileSync() {
     if (this.isRunning) {
       return;
     }
 
     this.isRunning = true;
 
+    try {
+      await this.runStreamerProfileSync();
+      await this.runViewerProfileSync();
+    } catch (error) {
+      this.logger.error("TikTok profile sync tick failed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      this.isRunning = false;
+    }
+  }
+
+  async runStreamerProfileSync() {
     try {
       const { data, error } = await this.supabase
         .from("streamers")
@@ -142,15 +168,80 @@ export class TikTokProfileSyncService {
       }
 
       this.logger.info("TikTok profile sync tick completed", {
+        target: "streamers",
         checked: streamers.length,
         synced: syncedCount,
       });
     } catch (error) {
-      this.logger.error("TikTok profile sync tick failed", {
+      this.logger.error("TikTok streamer profile sync tick failed", {
         error: error instanceof Error ? error.message : String(error),
       });
-    } finally {
-      this.isRunning = false;
+    }
+  }
+
+  async runViewerProfileSync() {
+    try {
+      const { data, error } = await this.supabase
+        .from("profiles")
+        .select("id, username, display_name, tiktok_username, avatar_url, bio")
+        .not("tiktok_username", "is", null)
+        .neq("tiktok_username", "")
+        .order("updated_at", { ascending: true })
+        .limit(PROFILE_SYNC_BATCH_SIZE);
+
+      if (error) {
+        throw error;
+      }
+
+      const profiles = (data ?? []) as ViewerProfileRow[];
+      let syncedCount = 0;
+
+      for (const profileRow of profiles) {
+        const normalizedUsername = profileRow.tiktok_username?.trim() ?? "";
+        if (!normalizedUsername) {
+          continue;
+        }
+
+        try {
+          const profile = await lookupTikTokProfile(normalizedUsername);
+          const nextDisplayName = profile.displayName?.trim() || profileRow.display_name || profileRow.username;
+          const nextAvatarUrl = profile.avatarUrl?.trim() || profileRow.avatar_url || null;
+          const nextBio = profile.bio?.trim() || profileRow.bio || null;
+
+          const { error: profileError } = await this.supabase
+            .from("profiles")
+            .update({
+              display_name: nextDisplayName,
+              tiktok_username: normalizedUsername,
+              avatar_url: nextAvatarUrl,
+              bio: nextBio,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", profileRow.id);
+
+          if (profileError) {
+            throw profileError;
+          }
+
+          syncedCount += 1;
+        } catch (error) {
+          this.logger.warn("TikTok profile sync failed for viewer", {
+            userId: profileRow.id,
+            tiktokUsername: normalizedUsername,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+
+      this.logger.info("TikTok profile sync tick completed", {
+        target: "profiles",
+        checked: profiles.length,
+        synced: syncedCount,
+      });
+    } catch (error) {
+      this.logger.error("TikTok viewer profile sync tick failed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 }

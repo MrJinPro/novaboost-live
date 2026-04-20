@@ -120,7 +120,7 @@ function TasksPage() {
           <Trophy className="h-7 w-7 text-amber" />
           <h1 className="font-display font-bold text-3xl md:text-4xl">Задания</h1>
         </div>
-        <p className="mt-2 text-muted-foreground">Выполняй задания и поднимай уровень. 100 очков = +1 уровень.</p>
+        <p className="mt-2 text-muted-foreground">Выполняй задания, вводи кодовые слова от стримеров, на которых подписан, и поднимай уровень по длинной шкале прогресса.</p>
 
         {tasksLoading && <div className="mt-6 text-sm text-muted-foreground">Загружаю задания…</div>}
 

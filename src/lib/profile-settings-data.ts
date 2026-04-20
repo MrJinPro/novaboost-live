@@ -4,6 +4,7 @@ import type { AppUser } from "@/lib/mock-platform";
 import { getBackendBaseUrl } from "@/lib/backend-base-url";
 import { getAuthProfileCompat, upsertAuthProfileCompat } from "@/lib/profile-schema-compat";
 import { ensureLinkedStreamer, normalizeTikTokUsername } from "@/lib/streamer-profile-linking";
+import { buildStreamerPageLayout, DEFAULT_STREAMER_MEMBERSHIP_SETTINGS, EMPTY_STREAMER_SOCIAL_LINKS, normalizeSocialLinks, parseStreamerMembershipSettings, parseStreamerSocialLinks } from "@/lib/streamer-page-config";
 import { lookupTikTokProfile } from "@/lib/tiktok-profile-data";
 
 export type ProfileSettingsDraft = {
@@ -15,6 +16,11 @@ export type ProfileSettingsDraft = {
   telegramUsername: string;
   streamerTagline: string;
   streamerTelegramChannel: string;
+  streamerInstagram: string;
+  streamerFacebook: string;
+  streamerTwitter: string;
+  streamerPaidMembershipEnabled: boolean;
+  streamerHighlightedPlanKey: "supporter" | "superfan" | "legend";
   streamerBannerUrl: string;
   publicPageId: string | null;
 };
@@ -39,6 +45,10 @@ type StreamerRow = {
   verification_method: string | null;
 };
 
+type PageSettingsRow = {
+  layout: Record<string, unknown> | null;
+};
+
 type StreamerVerificationRow = {
   evidence_type: string | null;
   evidence_value: string | null;
@@ -60,7 +70,7 @@ export type StreamerApplicationState = {
 type UploadMediaKind = "viewer-avatar" | "streamer-avatar" | "streamer-banner";
 
 export async function loadProfileSettings(user: AppUser): Promise<ProfileSettingsDraft> {
-  const [profileCompat, profileResult, streamerResult] = await Promise.all([
+  const [profileCompat, profileResult, streamerResult, pageSettingsResult] = await Promise.all([
     getAuthProfileCompat(user.id),
     supabase
       .from("profiles")
@@ -72,6 +82,11 @@ export async function loadProfileSettings(user: AppUser): Promise<ProfileSetting
       .select("id, display_name, tiktok_username, avatar_url, bio, banner_url, logo_url, tagline, telegram_channel, verification_status, verification_method")
       .eq("user_id", user.id)
       .maybeSingle(),
+    supabase
+      .from("streamer_page_settings")
+      .select("layout")
+      .eq("streamer_id", user.id)
+      .maybeSingle(),
   ]);
 
   if (profileResult.error) {
@@ -82,8 +97,15 @@ export async function loadProfileSettings(user: AppUser): Promise<ProfileSetting
     throw streamerResult.error;
   }
 
+  if (pageSettingsResult.error && pageSettingsResult.error.code !== "PGRST116") {
+    throw pageSettingsResult.error;
+  }
+
   const profile = (profileResult.data ?? null) as ProfileRow | null;
   const streamer = (streamerResult.data ?? null) as StreamerRow | null;
+  const pageSettings = (pageSettingsResult.data ?? null) as PageSettingsRow | null;
+  const socialLinks = parseStreamerSocialLinks(pageSettings?.layout ?? null);
+  const membership = parseStreamerMembershipSettings(pageSettings?.layout ?? null);
 
   return {
     displayName: streamer?.display_name ?? profileCompat?.display_name ?? user.displayName,
@@ -93,7 +115,12 @@ export async function loadProfileSettings(user: AppUser): Promise<ProfileSetting
     avatarUrl: streamer?.logo_url ?? streamer?.avatar_url ?? profile?.avatar_url ?? "",
     telegramUsername: profile?.telegram_username ?? "",
     streamerTagline: streamer?.tagline ?? "",
-    streamerTelegramChannel: streamer?.telegram_channel ?? "",
+    streamerTelegramChannel: socialLinks.telegram || (streamer?.telegram_channel ?? ""),
+    streamerInstagram: socialLinks.instagram,
+    streamerFacebook: socialLinks.facebook,
+    streamerTwitter: socialLinks.twitter,
+    streamerPaidMembershipEnabled: membership.paidEnabled,
+    streamerHighlightedPlanKey: membership.highlightedPlanKey,
     streamerBannerUrl: streamer?.banner_url ?? "",
     publicPageId: streamer?.id ?? null,
   };
@@ -176,6 +203,32 @@ export async function saveProfileSettings(user: AppUser, draft: ProfileSettingsD
     displayName,
   });
 
+  const { data: existingSettingsData, error: existingSettingsError } = await supabase
+    .from("streamer_page_settings")
+    .select("layout")
+    .eq("streamer_id", streamer.id)
+    .maybeSingle();
+
+  if (existingSettingsError && existingSettingsError.code !== "PGRST116") {
+    throw existingSettingsError;
+  }
+
+  const currentLayout = existingSettingsData?.layout && typeof existingSettingsData.layout === "object"
+    ? existingSettingsData.layout as Record<string, unknown>
+    : {};
+
+  const socialLinks = normalizeSocialLinks({
+    telegram: draft.streamerTelegramChannel,
+    instagram: draft.streamerInstagram,
+    facebook: draft.streamerFacebook,
+    twitter: draft.streamerTwitter,
+  });
+
+  const membership = {
+    paidEnabled: draft.streamerPaidMembershipEnabled,
+    highlightedPlanKey: draft.streamerHighlightedPlanKey,
+  } satisfies typeof DEFAULT_STREAMER_MEMBERSHIP_SETTINGS;
+
   const { error: streamerError } = await supabase
     .from("streamers")
     .update({
@@ -187,7 +240,7 @@ export async function saveProfileSettings(user: AppUser, draft: ProfileSettingsD
       followers_count: resolvedFollowersCount,
       banner_url: draft.streamerBannerUrl.trim() || null,
       tagline: draft.streamerTagline.trim() || null,
-      telegram_channel: draft.streamerTelegramChannel.trim() || null,
+      telegram_channel: socialLinks.telegram || null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", streamer.id);
@@ -204,6 +257,11 @@ export async function saveProfileSettings(user: AppUser, draft: ProfileSettingsD
       logo_url: resolvedAvatarUrl,
       headline: draft.streamerTagline.trim() || null,
       description: resolvedBio,
+      layout: buildStreamerPageLayout({
+        currentLayout,
+        socialLinks,
+        membership,
+      }),
     }, { onConflict: "streamer_id" });
 
   if (settingsError) {

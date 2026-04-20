@@ -16,6 +16,7 @@ import type { StreamerPost } from "@/lib/mock-platform";
 import { createDonationLinkDraft, getSubscriptionPlanLabel, loadManagedDonationLink, saveManagedDonationLink, SUBSCRIPTION_PLANS } from "@/lib/monetization-data";
 import { loadStreamerStudioData, publishStreamerPost, saveStreamerDonationOverlaySettings, saveStreamerStudioPage } from "@/lib/streamer-studio-data";
 import { deactivateStreamerCodeWordTask, loadStreamerCodeWordTasks, publishStreamerCodeWordTask, type StreamerCodeWordTask } from "@/lib/tasks-data";
+import { calculateCodeWordReward, validateCodeWord } from "@/lib/viewer-levels";
 import { toast } from "sonner";
 import { Bell, Copy, ExternalLink, ImagePlus, LayoutPanelTop, PencilLine, Send, Sparkles, ShieldCheck, Wallet } from "lucide-react";
 
@@ -111,7 +112,6 @@ function StreamerStudioPage() {
   const [codeTaskTitle, setCodeTaskTitle] = useState("Кодовое слово эфира");
   const [codeTaskDescription, setCodeTaskDescription] = useState("Узнай кодовое слово на эфире, введи его в приложении и получи очки.");
   const [codeTaskWord, setCodeTaskWord] = useState("");
-  const [codeTaskReward, setCodeTaskReward] = useState("50");
   const [donationLinkDraft, setDonationLinkDraft] = useState(() => createDonationLinkDraft("", ""));
   const [savingDonationLink, setSavingDonationLink] = useState(false);
   const [appOrigin, setAppOrigin] = useState("");
@@ -255,6 +255,8 @@ function StreamerStudioPage() {
     },
   ].filter((item) => item.url);
   const activeOverlayPreview = overlayPreviewItems.find((item) => item.key === overlayPreviewTab) ?? overlayPreviewItems[0] ?? null;
+  const normalizedDraftCodeWord = codeTaskWord.trim().toUpperCase();
+  const codeTaskReward = calculateCodeWordReward(normalizedDraftCodeWord);
 
   const savePage = async () => {
     setSavingPage(true);
@@ -302,15 +304,15 @@ function StreamerStudioPage() {
   };
 
   const publishCodeTask = async () => {
-    const rewardPoints = Number(codeTaskReward);
-
     if (!codeTaskTitle.trim() || !codeTaskWord.trim()) {
       toast.error("Для кодового слова нужны заголовок и само слово");
       return;
     }
 
-    if (!Number.isFinite(rewardPoints) || rewardPoints < 1) {
-      toast.error("Укажи корректное количество очков");
+    try {
+      validateCodeWord(codeTaskWord);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Проверь кодовое слово");
       return;
     }
 
@@ -320,7 +322,6 @@ function StreamerStudioPage() {
         title: codeTaskTitle,
         description: codeTaskDescription,
         code: codeTaskWord,
-        rewardPoints,
       });
       setCodeTasks((current) => [createdTask, ...current.map((task) => ({ ...task, active: false }))]);
       setCodeTaskWord("");
@@ -543,7 +544,7 @@ function StreamerStudioPage() {
               onChange={(e) => setPostRequiredPlan(e.target.value as StreamerPost["requiredPlan"])}
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             >
-              {SUBSCRIPTION_PLANS.map((plan) => (
+              {SUBSCRIPTION_PLANS.filter((plan) => pageDraft.membershipPaidEnabled || plan.key === "free").map((plan) => (
                 <option key={plan.key} value={plan.key}>{getSubscriptionPlanLabel(plan.key)}</option>
               ))}
             </select>
@@ -590,8 +591,10 @@ function StreamerStudioPage() {
           <Field label="Кодовое слово" hint="Это слово зритель услышит или увидит на эфире, а затем введёт в приложении для получения очков один раз.">
             <Input value={codeTaskWord} onChange={(e) => setCodeTaskWord(e.target.value.toUpperCase())} placeholder="Например: NOVA" />
           </Field>
-          <Field label="Очки за ввод" hint="Награда за успешный ввод кодового слова. Она пополнит viewer points зрителя и влияет на его прогресс внутри NovaBoost Live.">
-            <Input value={codeTaskReward} onChange={(e) => setCodeTaskReward(e.target.value)} inputMode="numeric" placeholder="50" />
+          <Field label="Очки за ввод" hint="Награда считается автоматически: 1 символ = 10 очков, минимум 4 символа, только одно слово без пробелов.">
+            <div className="flex h-10 items-center rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground">
+              {codeTaskReward > 0 ? `${codeTaskReward} очков` : "Введите кодовое слово"}
+            </div>
           </Field>
         </div>
       </div>

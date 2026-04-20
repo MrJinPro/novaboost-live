@@ -77,7 +77,7 @@ export function bootstrapBackend() {
 
   tracking.scheduleRegisteredStreamers();
   trackingEventProcessor?.schedule();
-  tiktokProfileSync?.scheduleStreamerProfileSync();
+  tiktokProfileSync?.scheduleProfileSync();
   prmotion.scheduleOrderQueue();
 
   return { env, logger, server, tracking, scoring, notifications, telegram, prmotion, tiktokProfileSync, trackingEventProcessor };

@@ -33,6 +33,7 @@ export interface TrackingStore {
 
 export interface ViewerEngagementStore {
   findEligibleViewer(streamerId: string, externalViewerUsername?: string | null): Promise<EligibleViewer | null>;
+  getViewerProfile(userId: string): Promise<EligibleViewer | null>;
   syncViewerIdentity(input: {
     userId: string;
     displayName?: string | null;
@@ -42,6 +43,21 @@ export interface ViewerEngagementStore {
   }): Promise<void>;
   getTeamMembership(streamerId: string, userId: string): Promise<TeamMembershipSnapshot | null>;
   getAchievementKeys(streamerId: string, userId: string): Promise<string[]>;
+  listViewerStreamActions(input: {
+    userId: string;
+    occurredAfter: string;
+    occurredBefore?: string;
+    streamerId?: string;
+    actionTypes?: Array<"stream_visit" | "watch_time" | "code_submission" | "boost_participation" | "like" | "gift" | "chat_message" | "referral_join">;
+    limit?: number;
+  }): Promise<Array<{
+    actionType: "stream_visit" | "watch_time" | "code_submission" | "boost_participation" | "like" | "gift" | "chat_message" | "referral_join";
+    pointsAwarded: number;
+    watchSeconds: number;
+    occurredAt: string;
+    streamerId: string;
+    metadata: Record<string, unknown>;
+  }>>;
   insertViewerStreamAction(input: {
     userId: string;
     streamerId: string;

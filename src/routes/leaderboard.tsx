@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
+import { LevelRocketBadge } from "@/components/LevelRocketBadge";
 import { useStreamerDirectory } from "@/hooks/use-streamer-directory";
 import { Trophy, Crown, Users } from "lucide-react";
 import { formatNumber } from "@/lib/format";
@@ -107,9 +108,7 @@ function LeaderboardPage() {
                 {viewers.map((v, idx) => (
                   <div key={v.id} className="flex items-center gap-3 rounded-lg p-2 hover:bg-surface-2 transition-colors">
                     <RankBadge rank={idx + 1} />
-                    <div className="h-10 w-10 rounded-full bg-gradient-cosmic flex items-center justify-center font-bold">
-                      {(v.display_name ?? v.username).charAt(0).toUpperCase()}
-                    </div>
+                    <LevelRocketBadge level={v.level} size="sm" className="!h-10 !w-10" />
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold truncate">{v.display_name ?? v.username}</div>
                       <div className="text-xs text-muted-foreground">Уровень {v.level}</div>

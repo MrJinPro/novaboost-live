@@ -3,21 +3,20 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { Header } from "@/components/Header";
 import { LiveIndicator } from "@/components/LiveIndicator";
-import { CurrencySwitcher } from "@/components/CurrencySwitcher";
 import { HowItWorksLink } from "@/components/HowItWorksLink";
-import { LocalizedPrice } from "@/components/LocalizedPrice";
 import { BoostBadge } from "@/components/BoostBadge";
 import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
 import { AppAvatar } from "@/components/AppAvatar";
 import { usePaymentComingSoonSurvey } from "@/components/PaymentComingSoonDialog";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Bell, ChevronDown, Crown, Eye, ExternalLink, Play, Send, Sparkles, Users, Wallet, Zap, TrendingUp } from "lucide-react";
+import { ArrowLeft, Bell, ChevronDown, Crown, Eye, ExternalLink, Facebook, Instagram, Play, Send, Sparkles, Twitter, Users, Wallet, Zap, TrendingUp } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { formatNumber } from "@/lib/format";
 import { getLocalizedMoney, useCurrencyPreference } from "@/lib/currency";
 import type { PostReactionType, StreamerPageData, StreamerPost, SubscriptionPlanKey } from "@/lib/mock-platform";
-import { getSubscriptionPlanLabel, loadPostReactionSummaries, loadStreamerMembershipState, SUBSCRIPTION_PLANS, togglePostReaction, type PostReactionSummary, type StreamerMembershipState } from "@/lib/monetization-data";
+import { getPaidSubscriptionPlans, getSubscriptionPlanLabel, loadPostReactionSummaries, loadStreamerMembershipState, SUBSCRIPTION_PLANS, togglePostReaction, type PostReactionSummary, type StreamerMembershipState } from "@/lib/monetization-data";
 import { calculateCustomerAmount, groupTikTokPromotionServices, loadTikTokPromotionServices, type TikTokPromotionService } from "@/lib/prmotion-data";
+import { resolveSocialLinkHref } from "@/lib/streamer-page-config";
 import { getStreamerSubscriptionState, loadPublicStreamerPage, toggleStreamerSubscription } from "@/lib/streamer-studio-data";
 import { toast } from "sonner";
 
@@ -264,10 +263,15 @@ function StreamerProfile() {
 
   const boosted = streamer.total_boost_amount > 0;
   const featuredVideoCover = streamer.featured_video_url ?? streamer.videos[0]?.cover ?? "";
-  const telegramChannel = streamer.telegram_channel?.trim() ?? "";
-  const telegramHref = telegramChannel
-    ? `https://t.me/${telegramChannel.replace(/^@+/, "")}`
-    : null;
+  const membershipPlan = SUBSCRIPTION_PLANS.find((plan) => plan.key === streamer.membership_settings?.highlightedPlanKey)
+    ?? getPaidSubscriptionPlans()[0];
+  const showPaidMembership = Boolean(streamer.membership_settings?.paidEnabled);
+  const socialButtons = [
+    { key: "telegram", icon: <Send className="h-4 w-4" />, href: resolveSocialLinkHref("telegram", streamer.social_links?.telegram ?? streamer.telegram_channel ?? ""), label: "Telegram" },
+    { key: "instagram", icon: <Instagram className="h-4 w-4" />, href: resolveSocialLinkHref("instagram", streamer.social_links?.instagram ?? ""), label: "Instagram" },
+    { key: "facebook", icon: <Facebook className="h-4 w-4" />, href: resolveSocialLinkHref("facebook", streamer.social_links?.facebook ?? ""), label: "Facebook" },
+    { key: "twitter", icon: <Twitter className="h-4 w-4" />, href: resolveSocialLinkHref("twitter", streamer.social_links?.twitter ?? ""), label: "X" },
+  ].filter((item) => item.href);
 
   const handleSubscription = async () => {
     if (!user) {
@@ -414,37 +418,44 @@ function StreamerProfile() {
               </div>
 
               <div className="flex w-full shrink-0 flex-col gap-3 pt-1 sm:pt-3 md:w-auto md:pt-0">
-                <a href={`https://www.tiktok.com/@${streamer.tiktok_username}/live`} target="_blank" rel="noopener noreferrer">
-                  <Button size="lg" className="bg-gradient-blast text-blast-foreground hover:opacity-90 shadow-glow font-bold gap-2 w-full">
-                    <ExternalLink className="h-4 w-4" /> Перейти на стрим
-                  </Button>
-                </a>
                 <Button size="lg" variant={subscribed ? "secondary" : "outline"} className="gap-2 w-full" onClick={handleSubscription} disabled={subscriptionLoading}>
                   <Bell className="h-4 w-4" /> {subscriptionLoading ? "Обновляю…" : subscribed ? "Подписка активна" : "Подписаться"}
                 </Button>
+                {showPaidMembership && membershipPlan ? (
+                  <Button size="lg" variant={membershipState.planKey === membershipPlan.key ? "secondary" : "outline"} className="gap-2 w-full border-crown/40" onClick={() => void handlePlanUpgrade(membershipPlan.key)} disabled={membershipLoading}>
+                    <Crown className="h-4 w-4 text-crown" /> {membershipState.planKey === membershipPlan.key ? "Boost-подписка активна" : `Оформить Boost-подписку ${membershipPlan.price.toFixed(2)}`}
+                  </Button>
+                ) : null}
+                <div className="grid grid-cols-2 gap-2">
+                  <a href={`https://www.tiktok.com/@${streamer.tiktok_username}/live`} target="_blank" rel="noopener noreferrer">
+                    <Button size="sm" className="w-full gap-2 bg-gradient-blast text-blast-foreground hover:opacity-90">
+                      <ExternalLink className="h-4 w-4" /> TikTok LIVE
+                    </Button>
+                  </a>
+                  <Link to="/boost" search={{ streamerId: streamer.id }}>
+                    <Button size="sm" variant="outline" className="w-full gap-2 border-cosmic/40">
+                      <Zap className="h-4 w-4 text-cosmic" /> Буст
+                    </Button>
+                  </Link>
+                </div>
                 {streamer.donation_link_slug ? (
                   <Link to="/support/$slug" params={{ slug: streamer.donation_link_slug }}>
-                    <Button size="lg" variant="outline" className="gap-2 w-full border-blast/40 hover:bg-blast/10">
+                    <Button size="sm" variant="outline" className="gap-2 w-full border-blast/40 hover:bg-blast/10">
                       <Wallet className="h-4 w-4 text-blast" /> Поддержать стримера
                     </Button>
                   </Link>
                 ) : null}
-                {telegramHref ? (
-                  <a href={telegramHref} target="_blank" rel="noopener noreferrer">
-                    <Button size="lg" variant="outline" className="gap-2 w-full border-border/60">
-                      <Send className="h-4 w-4 text-cosmic" /> Telegram: {telegramChannel}
-                    </Button>
-                  </a>
-                ) : (
-                  <Button size="lg" variant="outline" className="gap-2 w-full border-border/60" disabled>
-                    <Send className="h-4 w-4 text-cosmic" /> Telegram не указан
-                  </Button>
+                {socialButtons.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {socialButtons.map((item) => (
+                      <a key={item.key} href={item.href ?? undefined} target="_blank" rel="noopener noreferrer" aria-label={item.label} title={item.label}>
+                        <Button size="icon" variant="outline" className="h-10 w-10 border-border/60 bg-background/30">
+                          {item.icon}
+                        </Button>
+                      </a>
+                    ))}
+                  </div>
                 )}
-                <Link to="/boost" search={{ streamerId: streamer.id }}>
-                  <Button size="lg" variant="ghost" className="gap-2 w-full text-muted-foreground hover:text-foreground">
-                    <Zap className="h-4 w-4 text-cosmic" /> Поддержать внутри NovaBoost
-                  </Button>
-                </Link>
               </div>
             </div>
           </div>
@@ -647,58 +658,6 @@ function StreamerProfile() {
                 </div>
               </div>
             ) : null}
-
-            <div className="rounded-3xl border border-border/50 bg-surface/60 p-5 sm:p-6">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="font-display text-xl font-bold">Тарифы NovaBoost</h2>
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  <div className="rounded-full border border-border/50 bg-background/30 px-3 py-1 text-xs text-muted-foreground">
-                    План: {membershipLoading ? "обновляю…" : membershipState.planKey}
-                  </div>
-                  <CurrencySwitcher inline />
-                </div>
-              </div>
-              <div className="mt-4 space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  Реальную оплату тарифов пока не включали. Любая кнопка активации сейчас откроет короткий опрос о предпочтительном способе оплаты.
-                </p>
-                {SUBSCRIPTION_PLANS.map((plan) => {
-                  const activePlan = membershipState.planKey === plan.key;
-                  return (
-                    <div key={plan.key} className={`rounded-2xl border p-4 ${activePlan ? "border-crown/40 bg-crown/5" : "border-border/50 bg-background/30"}`}>
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="font-display text-lg font-bold">{plan.title}</div>
-                          <div className="mt-1 text-sm text-muted-foreground">{plan.description}</div>
-                        </div>
-                        <div className="text-right">
-                          {plan.price === 0 ? (
-                            <div className="font-display text-xl font-bold">Без оплаты</div>
-                          ) : (
-                            <LocalizedPrice
-                              amount={plan.price}
-                              preference={currencyPreference}
-                              primaryClassName="font-display text-xl font-bold"
-                              secondaryClassName="text-xs text-muted-foreground"
-                              align="right"
-                            />
-                          )}
-                          <div className="text-xs text-muted-foreground">30 дней</div>
-                        </div>
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {plan.perks.map((perk) => (
-                          <span key={perk} className="rounded-full border border-border/50 px-2.5 py-1 text-[11px] text-muted-foreground">{perk}</span>
-                        ))}
-                      </div>
-                      <Button className="mt-4 w-full" variant={activePlan ? "secondary" : "outline"} disabled={membershipLoading || activePlan} onClick={() => void handlePlanUpgrade(plan.key)}>
-                        {activePlan ? "Текущий тариф" : `Активировать ${plan.title}`}
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
 
             <div className="rounded-3xl border border-border/50 bg-surface/60 p-5 sm:p-6">
               <h2 className="font-display font-bold text-xl">Сигналы платформы</h2>
