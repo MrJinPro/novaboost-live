@@ -15,7 +15,7 @@ import { loadActiveBoostTotals } from "@/lib/boost-data";
 import { loadStreamerTrackingDetails, resolveLiveStatus } from "@/lib/live-status-data";
 import { loadDonationLinkByStreamerId, loadRecentDonationEvents } from "@/lib/monetization-data";
 import { buildStreamerPageLayout, DEFAULT_STREAMER_MEMBERSHIP_SETTINGS, EMPTY_STREAMER_SOCIAL_LINKS, parseStreamerMembershipSettings, parseStreamerSocialLinks } from "@/lib/streamer-page-config";
-import { resolveLinkedStreamer, type LinkedStreamerRow } from "@/lib/streamer-profile-linking";
+import { ensureLinkedStreamer, resolveLinkedStreamer, type LinkedStreamerRow } from "@/lib/streamer-profile-linking";
 
 type DbStreamer = LinkedStreamerRow;
 
