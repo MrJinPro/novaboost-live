@@ -19,6 +19,7 @@ import { getPaidSubscriptionPlans, getSubscriptionPlanLabel, loadPostReactionSum
 import { calculateCustomerAmount, groupTikTokPromotionServices, loadTikTokPromotionServices, type TikTokPromotionService } from "@/lib/prmotion-data";
 import { resolveSocialLinkHref } from "@/lib/streamer-page-config";
 import { getOwnedStreamerPublicPage, getStreamerSubscriptionState, loadPublicStreamerPage, toggleStreamerSubscription } from "@/lib/streamer-studio-data";
+import { loadStreamerTrackingDetails, type StreamTrackingDetails } from "@/lib/live-status-data";
 import { toast } from "sonner";
 
 const STREAMER_PAGE_REFRESH_MS = 5_000;
@@ -41,6 +42,51 @@ const REACTION_META: Record<PostReactionType, { label: string; icon: string }> =
   crown: { label: "Респект", icon: "👑" },
 };
 
+function parseTrackingNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function deriveTrackingCounters(details: StreamTrackingDetails | null) {
+  let totalLikes = 0;
+  let totalGifts = 0;
+  let totalMessages = 0;
+  let peakViewerCount = 0;
+
+  for (const event of details?.recentEvents ?? []) {
+    const payload = (event.normalized_payload ?? {}) as Record<string, unknown>;
+
+    if (event.event_type === "chat_message") {
+      totalMessages += 1;
+      continue;
+    }
+
+    if (event.event_type === "like_received") {
+      totalLikes += Math.max(1, parseTrackingNumber(payload.like_count) ?? 1);
+      continue;
+    }
+
+    if (event.event_type === "gift_received") {
+      totalGifts += Math.max(1, parseTrackingNumber(payload.gift_count) ?? 1);
+      continue;
+    }
+
+    if (event.event_type === "snapshot_updated" || event.event_type === "live_started") {
+      peakViewerCount = Math.max(peakViewerCount, parseTrackingNumber(payload.viewer_count) ?? 0);
+    }
+  }
+
+  return { totalLikes, totalGifts, totalMessages, peakViewerCount };
+}
+
 function canAccessPost(post: StreamerPost, membership: StreamerMembershipState) {
   return PLAN_ORDER[membership.planKey] >= PLAN_ORDER[post.requiredPlan];
 }
@@ -52,6 +98,7 @@ function StreamerProfile() {
   const currencyPreference = useCurrencyPreference();
   const [subscribed, setSubscribed] = useState(false);
   const [streamer, setStreamer] = useState<StreamerPageData | null>(null);
+  const [trackingDetails, setTrackingDetails] = useState<StreamTrackingDetails | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
   const [pageRefreshing, setPageRefreshing] = useState(false);
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
@@ -112,9 +159,19 @@ function StreamerProfile() {
         if (active) {
           setStreamer(page);
         }
+
+        if (page) {
+          const details = await loadStreamerTrackingDetails(page.id).catch(() => null);
+          if (active) {
+            setTrackingDetails(details);
+          }
+        } else if (active) {
+          setTrackingDetails(null);
+        }
       } catch (error) {
         if (active) {
           setStreamer(null);
+          setTrackingDetails(null);
           if (!background) {
             toast.error(error instanceof Error ? error.message : "Не удалось загрузить публичную страницу стримера");
           }
@@ -297,6 +354,35 @@ function StreamerProfile() {
 
   const boosted = streamer.total_boost_amount > 0;
   const isRegistered = streamer.is_registered ?? Boolean(streamer.owner_user_id);
+  const trackingCounters = deriveTrackingCounters(trackingDetails);
+  const liveViewerCount = trackingDetails?.realtimeState?.viewerCount
+    ?? trackingDetails?.state?.viewer_count
+    ?? trackingDetails?.latestSession?.current_viewer_count
+    ?? streamer.viewer_count;
+  const liveLikes = Math.max(
+    streamer.total_likes,
+    trackingDetails?.realtimeState?.likeCount ?? 0,
+    trackingDetails?.latestSession?.like_count ?? 0,
+    trackingCounters.totalLikes,
+  );
+  const liveGifts = Math.max(
+    streamer.total_gifts,
+    trackingDetails?.realtimeState?.giftCount ?? 0,
+    trackingDetails?.latestSession?.gift_count ?? 0,
+    trackingCounters.totalGifts,
+  );
+  const liveMessages = Math.max(
+    streamer.total_messages ?? 0,
+    trackingDetails?.realtimeState?.messageCount ?? 0,
+    trackingDetails?.latestSession?.message_count ?? 0,
+    trackingCounters.totalMessages,
+  );
+  const livePeakViewers = Math.max(
+    streamer.peak_viewer_count ?? 0,
+    trackingDetails?.latestSession?.peak_viewer_count ?? 0,
+    trackingDetails?.realtimeState?.viewerCount ?? 0,
+    trackingCounters.peakViewerCount,
+  );
   const hasFeaturedVideo = Boolean(streamer.featured_video_url);
   const featuredVideoCover = streamer.featured_video_url ?? streamer.videos[0]?.cover ?? "";
   const membershipPlan = SUBSCRIPTION_PLANS.find((plan) => plan.key === streamer.membership_settings?.highlightedPlanKey)
@@ -577,14 +663,14 @@ function StreamerProfile() {
         </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard icon={<Eye className="h-5 w-5" />} label="Зрителей сейчас" value={streamer.is_live ? formatNumber(streamer.viewer_count) : "—"} accent="live" />
+          <StatCard icon={<Eye className="h-5 w-5" />} label="Зрителей сейчас" value={streamer.is_live ? formatNumber(liveViewerCount) : "—"} accent="live" />
           <StatCard icon={<Users className="h-5 w-5" />} label="TikTok подписчиков" value={formatNumber(streamer.followers_count)} />
           <StatCard icon={<Zap className="h-5 w-5" />} label="Поддержка сообщества" value={formatNumber(streamer.total_boost_amount)} accent="blast" />
           <StatCard icon={<TrendingUp className="h-5 w-5" />} label="Подписки в платформе" value={formatNumber(streamer.subscription_count)} />
-          <StatCard icon={<Sparkles className="h-5 w-5" />} label="Лайков в эфире" value={formatNumber(streamer.total_likes)} accent="blast" />
-          <StatCard icon={<Wallet className="h-5 w-5" />} label="Подарков" value={formatNumber(streamer.total_gifts)} />
-          <StatCard icon={<Bell className="h-5 w-5" />} label="Сообщений в чате" value={formatNumber(streamer.total_messages ?? 0)} />
-          <StatCard icon={<Play className="h-5 w-5" />} label="Пик зрителей" value={formatNumber(streamer.peak_viewer_count ?? 0)} accent="live" />
+          <StatCard icon={<Sparkles className="h-5 w-5" />} label="Лайков в эфире" value={formatNumber(liveLikes)} accent="blast" />
+          <StatCard icon={<Wallet className="h-5 w-5" />} label="Подарков" value={formatNumber(liveGifts)} />
+          <StatCard icon={<Bell className="h-5 w-5" />} label="Сообщений в чате" value={formatNumber(liveMessages)} />
+          <StatCard icon={<Play className="h-5 w-5" />} label="Пик зрителей" value={formatNumber(livePeakViewers)} accent="live" />
         </div>
 
         <div className="mt-8 flex justify-center">
@@ -781,10 +867,10 @@ function StreamerProfile() {
               <p className="mt-3 text-sm text-muted-foreground">{streamer.next_event}</p>
               <p className="mt-3 text-sm text-muted-foreground">{streamer.support_goal}</p>
               <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                <MiniStat label="Лайки" value={formatNumber(streamer.total_likes)} />
-                <MiniStat label="Подарки" value={formatNumber(streamer.total_gifts)} />
-                <MiniStat label="Сообщения" value={formatNumber(streamer.total_messages ?? 0)} />
-                <MiniStat label="Пик онлайна" value={formatNumber(streamer.peak_viewer_count ?? 0)} />
+                <MiniStat label="Лайки" value={formatNumber(liveLikes)} />
+                <MiniStat label="Подарки" value={formatNumber(liveGifts)} />
+                <MiniStat label="Сообщения" value={formatNumber(liveMessages)} />
+                <MiniStat label="Пик онлайна" value={formatNumber(livePeakViewers)} />
               </div>
             </div>
 

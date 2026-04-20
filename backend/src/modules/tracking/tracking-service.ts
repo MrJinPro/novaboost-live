@@ -1,6 +1,7 @@
 import type { BackendEnv } from "../../config/env.js";
 import type { Logger } from "../../lib/logger.js";
 import type { TrackingSnapshot } from "../../repositories/tracking-repository.js";
+import type { StreamEventRecord } from "../../repositories/tracking-repository.js";
 import type { TrackingStore } from "../../storage/live-storage.js";
 import type { TrackingAdapter } from "./tracking-adapter.js";
 import type { TrackingLiveEventBridge } from "./live-event-bridge.js";
@@ -18,6 +19,56 @@ export type ResolvedLiveStatus = {
 
 function normalizeTikTokUsername(username: string) {
   return username.trim().replace(/^@+/, "").toLowerCase();
+}
+
+function parseNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function deriveRecentEventCounters(events: StreamEventRecord[]) {
+  let likeCount = 0;
+  let giftCount = 0;
+  let messageCount = 0;
+  let peakViewerCount = 0;
+
+  for (const event of events) {
+    const payload = (event.normalized_payload ?? {}) as Record<string, unknown>;
+
+    if (event.event_type === "chat_message") {
+      messageCount += 1;
+      continue;
+    }
+
+    if (event.event_type === "like_received") {
+      likeCount += Math.max(1, parseNumber(payload.like_count) ?? 1);
+      continue;
+    }
+
+    if (event.event_type === "gift_received") {
+      giftCount += Math.max(1, parseNumber(payload.gift_count) ?? 1);
+      continue;
+    }
+
+    if (event.event_type === "snapshot_updated" || event.event_type === "live_started") {
+      peakViewerCount = Math.max(peakViewerCount, parseNumber(payload.viewer_count) ?? 0);
+    }
+  }
+
+  return {
+    likeCount,
+    giftCount,
+    messageCount,
+    peakViewerCount,
+  };
 }
 
 export class TrackingService {
@@ -198,26 +249,37 @@ export class TrackingService {
         }
       : state;
 
-    const mergedLatestSession = realtimeState
+    const recentEventCounters = deriveRecentEventCounters(recentEvents);
+    const mergedRealtimeState = realtimeState
       ? {
-          id: latestSession?.id ?? realtimeState.streamId ?? `realtime:${streamerId}`,
+          ...realtimeState,
+          likeCount: Math.max(realtimeState.likeCount, recentEventCounters.likeCount),
+          giftCount: Math.max(realtimeState.giftCount, recentEventCounters.giftCount),
+          messageCount: Math.max(realtimeState.messageCount, recentEventCounters.messageCount),
+          viewerCount: Math.max(realtimeState.viewerCount, recentEventCounters.peakViewerCount > 0 ? recentEventCounters.peakViewerCount : realtimeState.viewerCount),
+        }
+      : null;
+
+    const mergedLatestSession = mergedRealtimeState
+      ? {
+          id: latestSession?.id ?? mergedRealtimeState.streamId ?? `realtime:${streamerId}`,
           streamer_id: latestSession?.streamer_id ?? streamerId,
-          source: latestSession?.source ?? realtimeState.source,
-          status: realtimeState.isLive ? "live" : (latestSession?.status ?? "ended"),
-          started_at: latestSession?.started_at ?? realtimeState.lastUpdate,
-          ended_at: realtimeState.isLive ? null : (latestSession?.ended_at ?? realtimeState.lastUpdate),
-          peak_viewer_count: Math.max(latestSession?.peak_viewer_count ?? 0, realtimeState.viewerCount),
-          current_viewer_count: realtimeState.viewerCount,
-          like_count: realtimeState.likeCount,
-          gift_count: realtimeState.giftCount,
-          message_count: realtimeState.messageCount,
+          source: latestSession?.source ?? mergedRealtimeState.source,
+          status: mergedRealtimeState.isLive ? "live" : (latestSession?.status ?? "ended"),
+          started_at: latestSession?.started_at ?? mergedRealtimeState.lastUpdate,
+          ended_at: mergedRealtimeState.isLive ? null : (latestSession?.ended_at ?? mergedRealtimeState.lastUpdate),
+          peak_viewer_count: Math.max(latestSession?.peak_viewer_count ?? 0, mergedRealtimeState.viewerCount, recentEventCounters.peakViewerCount),
+          current_viewer_count: mergedRealtimeState.viewerCount,
+          like_count: Math.max(mergedRealtimeState.likeCount, latestSession?.like_count ?? 0, recentEventCounters.likeCount),
+          gift_count: Math.max(mergedRealtimeState.giftCount, latestSession?.gift_count ?? 0, recentEventCounters.giftCount),
+          message_count: Math.max(mergedRealtimeState.messageCount, latestSession?.message_count ?? 0, recentEventCounters.messageCount),
           raw_snapshot: latestSession?.raw_snapshot ?? {},
         }
       : latestSession;
 
     return {
       state: mergedState,
-      realtimeState,
+      realtimeState: mergedRealtimeState,
       latestSession: mergedLatestSession,
       recentEvents,
     };

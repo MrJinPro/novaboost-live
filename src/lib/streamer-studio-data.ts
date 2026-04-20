@@ -48,6 +48,13 @@ type DbStreamSession = Pick<
 
 type DbStreamEvent = Pick<Tables<"stream_events">, "id" | "event_type" | "event_timestamp" | "normalized_payload">;
 
+type TrackingRecentEvent = {
+  id: string;
+  event_type: string;
+  event_timestamp: string;
+  normalized_payload: Record<string, unknown>;
+};
+
 const DEFAULT_DONATION_OVERLAY: DonationOverlaySettings = {
   variant: "supernova",
   soundUrl: "",
@@ -387,6 +394,56 @@ function formatEventTime(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function parseTrackingNumber(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function deriveTrackingEventCounters(events: TrackingRecentEvent[] | null | undefined) {
+  let totalLikes = 0;
+  let totalGifts = 0;
+  let totalMessages = 0;
+  let peakViewerCount = 0;
+
+  for (const event of events ?? []) {
+    const payload = (event.normalized_payload ?? {}) as Record<string, unknown>;
+
+    if (event.event_type === "chat_message") {
+      totalMessages += 1;
+      continue;
+    }
+
+    if (event.event_type === "like_received") {
+      totalLikes += Math.max(1, parseTrackingNumber(payload.like_count) ?? 1);
+      continue;
+    }
+
+    if (event.event_type === "gift_received") {
+      totalGifts += Math.max(1, parseTrackingNumber(payload.gift_count) ?? 1);
+      continue;
+    }
+
+    if (event.event_type === "snapshot_updated" || event.event_type === "live_started") {
+      peakViewerCount = Math.max(peakViewerCount, parseTrackingNumber(payload.viewer_count) ?? 0);
+    }
+  }
+
+  return {
+    totalLikes,
+    totalGifts,
+    totalMessages,
+    peakViewerCount,
+  };
 }
 
 function mapLiveEvent(row: DbStreamEvent) {
@@ -784,6 +841,7 @@ export async function loadPublicStreamerPage(idOrUsername: string) {
   ]);
 
   const trackingRealtimeState = trackingDetails?.realtimeState ?? null;
+  const trackingEventCounters = deriveTrackingEventCounters(trackingDetails?.recentEvents);
   const resolvedSession = trackingDetails?.latestSession
     ?? (trackingRealtimeState
       ? {
@@ -843,10 +901,10 @@ export async function loadPublicStreamerPage(idOrUsername: string) {
     membership_settings: parseStreamerMembershipSettings(settings?.layout ?? null),
     next_event: posts[0]?.title ? `Актуальный анонс: ${posts[0].title}` : "Следующий анонс появится после первой публикации в студии.",
     support_goal: streamer.needs_boost ? "Сейчас стримеру нужен дополнительный буст и трафик из платформы." : "Страница активна, следи за анонсами и новыми постами.",
-    total_likes: trackingRealtimeState?.likeCount ?? resolvedSession?.like_count ?? 0,
-    total_gifts: trackingRealtimeState?.giftCount ?? resolvedSession?.gift_count ?? 0,
-    total_messages: trackingRealtimeState?.messageCount ?? resolvedSession?.message_count ?? 0,
-    peak_viewer_count: resolvedSession?.peak_viewer_count ?? trackingRealtimeState?.viewerCount ?? 0,
+    total_likes: Math.max(trackingRealtimeState?.likeCount ?? 0, resolvedSession?.like_count ?? 0, trackingEventCounters.totalLikes),
+    total_gifts: Math.max(trackingRealtimeState?.giftCount ?? 0, resolvedSession?.gift_count ?? 0, trackingEventCounters.totalGifts),
+    total_messages: Math.max(trackingRealtimeState?.messageCount ?? 0, resolvedSession?.message_count ?? 0, trackingEventCounters.totalMessages),
+    peak_viewer_count: Math.max(resolvedSession?.peak_viewer_count ?? 0, trackingRealtimeState?.viewerCount ?? 0, trackingEventCounters.peakViewerCount),
     current_session_status: trackingRealtimeState?.isLive ? "live" : (resolvedSession?.status ?? null),
     current_session_started_at: resolvedSession?.started_at ?? trackingRealtimeState?.lastUpdate ?? null,
     live_status_label: trackingRealtimeState?.liveStatusLabel ?? null,

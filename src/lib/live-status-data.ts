@@ -12,52 +12,54 @@ type LiveStatusResponse = {
   error?: string;
 };
 
-type StreamTrackingResponse = {
-  details: {
-    state: {
-      id: string;
-      tiktok_username: string;
-      is_live: boolean;
-      viewer_count: number;
-    } | null;
-    realtimeState: {
-      streamerId: string;
-      tiktokUsername: string;
-      isLive: boolean;
-      viewerCount: number;
-      likeCount: number;
-      giftCount: number;
-      messageCount: number;
-      liveStatusCode: number | null;
-      liveStatusLabel: string | null;
-      isLinkMic: boolean | null;
-      linkMicLayout: number | null;
-      multiLiveEnum: number | null;
-      liveModeLabel: string | null;
-      lastUpdate: string;
-      source: string;
-    } | null;
-    latestSession: {
-      id: string;
-      streamer_id: string;
-      source: string;
-      status: "live" | "ended" | "failed";
-      started_at: string;
-      ended_at: string | null;
-      peak_viewer_count: number;
-      current_viewer_count: number;
-      like_count: number;
-      gift_count: number;
-      message_count: number;
-      raw_snapshot: Record<string, unknown>;
-    } | null;
-    recentEvents: Array<{
-      id: string;
-      event_type: string;
-      event_timestamp: string;
-      normalized_payload: Record<string, unknown>;
-    }>;
+export type StreamTrackingDetails = {
+  state: {
+    id: string;
+    tiktok_username: string;
+    is_live: boolean;
+    viewer_count: number;
   } | null;
+  realtimeState: {
+    streamerId: string;
+    tiktokUsername: string;
+    isLive: boolean;
+    viewerCount: number;
+    likeCount: number;
+    giftCount: number;
+    messageCount: number;
+    liveStatusCode: number | null;
+    liveStatusLabel: string | null;
+    isLinkMic: boolean | null;
+    linkMicLayout: number | null;
+    multiLiveEnum: number | null;
+    liveModeLabel: string | null;
+    lastUpdate: string;
+    source: string;
+  } | null;
+  latestSession: {
+    id: string;
+    streamer_id: string;
+    source: string;
+    status: "live" | "ended" | "failed";
+    started_at: string;
+    ended_at: string | null;
+    peak_viewer_count: number;
+    current_viewer_count: number;
+    like_count: number;
+    gift_count: number;
+    message_count: number;
+    raw_snapshot: Record<string, unknown>;
+  } | null;
+  recentEvents: Array<{
+    id: string;
+    event_type: string;
+    event_timestamp: string;
+    normalized_payload: Record<string, unknown>;
+  }>;
+};
+
+type StreamTrackingResponse = {
+  details: StreamTrackingDetails | null;
   error?: string;
 };
 
