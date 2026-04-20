@@ -7,6 +7,7 @@ import { HowItWorksLink } from "@/components/HowItWorksLink";
 import { BoostBadge } from "@/components/BoostBadge";
 import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
 import { AppAvatar } from "@/components/AppAvatar";
+import { LocalizedPrice } from "@/components/LocalizedPrice";
 import { usePaymentComingSoonSurvey } from "@/components/PaymentComingSoonDialog";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Bell, ChevronDown, Crown, Eye, ExternalLink, Facebook, Instagram, Play, Send, Sparkles, Twitter, Users, Wallet, Zap, TrendingUp } from "lucide-react";
