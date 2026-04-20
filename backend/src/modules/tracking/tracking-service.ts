@@ -23,9 +23,12 @@ function normalizeTikTokUsername(username: string) {
 export class TrackingService {
   private poller: NodeJS.Timeout | null = null;
   private lastRunAt: string | null = null;
+  private lastCompletedAt: string | null = null;
   private socketHub: TrackingSocketHub | null = null;
   private liveEventBridge: TrackingLiveEventBridge | null = null;
   private tickInFlight = false;
+  private lastTrackedStreamerCount = 0;
+  private lastTrackedUsernames: string[] = [];
   private startupRecoveryRunning = false;
   private startupRecoveryLastStartedAt: string | null = null;
   private startupRecoveryLastCompletedAt: string | null = null;
@@ -65,7 +68,11 @@ export class TrackingService {
       intervalMs: this.env.TRACKING_POLL_INTERVAL_MS,
       source: this.adapter.sourceName,
       lastRunAt: this.lastRunAt,
+      lastCompletedAt: this.lastCompletedAt,
       tickInFlight: this.tickInFlight,
+      trackedStreamers: {
+        count: this.lastTrackedStreamerCount,
+      },
       startupRecovery: {
         running: this.startupRecoveryRunning,
         lastStartedAt: this.startupRecoveryLastStartedAt,
@@ -82,6 +89,11 @@ export class TrackingService {
   getDiagnostics() {
     return {
       ...this.getHealth(),
+      trackedStreamers: {
+        count: this.lastTrackedStreamerCount,
+        usernames: this.lastTrackedUsernames.slice(0, 20),
+      },
+      adapter: this.adapter.getDiagnostics?.() ?? null,
       startupRecovery: {
         ...this.getHealth().startupRecovery,
         recentFailures: this.startupRecoveryFailures.slice(0, 20),
@@ -260,9 +272,12 @@ export class TrackingService {
     }
 
     this.tickInFlight = true;
+    this.lastRunAt = new Date().toISOString();
 
     try {
       const streamers = await this.trackingRepository.getTrackedStreamers();
+      this.lastTrackedStreamerCount = streamers.length;
+      this.lastTrackedUsernames = streamers.map((streamer) => streamer.tiktok_username);
       const snapshots: TrackingSnapshot[] = [];
 
       for (const streamer of streamers) {

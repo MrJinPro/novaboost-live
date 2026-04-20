@@ -7,6 +7,16 @@ import type { TrackingSnapshot, TrackedStreamer } from "../../repositories/track
 export interface TrackingAdapter {
   readonly sourceName: string;
   fetchSnapshot(streamer: TrackedStreamer): Promise<TrackingSnapshot>;
+  getDiagnostics?(): {
+    lastSuccessAt: string | null;
+    recentFailures: Array<{
+      streamerId: string;
+      username: string;
+      occurredAt: string;
+      reason: string;
+      error?: string;
+    }>;
+  };
 }
 
 function buildPassiveSnapshot(
@@ -156,6 +166,13 @@ export class PassiveTrackingAdapter implements TrackingAdapter {
   async fetchSnapshot(streamer: TrackedStreamer): Promise<TrackingSnapshot> {
     return buildPassiveSnapshot(streamer, new Date().toISOString(), this.sourceName);
   }
+
+  getDiagnostics() {
+    return {
+      lastSuccessAt: null,
+      recentFailures: [],
+    };
+  }
 }
 
 type TikTokTrackingAdapterOptions = {
@@ -183,14 +200,50 @@ function mergeCookieHeader(connection: TikTokLiveConnection, cookieHeader?: stri
 
 export class TikTokLiveTrackingAdapter implements TrackingAdapter {
   readonly sourceName = "tiktok-live-connector";
+  private lastSuccessAt: string | null = null;
+  private readonly recentFailures: Array<{
+    streamerId: string;
+    username: string;
+    occurredAt: string;
+    reason: string;
+    error?: string;
+  }> = [];
 
   constructor(private readonly options: TikTokTrackingAdapterOptions) {}
+
+  getDiagnostics() {
+    return {
+      lastSuccessAt: this.lastSuccessAt,
+      recentFailures: this.recentFailures.slice(0, 20),
+    };
+  }
+
+  private recordFailure(entry: {
+    streamerId: string;
+    username: string;
+    occurredAt: string;
+    reason: string;
+    error?: string;
+  }) {
+    this.recentFailures.unshift(entry);
+
+    if (this.recentFailures.length > 20) {
+      this.recentFailures.length = 20;
+    }
+  }
 
   async fetchSnapshot(streamer: TrackedStreamer): Promise<TrackingSnapshot> {
     const checkedAt = new Date().toISOString();
     const username = normalizeTikTokUsername(streamer.tiktok_username);
 
     if (!username) {
+      this.recordFailure({
+        streamerId: streamer.id,
+        username: streamer.tiktok_username,
+        occurredAt: checkedAt,
+        reason: "missing_tiktok_username",
+      });
+
       this.options.logger.warn("TikTok tracking fallback: streamer username is empty", {
         streamerId: streamer.id,
       });
@@ -280,6 +333,8 @@ export class TikTokLiveTrackingAdapter implements TrackingAdapter {
         ["liveRoomUserInfo", "user", "followerCount"],
       ]);
 
+      this.lastSuccessAt = checkedAt;
+
       return {
         streamerId: streamer.id,
         displayName: streamer.display_name,
@@ -294,6 +349,14 @@ export class TikTokLiveTrackingAdapter implements TrackingAdapter {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      this.recordFailure({
+        streamerId: streamer.id,
+        username,
+        occurredAt: checkedAt,
+        reason: "tiktok_request_failed",
+        error: message,
+      });
+
       this.options.logger.warn("TikTok tracking fallback: request failed", {
         streamerId: streamer.id,
         tiktokUsername: username,
