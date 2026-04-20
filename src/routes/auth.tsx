@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, useLocation, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { Header } from "@/components/Header";
@@ -19,6 +19,7 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const { user, signIn, signUp } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [mode, setMode] = useState<"signin" | "signup">("signup");
   const [accountRole, setAccountRole] = useState<"viewer" | "streamer">("viewer");
   const [email, setEmail] = useState("");
@@ -32,10 +33,19 @@ function AuthPage() {
   const { streamers: directoryStreamers, error: directoryError } = useStreamerDirectory();
   const [referralStreamer, setReferralStreamer] = useState<StreamerCardData | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const searchParams = new URLSearchParams(location.search);
+  const confirmationState = searchParams.get("confirmed");
+  const emailConfirmed = confirmationState === "signup";
 
   useEffect(() => {
-    if (user) navigate({ to: "/profile" });
-  }, [user, navigate]);
+    if (user && !emailConfirmed) navigate({ to: "/profile" });
+  }, [user, navigate, emailConfirmed]);
+
+  useEffect(() => {
+    if (emailConfirmed) {
+      setMode("signin");
+    }
+  }, [emailConfirmed]);
 
   useEffect(() => {
     if (directoryError) {
@@ -127,6 +137,22 @@ function AuthPage() {
               : "Для входа нужен только email и пароль. Дополнительные роли и настройки подтягиваются уже внутри профиля."}
           </p>
         </div>
+
+        {emailConfirmed && (
+          <div className="mb-4 rounded-2xl border border-emerald-400/35 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+            <div className="font-semibold text-foreground">Почта подтверждена</div>
+            <p className="mt-1 text-emerald-100/85">
+              Email успешно подтверждён. Теперь можно войти в NovaBoost Live и продолжить настройку профиля.
+            </p>
+            {user && (
+              <div className="mt-3">
+                <Button type="button" onClick={() => navigate({ to: "/profile" })} className="bg-gradient-blast font-bold text-blast-foreground shadow-glow">
+                  Перейти в профиль
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="mb-4 grid grid-cols-2 gap-3">
           <button type="button" onClick={() => setMode("signup")} className={`rounded-2xl border p-3 text-sm font-semibold ${mode === "signup" ? "border-blast bg-blast/5 text-foreground" : "border-border/50 bg-surface/40 text-muted-foreground"}`}>

@@ -37,7 +37,7 @@ function getAuthEmailRedirectUrl() {
     return undefined;
   }
 
-  return `${appOrigin}/auth`;
+  return `${appOrigin}/auth?confirmed=signup`;
 }
 
 async function getProfile(userId: string) {
