@@ -122,6 +122,10 @@ async function getProfileStats(userId: string) {
 }
 
 export async function completeLiveTask(user: AppUser, task: LiveTask) {
+  if (task.type !== "code") {
+    throw new Error("Это задание засчитывается автоматически по live-событиям.");
+  }
+
   const { error: completionError } = await supabase
     .from("task_completions")
     .insert({

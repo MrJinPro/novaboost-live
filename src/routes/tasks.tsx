@@ -169,9 +169,9 @@ function TasksPage() {
                       </div>
                     )}
                     {!done && task.type !== "code" && (
-                      <Button onClick={() => completeTask(task)} size="sm" className="mt-3 bg-gradient-blast text-blast-foreground font-bold">
-                        Выполнить
-                      </Button>
+                      <div className="mt-3 inline-flex items-center rounded-full border border-border/60 bg-background/50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                        Выполнение отслеживается автоматически
+                      </div>
                     )}
                   </div>
                 </div>

@@ -56,6 +56,23 @@ export type AdminTrackedStreamer = {
   createdAt: string | null;
 };
 
+export type AdminManagedTaskType = "visit" | "code" | "boost" | "referral";
+
+export type AdminManagedTask = {
+  id: string;
+  title: string;
+  description: string | null;
+  rewardPoints: number;
+  type: AdminManagedTaskType;
+  code: string | null;
+  streamerId: string | null;
+  streamerName: string | null;
+  streamerTikTokUsername: string | null;
+  active: boolean;
+  expiresAt: string | null;
+  createdAt: string;
+};
+
 export class AdminApiError extends Error {
   status: number;
 
@@ -184,5 +201,30 @@ export async function updateAdminUserStaffAccess(session: Session, payload: {
       accessLevel: payload.accessLevel,
       notes: payload.notes,
     }),
+  });
+}
+
+export async function loadAdminTasks(session: Session) {
+  const data = await requestAdminPath<{ tasks: AdminManagedTask[]; currentAccessLevel: AdminPanelAccessLevel }>(session, "/api/admin/tasks", { method: "GET" });
+  return {
+    tasks: data.tasks ?? [],
+    currentAccessLevel: data.currentAccessLevel ?? "none",
+  };
+}
+
+export async function createAdminTask(session: Session, payload: {
+  title: string;
+  description?: string;
+  rewardPoints: number;
+  type: Exclude<AdminManagedTaskType, "code">;
+  streamerId?: string | null;
+  expiresAt?: string | null;
+}) {
+  return requestAdminPath<{ ok: true; task: AdminManagedTask }>(session, "/api/admin/tasks", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(payload),
   });
 }

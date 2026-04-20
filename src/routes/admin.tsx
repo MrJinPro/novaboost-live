@@ -6,8 +6,10 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth-context";
 import {
   AdminApiError,
+  createAdminTask,
   createAdminTrackedStreamer,
   deleteAdminTrackedStreamer,
+  loadAdminTasks,
   loadAdminStreamerApplications,
   loadAdminUsers,
   reviewAdminStreamerApplication,
@@ -15,6 +17,7 @@ import {
   updateAdminUserStaffAccess,
   type AdminApplicationStatus,
   type AdminConsoleUser,
+  type AdminManagedTask,
   type AdminPanelAccessLevel,
   type AdminStreamerApplication,
   type AdminTrackedStreamer,
@@ -41,6 +44,7 @@ const STATUS_LABELS: Record<"all" | AdminApplicationStatus, string> = {
 
 type SortMode = "newest" | "oldest" | "pending-first" | "name";
 type UserSortMode = "newest" | "name" | "platform-role" | "staff-access";
+type AdminTaskFormType = "visit" | "boost" | "referral";
 
 const SORT_LABELS: Record<SortMode, string> = {
   newest: "Сначала новые",
@@ -101,10 +105,13 @@ function AdminPage() {
   const [applications, setApplications] = useState<AdminStreamerApplication[]>([]);
   const [users, setUsers] = useState<AdminConsoleUser[]>([]);
   const [trackedStreamers, setTrackedStreamers] = useState<AdminTrackedStreamer[]>([]);
+  const [managedTasks, setManagedTasks] = useState<AdminManagedTask[]>([]);
   const [pageLoading, setPageLoading] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
+  const [tasksLoading, setTasksLoading] = useState(false);
+  const [tasksError, setTasksError] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
   const [currentAccessLevel, setCurrentAccessLevel] = useState<AdminPanelAccessLevel>("none");
   const [activeFilter, setActiveFilter] = useState<"all" | AdminApplicationStatus>("pending");
@@ -113,6 +120,11 @@ function AdminPage() {
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [userSortMode, setUserSortMode] = useState<UserSortMode>("newest");
   const [trackedStreamerUsername, setTrackedStreamerUsername] = useState("");
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskDescription, setTaskDescription] = useState("");
+  const [taskRewardPoints, setTaskRewardPoints] = useState("25");
+  const [taskType, setTaskType] = useState<AdminTaskFormType>("visit");
+  const [taskStreamerId, setTaskStreamerId] = useState<string>("");
   const [actionKey, setActionKey] = useState<string | null>(null);
 
   const syncApplications = async () => {
@@ -170,9 +182,34 @@ function AdminPage() {
     }
   };
 
+  const syncTasks = async () => {
+    if (!session) {
+      return;
+    }
+
+    setTasksLoading(true);
+    setTasksError(null);
+
+    try {
+      const response = await loadAdminTasks(session);
+      setManagedTasks(response.tasks);
+      setCurrentAccessLevel(response.currentAccessLevel);
+    } catch (error) {
+      if (error instanceof AdminApiError && error.status === 403) {
+        setAccessDenied(true);
+        return;
+      }
+
+      setTasksError(error instanceof Error ? error.message : "Не удалось загрузить задания.");
+    } finally {
+      setTasksLoading(false);
+    }
+  };
+
   useEffect(() => {
     void syncApplications();
     void syncUsers();
+    void syncTasks();
   }, [session]);
 
   const stats = useMemo(() => ({
@@ -384,6 +421,50 @@ function AdminPage() {
       await syncApplications();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Не удалось удалить tracked-only стримера.");
+    } finally {
+      setActionKey(null);
+    }
+  };
+
+  const handleAdminTaskCreate = async () => {
+    if (!session) {
+      return;
+    }
+
+    const rewardPoints = Number.parseInt(taskRewardPoints, 10);
+    if (!taskTitle.trim()) {
+      toast.error("Укажи название задания.");
+      return;
+    }
+
+    if (!Number.isFinite(rewardPoints) || rewardPoints < 1) {
+      toast.error("Очки награды должны быть не меньше 1.");
+      return;
+    }
+
+    if ((taskType === "visit" || taskType === "boost") && !taskStreamerId) {
+      toast.error("Для этого типа задания нужно выбрать стримера.");
+      return;
+    }
+
+    setActionKey("admin-task:create");
+    try {
+      const response = await createAdminTask(session, {
+        title: taskTitle,
+        description: taskDescription,
+        rewardPoints,
+        type: taskType,
+        streamerId: taskType === "referral" ? null : taskStreamerId || null,
+      });
+      setManagedTasks((current) => [response.task, ...current]);
+      setTaskTitle("");
+      setTaskDescription("");
+      setTaskRewardPoints("25");
+      setTaskType("visit");
+      setTaskStreamerId("");
+      toast.success("Задание добавлено в платформу.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось создать задание.");
     } finally {
       setActionKey(null);
     }
@@ -766,6 +847,128 @@ function AdminPage() {
                         >
                           {actionKey === `tracked-streamer:delete:${streamer.streamerId}` ? "Удаляем…" : "Удалить из каталога"}
                         </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="mt-6 rounded-3xl border border-border/50 bg-background/30 p-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h3 className="font-display text-2xl font-bold">Платформенные задания</h3>
+                <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+                  Moderator и admin могут создавать платформенные задания без кодовых слов: visit, boost и referral. Support видит этот блок, но не может управлять заданиями.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-border/50 bg-surface/40 px-4 py-3 text-sm text-muted-foreground">
+                Активных и последних: {managedTasks.length}
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              <Input
+                value={taskTitle}
+                onChange={(event) => setTaskTitle(event.target.value)}
+                placeholder="Название задания"
+                disabled={currentAccessLevel === "support" || actionKey === "admin-task:create"}
+              />
+              <Input
+                value={taskRewardPoints}
+                onChange={(event) => setTaskRewardPoints(event.target.value)}
+                inputMode="numeric"
+                placeholder="Очки награды"
+                disabled={currentAccessLevel === "support" || actionKey === "admin-task:create"}
+              />
+              <label className="flex items-center gap-3 rounded-xl border border-border/50 bg-surface/60 px-3 py-2 text-sm text-muted-foreground">
+                <span>Тип</span>
+                <select
+                  value={taskType}
+                  onChange={(event) => setTaskType(event.target.value as AdminTaskFormType)}
+                  className="w-full bg-transparent text-foreground outline-none"
+                  disabled={currentAccessLevel === "support" || actionKey === "admin-task:create"}
+                >
+                  <option value="visit" className="bg-background text-foreground">visit</option>
+                  <option value="boost" className="bg-background text-foreground">boost</option>
+                  <option value="referral" className="bg-background text-foreground">referral</option>
+                </select>
+              </label>
+              <label className="flex items-center gap-3 rounded-xl border border-border/50 bg-surface/60 px-3 py-2 text-sm text-muted-foreground">
+                <span>Стример</span>
+                <select
+                  value={taskStreamerId}
+                  onChange={(event) => setTaskStreamerId(event.target.value)}
+                  className="w-full bg-transparent text-foreground outline-none"
+                  disabled={taskType === "referral" || currentAccessLevel === "support" || actionKey === "admin-task:create"}
+                >
+                  <option value="" className="bg-background text-foreground">{taskType === "referral" ? "Не требуется" : "Выбери стримера"}</option>
+                  {trackedStreamers.map((streamer) => (
+                    <option key={streamer.streamerId} value={streamer.streamerId} className="bg-background text-foreground">
+                      {streamer.displayName} (@{streamer.tiktokUsername})
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="mt-3">
+              <Input
+                value={taskDescription}
+                onChange={(event) => setTaskDescription(event.target.value)}
+                placeholder="Краткое описание задания"
+                disabled={currentAccessLevel === "support" || actionKey === "admin-task:create"}
+              />
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Button
+                type="button"
+                className="bg-gradient-blast text-blast-foreground"
+                disabled={currentAccessLevel === "support" || actionKey === "admin-task:create"}
+                onClick={() => void handleAdminTaskCreate()}
+              >
+                {actionKey === "admin-task:create" ? "Добавляем…" : "Добавить задание"}
+              </Button>
+            </div>
+
+            {tasksError && (
+              <div className="mt-4 rounded-2xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive-foreground">
+                {tasksError}
+              </div>
+            )}
+
+            <div className="mt-4 space-y-3">
+              {tasksLoading ? (
+                <div className="rounded-2xl border border-dashed border-border/50 bg-surface/30 p-4 text-sm text-muted-foreground">
+                  Загружаю список заданий…
+                </div>
+              ) : managedTasks.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border/50 bg-surface/30 p-4 text-sm text-muted-foreground">
+                  Пока нет созданных платформенных заданий.
+                </div>
+              ) : (
+                managedTasks.map((task) => (
+                  <div key={task.id} className="rounded-2xl border border-border/50 bg-surface/30 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="font-semibold text-foreground">{task.title}</div>
+                          <RoleBadge label={task.type} tone="all" />
+                          <RoleBadge label={task.active ? "Активно" : "Отключено"} tone={task.active ? "verified" : "rejected"} />
+                        </div>
+                        <div className="mt-2 text-sm text-muted-foreground">
+                          {task.description || "Описание не указано."}
+                        </div>
+                        <div className="mt-2 text-xs text-muted-foreground">
+                          {task.streamerName ? `Стример: ${task.streamerName}${task.streamerTikTokUsername ? ` · @${task.streamerTikTokUsername}` : ""}` : "Без привязки к стримеру"}
+                        </div>
+                      </div>
+                      <div className="grid gap-2 text-right text-sm text-muted-foreground sm:grid-cols-3 sm:text-left">
+                        <div>Очки: <span className="text-foreground">{task.rewardPoints}</span></div>
+                        <div>Создано: <span className="text-foreground">{formatDateTime(task.createdAt)}</span></div>
+                        <div>До: <span className="text-foreground">{formatDateTime(task.expiresAt)}</span></div>
                       </div>
                     </div>
                   </div>
