@@ -1,4 +1,5 @@
 import type { Session } from "@supabase/supabase-js";
+import { getBackendBaseUrl } from "@/lib/backend-base-url";
 
 export type AdminApplicationStatus = "pending" | "verified" | "rejected";
 export type AdminStaffAccessLevel = "support" | "moderator" | "admin";
@@ -71,6 +72,58 @@ export type AdminManagedTask = {
   active: boolean;
   expiresAt: string | null;
   createdAt: string;
+};
+
+export type AdminTrackingFailure = {
+  streamerId: string;
+  error?: string | null;
+  occurredAt: string;
+  username?: string;
+  streamSessionId?: string;
+  reason?: string;
+  attempt?: number;
+};
+
+export type AdminTrackingReconnectState = {
+  streamerId: string;
+  username: string;
+  streamSessionId: string;
+  reason: string;
+  attempt: number;
+  delayMs: number;
+  scheduledAt: string;
+};
+
+export type AdminTrackingDiagnostics = {
+  service: string;
+  status: string;
+  source: string;
+  intervalMs: number;
+  lastRunAt: string | null;
+  tickInFlight: boolean;
+  startupRecovery: {
+    running: boolean;
+    lastStartedAt: string | null;
+    lastCompletedAt: string | null;
+    candidates: number;
+    recovered: number;
+    failureCount: number;
+    recentFailures: AdminTrackingFailure[];
+  };
+  liveEventBridge: {
+    activeConnections: number;
+    connecting: number;
+    reconnectScheduled: number;
+    idleWatchers: number;
+    reconnectingStreamers: number;
+    recentFailures: AdminTrackingFailure[];
+    scheduledReconnects: AdminTrackingReconnectState[];
+    activeStreamers: Array<{
+      streamerId: string;
+      username: string;
+      streamSessionId: string;
+    }>;
+  } | null;
 };
 
 export class AdminApiError extends Error {
@@ -227,4 +280,26 @@ export async function createAdminTask(session: Session, payload: {
     },
     body: JSON.stringify(payload),
   });
+}
+
+export async function loadAdminTrackingDiagnostics(session: Session) {
+  const response = await fetch(`${getBackendBaseUrl()}/tracking/diagnostics`, {
+    method: "GET",
+    headers: {
+      accept: "application/json",
+      authorization: `Bearer ${session.access_token}`,
+    },
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new AdminApiError(
+      typeof data.error === "string" ? data.error : "Не удалось загрузить tracking diagnostics.",
+      response.status,
+    );
+  }
+
+  return {
+    tracking: (data.tracking ?? null) as AdminTrackingDiagnostics | null,
+  };
 }

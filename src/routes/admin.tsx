@@ -9,9 +9,11 @@ import {
   createAdminTask,
   createAdminTrackedStreamer,
   deleteAdminTrackedStreamer,
+  loadAdminTrackingDiagnostics,
   loadAdminTasks,
   loadAdminStreamerApplications,
   loadAdminUsers,
+  type AdminTrackingDiagnostics,
   reviewAdminStreamerApplication,
   updateAdminUserPlatformRole,
   updateAdminUserStaffAccess,
@@ -22,7 +24,7 @@ import {
   type AdminStreamerApplication,
   type AdminTrackedStreamer,
 } from "@/lib/admin-moderation-data";
-import { ArrowUpDown, History, Search, ShieldAlert, ShieldCheck, UserCog, UserRound, Users } from "lucide-react";
+import { ArrowUpDown, History, Search, ShieldAlert, ShieldCheck, UserCog, UserRound, Users, Activity } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin")({
@@ -112,6 +114,9 @@ function AdminPage() {
   const [usersError, setUsersError] = useState<string | null>(null);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [tasksError, setTasksError] = useState<string | null>(null);
+  const [trackingDiagnostics, setTrackingDiagnostics] = useState<AdminTrackingDiagnostics | null>(null);
+  const [trackingDiagnosticsLoading, setTrackingDiagnosticsLoading] = useState(false);
+  const [trackingDiagnosticsError, setTrackingDiagnosticsError] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
   const [currentAccessLevel, setCurrentAccessLevel] = useState<AdminPanelAccessLevel>("none");
   const [activeFilter, setActiveFilter] = useState<"all" | AdminApplicationStatus>("pending");
@@ -206,10 +211,45 @@ function AdminPage() {
     }
   };
 
+  const syncTrackingDiagnostics = async (options?: { silent?: boolean }) => {
+    if (!session) {
+      return;
+    }
+
+    if (!options?.silent) {
+      setTrackingDiagnosticsLoading(true);
+    }
+    setTrackingDiagnosticsError(null);
+
+    try {
+      const response = await loadAdminTrackingDiagnostics(session);
+      setTrackingDiagnostics(response.tracking);
+    } catch (error) {
+      setTrackingDiagnosticsError(error instanceof Error ? error.message : "Не удалось загрузить tracking diagnostics.");
+    } finally {
+      if (!options?.silent) {
+        setTrackingDiagnosticsLoading(false);
+      }
+    }
+  };
+
   useEffect(() => {
     void syncApplications();
     void syncUsers();
     void syncTasks();
+    void syncTrackingDiagnostics();
+  }, [session]);
+
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      void syncTrackingDiagnostics({ silent: true });
+    }, 15_000);
+
+    return () => window.clearInterval(timer);
   }, [session]);
 
   const stats = useMemo(() => ({
@@ -540,6 +580,94 @@ function AdminPage() {
           <SummaryCard title="Отклонены" value={stats.rejected} tone="rejected" />
           <SummaryCard title="Всего" value={applications.length} tone="all" />
         </div>
+
+        <section className="mt-8 rounded-3xl border border-border/50 bg-surface/60 p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/30 px-3 py-1 text-xs text-muted-foreground">
+                <Activity className="h-3.5 w-3.5 text-cosmic" /> Tracking Diagnostics
+              </div>
+              <h2 className="mt-4 font-display text-3xl font-bold">Состояние recovery и live bridge</h2>
+              <p className="mt-3 max-w-3xl text-muted-foreground">
+                Этот блок показывает те backend-изменения, которые после pull раньше были невидимы в интерфейсе: startup recovery, активные live connections, очередь reconnect и последние ошибки.
+              </p>
+            </div>
+            <Button variant="outline" onClick={() => void syncTrackingDiagnostics()} disabled={trackingDiagnosticsLoading}>
+              {trackingDiagnosticsLoading ? "Обновляем diagnostics…" : "Обновить diagnostics"}
+            </Button>
+          </div>
+
+          {trackingDiagnosticsError && (
+            <div className="mt-4 rounded-2xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive-foreground">
+              {trackingDiagnosticsError}
+            </div>
+          )}
+
+          {!trackingDiagnostics && !trackingDiagnosticsLoading ? (
+            <div className="mt-4 rounded-2xl border border-dashed border-border/50 bg-background/30 p-4 text-sm text-muted-foreground">
+              Diagnostics пока не получены.
+            </div>
+          ) : trackingDiagnostics ? (
+            <>
+              <div className="mt-6 grid gap-4 md:grid-cols-4">
+                <SummaryCard title="Активных коннектов" value={trackingDiagnostics.liveEventBridge?.activeConnections ?? 0} tone="verified" />
+                <SummaryCard title="Reconnecting" value={trackingDiagnostics.liveEventBridge?.reconnectingStreamers ?? 0} tone="pending" />
+                <SummaryCard title="Recovery кандидатов" value={trackingDiagnostics.startupRecovery.candidates} tone="all" />
+                <SummaryCard title="Recovery поднято" value={trackingDiagnostics.startupRecovery.recovered} tone="verified" />
+              </div>
+
+              <div className="mt-6 grid gap-4 lg:grid-cols-3">
+                <InfoBlock label="Tracking status" value={`${trackingDiagnostics.status} · ${trackingDiagnostics.source}`} />
+                <InfoBlock label="Последний tick" value={formatDateTime(trackingDiagnostics.lastRunAt)} />
+                <InfoBlock label="Startup recovery" value={trackingDiagnostics.startupRecovery.running ? "Идёт восстановление" : "Сейчас не выполняется"} />
+              </div>
+
+              <div className="mt-6 grid gap-4 lg:grid-cols-2">
+                <section className="rounded-2xl border border-border/50 bg-background/30 p-5">
+                  <h3 className="font-display text-2xl font-bold">Последние ошибки recovery</h3>
+                  <div className="mt-4 space-y-3">
+                    {trackingDiagnostics.startupRecovery.recentFailures.length === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-border/50 bg-surface/30 p-4 text-sm text-muted-foreground">
+                        Ошибок startup recovery пока нет.
+                      </div>
+                    ) : (
+                      trackingDiagnostics.startupRecovery.recentFailures.map((failure) => (
+                        <div key={`${failure.streamerId}:${failure.occurredAt}`} className="rounded-2xl border border-border/50 bg-surface/30 p-4 text-sm">
+                          <div className="font-medium text-foreground">{failure.streamerId}</div>
+                          <div className="mt-1 text-muted-foreground">{failure.error || "Неизвестная ошибка"}</div>
+                          <div className="mt-2 text-xs text-muted-foreground">{formatDateTime(failure.occurredAt)}</div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </section>
+
+                <section className="rounded-2xl border border-border/50 bg-background/30 p-5">
+                  <h3 className="font-display text-2xl font-bold">Запланированные reconnect</h3>
+                  <div className="mt-4 space-y-3">
+                    {(trackingDiagnostics.liveEventBridge?.scheduledReconnects?.length ?? 0) === 0 ? (
+                      <div className="rounded-2xl border border-dashed border-border/50 bg-surface/30 p-4 text-sm text-muted-foreground">
+                        Сейчас нет запланированных reconnect.
+                      </div>
+                    ) : (
+                      trackingDiagnostics.liveEventBridge?.scheduledReconnects.slice(0, 8).map((item) => (
+                        <div key={`${item.streamerId}:${item.scheduledAt}`} className="rounded-2xl border border-border/50 bg-surface/30 p-4 text-sm">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium text-foreground">@{item.username}</div>
+                            <RoleBadge label={`attempt ${item.attempt}`} tone="pending" />
+                          </div>
+                          <div className="mt-2 text-muted-foreground">Причина: {item.reason}</div>
+                          <div className="mt-1 text-muted-foreground">Задержка: {Math.round(item.delayMs / 1000)} сек.</div>
+                          <div className="mt-2 text-xs text-muted-foreground">{formatDateTime(item.scheduledAt)}</div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </section>
+              </div>
+            </>
+          ) : null}
+        </section>
 
         <div className="mt-8 flex flex-wrap gap-2">
           {(["pending", "verified", "rejected", "all"] as const).map((status) => (
