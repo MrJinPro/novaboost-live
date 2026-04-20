@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { Header } from "@/components/Header";
@@ -178,6 +178,44 @@ function TasksPage() {
               </div>
             );
           })}
+
+          {!tasksLoading && tasks.length === 0 && (
+            <div className="rounded-3xl border border-border/50 bg-surface/60 p-6 sm:p-8">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-cosmic/15 text-cosmic">
+                  <Trophy className="h-6 w-6" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-display text-2xl font-bold">Сейчас активных заданий нет</h3>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    Экран пустой не потому, что что-то сломалось: сейчас задания появляются в основном, когда стример публикует кодовое слово во время эфира. Если ни один активный код не выпущен, список пока остаётся пустым.
+                  </p>
+                  <div className="mt-4 grid gap-3 md:grid-cols-3">
+                    <div className="rounded-2xl border border-border/50 bg-background/30 p-4">
+                      <div className="text-sm font-semibold">Что появится здесь</div>
+                      <div className="mt-2 text-xs leading-5 text-muted-foreground">Кодовые слова, live-задания и будущие автоматические активности по стримерам, на которых ты подписан.</div>
+                    </div>
+                    <div className="rounded-2xl border border-border/50 bg-background/30 p-4">
+                      <div className="text-sm font-semibold">Как ускорить появление</div>
+                      <div className="mt-2 text-xs leading-5 text-muted-foreground">Подписывайся на стримеров в каталоге и заходи на эфиры, где стример уже использует студию NovaBoost.</div>
+                    </div>
+                    <div className="rounded-2xl border border-border/50 bg-background/30 p-4">
+                      <div className="text-sm font-semibold">Почему это важно</div>
+                      <div className="mt-2 text-xs leading-5 text-muted-foreground">Когда задания активны, они начисляют viewer points, двигают уровень и связывают live-активность с внутренней механикой платформы.</div>
+                    </div>
+                  </div>
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <Link to="/streamers">
+                      <Button className="bg-gradient-blast font-bold text-blast-foreground">Открыть каталог стримеров</Button>
+                    </Link>
+                    <Link to="/help">
+                      <Button variant="outline">Как работают задания</Button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="mt-8 flex justify-center">
