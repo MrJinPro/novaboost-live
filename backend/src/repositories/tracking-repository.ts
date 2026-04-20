@@ -3,6 +3,7 @@ import type { TrackingStore } from "../storage/live-storage.js";
 
 export type TrackedStreamer = {
   id: string;
+  user_id: string | null;
   display_name: string;
   tiktok_username: string;
   is_live: boolean;
@@ -89,8 +90,8 @@ export class TrackingRepository implements TrackingStore {
   async getTrackedStreamers() {
     const { data, error } = await this.supabase
       .from("streamers")
-      .select("id, display_name, tiktok_username, is_live, viewer_count, followers_count, tracking_enabled, tracking_source, last_checked_live_at")
-      .eq("tracking_enabled", true)
+      .select("id, user_id, display_name, tiktok_username, is_live, viewer_count, followers_count, tracking_enabled, tracking_source, last_checked_live_at")
+      .or("tracking_enabled.eq.true,user_id.not.is.null")
       .order("priority_score", { ascending: false })
       .order("updated_at", { ascending: false });
 

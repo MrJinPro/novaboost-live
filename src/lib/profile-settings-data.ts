@@ -360,7 +360,7 @@ export async function submitStreamerApplication(user: AppUser, input: {
         tiktok_username: tiktokUsername,
         verification_status: "pending",
         verification_method: evidenceType,
-        tracking_enabled: false,
+        tracking_enabled: true,
         updated_at: new Date().toISOString(),
       })
       .eq("id", streamerId);
@@ -377,7 +377,7 @@ export async function submitStreamerApplication(user: AppUser, input: {
         tiktok_username: tiktokUsername,
         verification_status: "pending",
         verification_method: evidenceType,
-        tracking_enabled: false,
+        tracking_enabled: true,
       })
       .select("id")
       .single();

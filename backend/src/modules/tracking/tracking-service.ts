@@ -108,6 +108,7 @@ export class TrackingService {
       const snapshot = await this.adapter.fetchSnapshot(
         trackedStreamer ?? {
           id: `lookup:${username.toLowerCase()}`,
+          user_id: null,
           display_name: username,
           tiktok_username: username,
           is_live: false,

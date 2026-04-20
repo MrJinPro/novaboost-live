@@ -93,8 +93,8 @@ export class PostgresTrackingStore implements TrackingStore {
 
     const { data, error } = await this.streamersReader
       .from("streamers")
-      .select("id, display_name, tiktok_username, is_live, viewer_count, followers_count, tracking_enabled, tracking_source, last_checked_live_at")
-      .eq("tracking_enabled", true)
+      .select("id, user_id, display_name, tiktok_username, is_live, viewer_count, followers_count, tracking_enabled, tracking_source, last_checked_live_at")
+      .or("tracking_enabled.eq.true,user_id.not.is.null")
       .order("updated_at", { ascending: false });
 
     if (error) {
