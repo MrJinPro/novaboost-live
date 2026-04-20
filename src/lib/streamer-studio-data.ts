@@ -900,51 +900,55 @@ export async function toggleStreamerSubscription(streamerId: string, userId: str
     throw error;
   }
 
-  const { count, error: rewardLookupError } = await supabase
-    .from("viewer_points_ledger")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .eq("source_type", "streamer.subscription")
-    .eq("source_id", streamerId);
-
-  if (rewardLookupError) {
-    throw rewardLookupError;
-  }
-
-  if ((count ?? 0) === 0) {
-    const profile = await getViewerProfileStatsCompat(userId);
-    const nextPoints = (profile.points ?? 0) + 10;
-    const nextLevel = getViewerLevel(nextPoints);
-    const streakDays = resolveNextActivityStreak({
-      currentStreak: profile.streak_days,
-      lastActivityAt: profile.last_activity_at,
-    });
-
-    await updateViewerProfileProgressCompat({
-      userId,
-      points: nextPoints,
-      level: nextLevel,
-      streak_days: streakDays,
-    });
-
-    const { error: ledgerError } = await supabase
+  try {
+    const { count, error: rewardLookupError } = await supabase
       .from("viewer_points_ledger")
-      .insert({
-        user_id: userId,
-        source_type: "streamer.subscription",
-        source_id: streamerId,
-        delta: 10,
-        balance_after: nextPoints,
-        reason: "Первичная подписка на стримера",
-        metadata: {
-          streamer_id: streamerId,
-          awarded_once: true,
-        },
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("source_type", "streamer.subscription")
+      .eq("source_id", streamerId);
+
+    if (rewardLookupError) {
+      throw rewardLookupError;
+    }
+
+    if ((count ?? 0) === 0) {
+      const profile = await getViewerProfileStatsCompat(userId);
+      const nextPoints = (profile.points ?? 0) + 10;
+      const nextLevel = getViewerLevel(nextPoints);
+      const streakDays = resolveNextActivityStreak({
+        currentStreak: profile.streak_days,
+        lastActivityAt: profile.last_activity_at,
       });
 
-    if (ledgerError) {
-      throw ledgerError;
+      await updateViewerProfileProgressCompat({
+        userId,
+        points: nextPoints,
+        level: nextLevel,
+        streak_days: streakDays,
+      });
+
+      const { error: ledgerError } = await supabase
+        .from("viewer_points_ledger")
+        .insert({
+          user_id: userId,
+          source_type: "streamer.subscription",
+          source_id: streamerId,
+          delta: 10,
+          balance_after: nextPoints,
+          reason: "Первичная подписка на стримера",
+          metadata: {
+            streamer_id: streamerId,
+            awarded_once: true,
+          },
+        });
+
+      if (ledgerError) {
+        throw ledgerError;
+      }
     }
+  } catch (rewardError) {
+    console.warn("Subscription reward grant failed", rewardError);
   }
 
   return true;
