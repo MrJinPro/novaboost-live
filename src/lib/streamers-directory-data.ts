@@ -153,13 +153,14 @@ export async function loadStreamerDirectory() {
   const realStreamers = streamers.map((row) => {
     const liveStatus = liveStatuses.get(normalizeTikTokUsername(row.tiktok_username));
     const trackingDetails = trackingByStreamerId.get(row.id);
+    const trackingState = trackingDetails?.realtimeState ?? trackingDetails?.state;
     const latestSession = trackingDetails?.latestSession;
 
     return normalizeStreamer({
       ...row,
       logo_url: pageSettingsLogos.get(row.id) ?? row.logo_url ?? row.avatar_url,
-      is_live: liveStatus?.isLive ?? row.is_live,
-      viewer_count: latestSession?.current_viewer_count ?? liveStatus?.viewerCount ?? row.viewer_count,
+      is_live: trackingState?.isLive ?? trackingState?.is_live ?? liveStatus?.isLive ?? row.is_live,
+      viewer_count: latestSession?.current_viewer_count ?? trackingState?.viewerCount ?? trackingState?.viewer_count ?? liveStatus?.viewerCount ?? row.viewer_count,
       followers_count: liveStatus?.followersCount || row.followers_count,
       total_boost_amount: boostTotals.get(row.id) ?? row.total_boost_amount ?? 0,
       like_count: latestSession?.like_count ?? 0,

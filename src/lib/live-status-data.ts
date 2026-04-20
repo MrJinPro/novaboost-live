@@ -20,6 +20,17 @@ type StreamTrackingResponse = {
       is_live: boolean;
       viewer_count: number;
     } | null;
+    realtimeState: {
+      streamerId: string;
+      tiktokUsername: string;
+      isLive: boolean;
+      viewerCount: number;
+      likeCount: number;
+      giftCount: number;
+      messageCount: number;
+      lastUpdate: string;
+      source: string;
+    } | null;
     latestSession: {
       id: string;
       streamer_id: string;

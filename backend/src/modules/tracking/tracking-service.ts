@@ -99,17 +99,25 @@ export class TrackingService {
         continue;
       }
 
-      const snapshot = await this.adapter.fetchSnapshot({
-        id: `lookup:${username.toLowerCase()}`,
-        display_name: username,
-        tiktok_username: username,
-        is_live: false,
-        viewer_count: 0,
-        followers_count: 0,
-        tracking_enabled: false,
-        tracking_source: null,
-        last_checked_live_at: null,
-      });
+      const trackedStreamer = this.trackingRepository
+        ? (await this.trackingRepository.getTrackedStreamers()).find(
+            (streamer) => normalizeTikTokUsername(streamer.tiktok_username) === normalizeTikTokUsername(username),
+          )
+        : null;
+
+      const snapshot = await this.adapter.fetchSnapshot(
+        trackedStreamer ?? {
+          id: `lookup:${username.toLowerCase()}`,
+          display_name: username,
+          tiktok_username: username,
+          is_live: false,
+          viewer_count: 0,
+          followers_count: 0,
+          tracking_enabled: false,
+          tracking_source: null,
+          last_checked_live_at: null,
+        },
+      );
 
       snapshots.push({
         tiktokUsername: username,
