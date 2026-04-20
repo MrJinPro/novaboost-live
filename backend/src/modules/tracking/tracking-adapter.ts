@@ -45,11 +45,11 @@ function normalizeTikTokUsername(input: string) {
     const withoutQuery = trimmed.split("?")[0] ?? trimmed;
     const segments = withoutQuery.split("/").filter(Boolean);
     const lastSegment = segments.at(-1)?.replace(/^@+/, "") ?? "";
-    return lastSegment ? `@${lastSegment}` : null;
+    return lastSegment || null;
   }
 
   const username = trimmed.replace(/^@+/, "");
-  return username ? `@${username}` : null;
+  return username || null;
 }
 
 function pickNumber(value: unknown): number | null {
