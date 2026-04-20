@@ -136,6 +136,21 @@ export async function createAdminTrackedStreamer(session: Session, payload: {
   });
 }
 
+export async function deleteAdminTrackedStreamer(session: Session, payload: {
+  streamerId: string;
+}) {
+  return requestAdminPath<{ ok: true }>(session, "/api/admin/users", {
+    method: "DELETE",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      action: "delete-tracked-streamer",
+      streamerId: payload.streamerId,
+    }),
+  });
+}
+
 export async function updateAdminUserPlatformRole(session: Session, payload: {
   userId: string;
   role: AdminManagedPlatformRole;

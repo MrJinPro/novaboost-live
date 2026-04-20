@@ -198,6 +198,81 @@ async function createTrackedStreamer(tiktokUsername: string) {
   }
 }
 
+async function deleteTrackedStreamer(streamerId: string) {
+  const normalizedStreamerId = streamerId.trim();
+  if (!normalizedStreamerId) {
+    throw new Error("Передай streamerId.");
+  }
+
+  const { data: streamer, error: streamerError } = await supabaseAdmin
+    .from("streamers")
+    .select("id, user_id, display_name, tiktok_username")
+    .eq("id", normalizedStreamerId)
+    .maybeSingle();
+
+  if (streamerError) {
+    throw streamerError;
+  }
+
+  if (!streamer) {
+    throw new Error("Tracked-only стример не найден.");
+  }
+
+  if (streamer.user_id) {
+    throw new Error("Нельзя удалить зарегистрированного стримера через tracked-only удаление.");
+  }
+
+  const deleteByStreamerId = async (table: string) => {
+    const { error } = await supabaseAdmin.from(table).delete().eq("streamer_id", normalizedStreamerId);
+    if (error) {
+      throw error;
+    }
+  };
+
+  await Promise.all([
+    deleteByStreamerId("boosts"),
+    deleteByStreamerId("donation_events"),
+    deleteByStreamerId("promotion_orders"),
+    deleteByStreamerId("referrals"),
+    deleteByStreamerId("stream_events"),
+    deleteByStreamerId("stream_sessions"),
+    deleteByStreamerId("streamer_donation_links"),
+    deleteByStreamerId("streamer_media"),
+    deleteByStreamerId("streamer_page_settings"),
+    deleteByStreamerId("streamer_posts"),
+    deleteByStreamerId("streamer_subscriptions"),
+    deleteByStreamerId("streamer_team_memberships"),
+    deleteByStreamerId("streamer_verifications"),
+    deleteByStreamerId("tasks"),
+    deleteByStreamerId("telegram_chats"),
+    deleteByStreamerId("telegram_moderation_actions"),
+    deleteByStreamerId("telegram_moderation_incidents"),
+    deleteByStreamerId("telegram_notification_routes"),
+    deleteByStreamerId("telegram_notification_targets"),
+    deleteByStreamerId("viewer_achievement_unlocks"),
+    deleteByStreamerId("viewer_stream_actions"),
+  ]);
+
+  const { error: deleteRaidRequestsError } = await supabaseAdmin
+    .from("raid_requests")
+    .delete()
+    .or(`streamer_id.eq.${normalizedStreamerId},target_streamer_id.eq.${normalizedStreamerId}`);
+
+  if (deleteRaidRequestsError) {
+    throw deleteRaidRequestsError;
+  }
+
+  const { error: deleteStreamerError } = await supabaseAdmin
+    .from("streamers")
+    .delete()
+    .eq("id", normalizedStreamerId)
+    .is("user_id", null);
+
+  if (deleteStreamerError) {
+    throw deleteStreamerError;
+  }
+}
+
 async function updateUserMetadataRole(userId: string, role: AdminManagedPlatformRole) {
   const { data, error } = await supabaseAdmin.auth.admin.getUserById(userId);
   if (error || !data.user) {
@@ -329,6 +404,34 @@ export const Route = createFileRoute("/api/admin/users")({
           return jsonResponse({ ok: true });
         } catch (error) {
           return jsonResponse({ error: error instanceof Error ? error.message : "Не удалось добавить tracked-only стримера." }, 500);
+        }
+      },
+      DELETE: async ({ request }) => {
+        const auth = await requireAdmin(request);
+        if ("error" in auth) {
+          return auth.error;
+        }
+
+        if (auth.accessLevel === "support") {
+          return jsonResponse({ error: "Support не может удалять tracked-only стримеров." }, 403);
+        }
+
+        let body: { action?: string; streamerId?: string } = {};
+        try {
+          body = (await request.json()) as typeof body;
+        } catch {
+          return jsonResponse({ error: "Некорректный JSON body." }, 400);
+        }
+
+        if (body.action !== "delete-tracked-streamer") {
+          return jsonResponse({ error: "Неизвестное действие." }, 400);
+        }
+
+        try {
+          await deleteTrackedStreamer(body.streamerId ?? "");
+          return jsonResponse({ ok: true });
+        } catch (error) {
+          return jsonResponse({ error: error instanceof Error ? error.message : "Не удалось удалить tracked-only стримера." }, 500);
         }
       },
       PATCH: async ({ request }) => {

@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context";
 import {
   AdminApiError,
   createAdminTrackedStreamer,
+  deleteAdminTrackedStreamer,
   loadAdminStreamerApplications,
   loadAdminUsers,
   reviewAdminStreamerApplication,
@@ -359,6 +360,30 @@ function AdminPage() {
       await syncUsers();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Не удалось добавить tracked-only стримера.");
+    } finally {
+      setActionKey(null);
+    }
+  };
+
+  const handleTrackedStreamerDelete = async (streamer: AdminTrackedStreamer) => {
+    if (!session) {
+      return;
+    }
+
+    const confirmed = window.confirm(`Удалить tracked-only стримера @${streamer.tiktokUsername} из каталога?`);
+    if (!confirmed) {
+      return;
+    }
+
+    const nextActionKey = `tracked-streamer:delete:${streamer.streamerId}`;
+    setActionKey(nextActionKey);
+    try {
+      await deleteAdminTrackedStreamer(session, { streamerId: streamer.streamerId });
+      toast.success("Tracked-only стример удалён из каталога.");
+      await syncUsers();
+      await syncApplications();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось удалить tracked-only стримера.");
     } finally {
       setActionKey(null);
     }
@@ -726,10 +751,21 @@ function AdminPage() {
                         </div>
                         <div className="mt-2 text-sm text-muted-foreground">@{streamer.tiktokUsername}</div>
                       </div>
-                      <div className="grid gap-2 text-right text-sm text-muted-foreground sm:grid-cols-3 sm:text-left">
-                        <div>Зрителей: <span className="text-foreground">{streamer.viewerCount}</span></div>
-                        <div>Подписчиков TikTok: <span className="text-foreground">{streamer.followersCount}</span></div>
-                        <div>Добавлен: <span className="text-foreground">{formatDateTime(streamer.createdAt)}</span></div>
+                      <div className="flex flex-col items-stretch gap-3 sm:items-end">
+                        <div className="grid gap-2 text-right text-sm text-muted-foreground sm:grid-cols-3 sm:text-left">
+                          <div>Зрителей: <span className="text-foreground">{streamer.viewerCount}</span></div>
+                          <div>Подписчиков TikTok: <span className="text-foreground">{streamer.followersCount}</span></div>
+                          <div>Добавлен: <span className="text-foreground">{formatDateTime(streamer.createdAt)}</span></div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          disabled={currentAccessLevel === "support" || actionKey === `tracked-streamer:delete:${streamer.streamerId}`}
+                          onClick={() => void handleTrackedStreamerDelete(streamer)}
+                        >
+                          {actionKey === `tracked-streamer:delete:${streamer.streamerId}` ? "Удаляем…" : "Удалить из каталога"}
+                        </Button>
                       </div>
                     </div>
                   </div>
