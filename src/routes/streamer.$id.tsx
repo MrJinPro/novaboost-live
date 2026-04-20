@@ -263,6 +263,7 @@ function StreamerProfile() {
   }
 
   const boosted = streamer.total_boost_amount > 0;
+  const hasFeaturedVideo = Boolean(streamer.featured_video_url);
   const featuredVideoCover = streamer.featured_video_url ?? streamer.videos[0]?.cover ?? "";
   const membershipPlan = SUBSCRIPTION_PLANS.find((plan) => plan.key === streamer.membership_settings?.highlightedPlanKey)
     ?? getPaidSubscriptionPlans()[0];
@@ -506,11 +507,11 @@ function StreamerProfile() {
               </div>
 
               <div className="rounded-2xl border border-border/50 bg-background/30 p-5">
-                <div className="text-xs uppercase tracking-wider text-muted-foreground">Что увидит зритель</div>
+                <div className="text-xs uppercase tracking-wider text-muted-foreground">Что есть на странице</div>
                 <div className="mt-4 space-y-3 text-sm text-muted-foreground">
-                  <div className="rounded-xl border border-border/40 bg-surface/60 px-4 py-3">Публичный username, аватар, баннер и текущее live-состояние.</div>
-                  <div className="rounded-xl border border-border/40 bg-surface/60 px-4 py-3">Анонсы, новости и посты между эфирами прямо на странице стримера.</div>
-                  <div className="rounded-xl border border-border/40 bg-surface/60 px-4 py-3">Короткие видео, тизеры и отдельный hero-блок для главного ролика.</div>
+                  <div className="rounded-xl border border-border/40 bg-surface/60 px-4 py-3">Здесь видны username, аватар, баннер и текущее live-состояние.</div>
+                  <div className="rounded-xl border border-border/40 bg-surface/60 px-4 py-3">Здесь публикуются анонсы, новости и посты между эфирами.</div>
+                  <div className="rounded-xl border border-border/40 bg-surface/60 px-4 py-3">Короткие видео и отдельный блок для главного видео появляются только если их добавили.</div>
                 </div>
               </div>
             </div>
@@ -528,19 +529,19 @@ function StreamerProfile() {
               )}
               <div className="relative flex h-full min-h-72 flex-col justify-end p-5 sm:min-h-80 sm:p-6">
                 <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/15 bg-black/25 px-3 py-1 text-xs uppercase tracking-[0.2em] text-white/80">
-                  <Play className="h-3.5 w-3.5" /> Главный тизер
+                  <Play className="h-3.5 w-3.5" /> Главное видео
                 </div>
                 <h2 className="mt-4 max-w-lg font-display text-2xl font-bold text-white sm:text-3xl">{streamer.display_name} показывает страницу не только для live, но и между эфирами.</h2>
-                <p className="mt-3 max-w-xl text-sm leading-6 text-white/75">Используй этот блок как главный ролик: анонс следующего эфира, лучший фрагмент или короткое знакомство со стримером.</p>
+                <p className="mt-3 max-w-xl text-sm leading-6 text-white/75">Этот блок можно использовать для главного видео страницы: анонса следующего эфира, лучшего фрагмента или короткого знакомства.</p>
                 <div className="mt-5 grid gap-3 sm:flex sm:flex-wrap">
                   <a href={`https://www.tiktok.com/@${streamer.tiktok_username}/live`} target="_blank" rel="noopener noreferrer">
                     <Button className="w-full gap-2 bg-white text-black hover:bg-white/90 sm:w-auto">
                       <ExternalLink className="h-4 w-4" /> Открыть TikTok LIVE
                     </Button>
                   </a>
-                  {featuredVideoCover && (
+                  {hasFeaturedVideo && (
                     <Button variant="outline" className="w-full gap-2 border-white/20 bg-black/20 text-white hover:bg-black/30 sm:w-auto">
-                      <Play className="h-4 w-4" /> Главный ролик подключён
+                      <Play className="h-4 w-4" /> Главное видео добавлено
                     </Button>
                   )}
                 </div>
