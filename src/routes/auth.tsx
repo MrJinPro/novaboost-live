@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useStreamerDirectory } from "@/hooks/use-streamer-directory";
+import type { StreamerCardData } from "@/lib/mock-platform";
+import { normalizeTikTokUsername } from "@/lib/tiktok-profile-data";
 import { Eye, EyeOff, Search } from "lucide-react";
 import { toast } from "sonner";
 
@@ -36,6 +38,11 @@ function AuthPage() {
   const searchParams = new URLSearchParams(location.search);
   const confirmationState = searchParams.get("confirmed");
   const emailConfirmed = confirmationState === "signup";
+  const inviteTikTokUsername = normalizeTikTokUsername(searchParams.get("tiktok") ?? "");
+  const lockedReferralId = searchParams.get("ref")?.trim() ?? "";
+  const lockedReferralName = searchParams.get("refName")?.trim() ?? "";
+  const lockedReferralUsername = normalizeTikTokUsername(searchParams.get("refUsername") ?? "");
+  const isInviteSignup = Boolean(inviteTikTokUsername);
 
   useEffect(() => {
     if (user && !emailConfirmed) navigate({ to: "/profile" });
@@ -48,6 +55,47 @@ function AuthPage() {
   }, [emailConfirmed]);
 
   useEffect(() => {
+    if (!isInviteSignup) {
+      return;
+    }
+
+    setMode("signup");
+    setAccountRole("streamer");
+    setTikTokUsername(inviteTikTokUsername);
+  }, [inviteTikTokUsername, isInviteSignup]);
+
+  useEffect(() => {
+    if (!mode || !isInviteSignup) {
+      return;
+    }
+
+    if (!lockedReferralId) {
+      return;
+    }
+
+    const matchingStreamer = directoryStreamers.find((streamer) => streamer.id === lockedReferralId) ?? null;
+    if (matchingStreamer) {
+      setReferralStreamer(matchingStreamer);
+      setReferralQuery("");
+      return;
+    }
+
+    setReferralStreamer({
+      id: lockedReferralId,
+      display_name: lockedReferralName || lockedReferralUsername || "Пригласивший стример",
+      tiktok_username: lockedReferralUsername,
+      avatar_url: null,
+      bio: null,
+      is_live: false,
+      viewer_count: 0,
+      followers_count: 0,
+      needs_boost: false,
+      total_boost_amount: 0,
+    });
+    setReferralQuery("");
+  }, [directoryStreamers, isInviteSignup, lockedReferralId, lockedReferralName, lockedReferralUsername, mode]);
+
+  useEffect(() => {
     if (directoryError) {
       toast.error(directoryError.message);
     }
@@ -58,6 +106,10 @@ function AuthPage() {
         `${s.display_name} ${s.tiktok_username}`.toLowerCase().includes(referralQuery.toLowerCase())
       ).slice(0, 5)
     : [];
+
+  const effectiveAccountRole = isInviteSignup ? "streamer" : accountRole;
+  const effectiveTikTokUsername = isInviteSignup ? inviteTikTokUsername : tiktokUsername;
+  const effectiveReferralStreamerId = lockedReferralId || referralStreamer?.id || null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,10 +138,10 @@ function AuthPage() {
         const result = await signUp({
           email,
           displayName,
-          tiktokUsername,
+          tiktokUsername: effectiveTikTokUsername,
           password,
-          accountRole,
-          referralStreamerId: referralStreamer?.id ?? null,
+          accountRole: effectiveAccountRole,
+          referralStreamerId: effectiveReferralStreamerId,
         });
         toast.success(
           result.emailConfirmationRequired
@@ -138,6 +190,13 @@ function AuthPage() {
           </p>
         </div>
 
+        {isInviteSignup && (
+          <div className="mb-4 rounded-2xl border border-cosmic/35 bg-cosmic/10 p-4 text-sm text-muted-foreground">
+            Эта ссылка подготовлена для владельца TikTok username <span className="font-semibold text-foreground">@{inviteTikTokUsername}</span>.
+            Имя TikTok и пригласивший стример уже зафиксированы в форме и не редактируются.
+          </div>
+        )}
+
         {emailConfirmed && (
           <div className="mb-4 rounded-2xl border border-emerald-400/35 bg-emerald-500/10 p-4 text-sm text-emerald-100">
             <div className="font-semibold text-foreground">Почта подтверждена</div>
@@ -175,6 +234,7 @@ function AuthPage() {
                 <button
                   type="button"
                   onClick={() => setAccountRole("viewer")}
+                  disabled={isInviteSignup}
                   className={`rounded-2xl border p-3 text-left transition-colors ${accountRole === "viewer" ? "border-blast bg-blast/10 text-foreground" : "border-border/50 bg-background text-muted-foreground"}`}
                 >
                   <div className="font-semibold">Я зритель</div>
@@ -183,6 +243,7 @@ function AuthPage() {
                 <button
                   type="button"
                   onClick={() => setAccountRole("streamer")}
+                  disabled={isInviteSignup}
                   className={`rounded-2xl border p-3 text-left transition-colors ${accountRole === "streamer" ? "border-cosmic bg-cosmic/10 text-foreground" : "border-border/50 bg-background text-muted-foreground"}`}
                 >
                   <div className="font-semibold">Я стример</div>
@@ -207,7 +268,7 @@ function AuthPage() {
           {mode === "signup" && (
             <div>
               <Label htmlFor="tiktokUsername">TikTok username</Label>
-              <Input id="tiktokUsername" required value={tiktokUsername} onChange={(e) => setTikTokUsername(e.target.value.replace(/^@+/, ""))} placeholder="username из TikTok" className="mt-1.5 bg-background" />
+              <Input id="tiktokUsername" required value={effectiveTikTokUsername} onChange={(e) => setTikTokUsername(e.target.value.replace(/^@+/, ""))} placeholder="username из TikTok" className="mt-1.5 bg-background" disabled={isInviteSignup} />
               <p className="mt-1.5 text-xs text-muted-foreground">Указывай вручную username из TikTok. По нему платформа попытается сразу подтянуть аватар и bio.</p>
             </div>
           )}
@@ -241,7 +302,11 @@ function AuthPage() {
                 <div className="mt-1.5 flex items-center gap-2 rounded-lg border border-cosmic/40 bg-cosmic/10 p-2">
                   <img src={referralStreamer.avatar_url ?? ""} className="h-8 w-8 rounded-full" alt="" />
                   <span className="flex-1 text-sm font-semibold">{referralStreamer.display_name}</span>
-                  <Button type="button" size="sm" variant="ghost" onClick={() => { setReferralStreamer(null); setReferralQuery(""); }}>Убрать</Button>
+                  {!lockedReferralId && <Button type="button" size="sm" variant="ghost" onClick={() => { setReferralStreamer(null); setReferralQuery(""); }}>Убрать</Button>}
+                </div>
+              ) : lockedReferralId ? (
+                <div className="mt-1.5 rounded-lg border border-cosmic/40 bg-cosmic/10 p-3 text-sm text-muted-foreground">
+                  Пригласивший стример зафиксирован в ссылке.
                 </div>
               ) : (
                 <div className="mt-1.5 relative">
@@ -277,7 +342,7 @@ function AuthPage() {
 
           {mode === "signup" && (
             <div className="rounded-xl border border-cosmic/30 bg-cosmic/10 p-4 text-sm text-muted-foreground">
-              {accountRole === "streamer"
+              {effectiveAccountRole === "streamer"
                 ? "Если регистрируешься как стример, кабинет стримера откроется сразу. Вход потом остаётся единым, без отдельного выбора роли."
                 : "Если позже захочешь функции стримера, подашь заявку прямо внутри профиля и после одобрения получишь доступ к студии и донат-ссылке."}
             </div>

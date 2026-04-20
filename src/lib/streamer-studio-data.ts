@@ -16,6 +16,7 @@ import { loadStreamerTrackingDetails, resolveLiveStatus } from "@/lib/live-statu
 import { loadDonationLinkByStreamerId, loadRecentDonationEvents } from "@/lib/monetization-data";
 import { buildStreamerPageLayout, DEFAULT_STREAMER_MEMBERSHIP_SETTINGS, EMPTY_STREAMER_SOCIAL_LINKS, parseStreamerMembershipSettings, parseStreamerSocialLinks } from "@/lib/streamer-page-config";
 import { ensureLinkedStreamer, resolveLinkedStreamer, type LinkedStreamerRow } from "@/lib/streamer-profile-linking";
+import { lookupTikTokProfile } from "@/lib/tiktok-profile-data";
 
 type DbStreamer = LinkedStreamerRow;
 
@@ -733,7 +734,14 @@ export async function loadPublicStreamerPage(id: string) {
     return null;
   }
 
-  const [settings, posts, subscriptionCount, boostTotals, media, latestSession, donationLink, recentDonations, liveStatus, recentLiveEvents, trackingDetails] = await Promise.all([
+  const shouldLookupTikTokProfile = !streamer.user_id && (
+    !streamer.avatar_url
+    || !streamer.bio
+    || !streamer.followers_count
+    || streamer.display_name.trim().toLowerCase() === streamer.tiktok_username.trim().toLowerCase()
+  );
+
+  const [settings, posts, subscriptionCount, boostTotals, media, latestSession, donationLink, recentDonations, liveStatus, recentLiveEvents, trackingDetails, tiktokProfile] = await Promise.all([
     getPageSettings(streamer.id),
     getPosts(streamer.id, { includeExpired: false }),
     getSubscriptionCount(streamer.id),
@@ -745,6 +753,7 @@ export async function loadPublicStreamerPage(id: string) {
     resolveLiveStatus(streamer.tiktok_username).catch(() => null),
     getRecentLiveEvents(streamer.id).catch(() => []),
     loadStreamerTrackingDetails(streamer.id).catch(() => null),
+    shouldLookupTikTokProfile ? lookupTikTokProfile(streamer.tiktok_username).catch(() => null) : Promise.resolve(null),
   ]);
 
   const resolvedSession = trackingDetails?.latestSession ?? latestSession;
@@ -756,21 +765,28 @@ export async function loadPublicStreamerPage(id: string) {
     ?? liveStatus?.viewerCount
     ?? streamer.viewer_count;
   const isLive = trackingDetails?.state?.is_live ?? liveStatus?.isLive ?? streamer.is_live;
+  const resolvedDisplayName = tiktokProfile?.displayName?.trim()
+    && streamer.display_name.trim().toLowerCase() === streamer.tiktok_username.trim().toLowerCase()
+    ? tiktokProfile.displayName.trim()
+    : streamer.display_name;
+  const resolvedAvatarUrl = settings?.logo_url ?? streamer.logo_url ?? streamer.avatar_url ?? tiktokProfile?.avatarUrl ?? null;
+  const resolvedBio = settings?.description ?? streamer.bio ?? tiktokProfile?.bio ?? "";
+  const resolvedFollowersCount = liveStatus?.followersCount ?? tiktokProfile?.followersCount ?? streamer.followers_count;
 
   return {
     id: streamer.id,
     owner_user_id: streamer.user_id,
     is_registered: Boolean(streamer.user_id),
-    display_name: streamer.display_name,
+    display_name: resolvedDisplayName,
     tiktok_username: streamer.tiktok_username,
-    avatar_url: settings?.logo_url ?? streamer.logo_url ?? streamer.avatar_url,
+    avatar_url: resolvedAvatarUrl,
     banner_url: settings?.banner_url ?? streamer.banner_url ?? createDefaultBannerDataUrl(streamer.display_name, streamer.tiktok_username),
-    bio: settings?.description ?? streamer.bio ?? "",
+    bio: resolvedBio,
     tagline: settings?.headline ?? streamer.tagline ?? createDefaultHeadline(streamer.display_name, streamer.tiktok_username),
     featured_video_url: settings?.featured_video_url ?? media[0]?.cover ?? null,
     is_live: isLive,
     viewer_count: currentViewerCount,
-    followers_count: liveStatus?.followersCount || streamer.followers_count,
+    followers_count: resolvedFollowersCount,
     needs_boost: streamer.needs_boost,
     total_boost_amount: boostTotals.get(streamer.id) ?? streamer.total_boost_amount,
     subscription_count: streamer.user_id ? subscriptionCount : 0,

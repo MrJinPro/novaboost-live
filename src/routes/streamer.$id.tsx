@@ -18,7 +18,7 @@ import type { PostReactionType, StreamerPageData, StreamerPost, SubscriptionPlan
 import { getPaidSubscriptionPlans, getSubscriptionPlanLabel, loadPostReactionSummaries, loadStreamerMembershipState, SUBSCRIPTION_PLANS, togglePostReaction, type PostReactionSummary, type StreamerMembershipState } from "@/lib/monetization-data";
 import { calculateCustomerAmount, groupTikTokPromotionServices, loadTikTokPromotionServices, type TikTokPromotionService } from "@/lib/prmotion-data";
 import { resolveSocialLinkHref } from "@/lib/streamer-page-config";
-import { getStreamerSubscriptionState, loadPublicStreamerPage, toggleStreamerSubscription } from "@/lib/streamer-studio-data";
+import { getOwnedStreamerPublicPage, getStreamerSubscriptionState, loadPublicStreamerPage, toggleStreamerSubscription } from "@/lib/streamer-studio-data";
 import { toast } from "sonner";
 
 const STREAMER_PAGE_REFRESH_MS = 5_000;
@@ -61,7 +61,40 @@ function StreamerProfile() {
   const [promotionServices, setPromotionServices] = useState<TikTokPromotionService[]>([]);
   const [activePromotionGroupKey, setActivePromotionGroupKey] = useState("");
   const [showGrowthTools, setShowGrowthTools] = useState(false);
+  const [inviteReferral, setInviteReferral] = useState<{ id: string; displayName: string; tiktokUsername: string } | null>(null);
   const { openSurvey, surveyDialog } = usePaymentComingSoonSurvey();
+
+  useEffect(() => {
+    let active = true;
+
+    if (!user?.isStreamer) {
+      setInviteReferral(null);
+      return;
+    }
+
+    const loadInviteReferral = async () => {
+      try {
+        const page = await getOwnedStreamerPublicPage(user.id);
+        if (active && page) {
+          setInviteReferral({
+            id: page.id,
+            displayName: page.displayName,
+            tiktokUsername: page.tiktokUsername,
+          });
+        }
+      } catch {
+        if (active) {
+          setInviteReferral(null);
+        }
+      }
+    };
+
+    void loadInviteReferral();
+
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   useEffect(() => {
     let active = true;
@@ -276,6 +309,29 @@ function StreamerProfile() {
     { key: "twitter", icon: <Twitter className="h-4 w-4" />, href: resolveSocialLinkHref("twitter", streamer.social_links?.twitter ?? ""), label: "X" },
   ].filter((item) => item.href);
 
+  const handleCopyInviteLink = async () => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const inviteUrl = new URL("/auth", window.location.origin);
+    inviteUrl.searchParams.set("mode", "signup");
+    inviteUrl.searchParams.set("tiktok", streamer.tiktok_username);
+
+    if (inviteReferral) {
+      inviteUrl.searchParams.set("ref", inviteReferral.id);
+      inviteUrl.searchParams.set("refName", inviteReferral.displayName);
+      inviteUrl.searchParams.set("refUsername", inviteReferral.tiktokUsername);
+    }
+
+    try {
+      await navigator.clipboard.writeText(inviteUrl.toString());
+      toast.success("Ссылка-приглашение скопирована. TikTok username уже зафиксирован в форме регистрации.");
+    } catch {
+      toast.error("Не удалось скопировать ссылку. Попробуй ещё раз.");
+    }
+  };
+
   const handleSubscription = async () => {
     if (!isRegistered) {
       toast.error("Этот стример ещё не зарегистрирован в NovaBoost Live. Пока мы отслеживаем только его live-статус.");
@@ -476,6 +532,11 @@ function StreamerProfile() {
                     </Button>
                   )}
                 </div>
+                {user && !isRegistered && (
+                  <Button type="button" variant="outline" className="w-full" onClick={handleCopyInviteLink}>
+                    Скопировать ссылку-приглашение
+                  </Button>
+                )}
                 {isRegistered && streamer.donation_link_slug ? (
                   <Link to="/support/$slug" params={{ slug: streamer.donation_link_slug }}>
                     <Button size="sm" variant="outline" className="gap-2 w-full border-blast/40 hover:bg-blast/10">
