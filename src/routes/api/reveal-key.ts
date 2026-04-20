@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 const ONE_TIME_PASSWORD = "5as4d6as54das65d4as65s4d";
 
-export const Route = createFileRoute("/api/_reveal-key")({
+export const Route = createFileRoute("/api/reveal-key")({
   server: {
     handlers: {
       POST: async ({ request }) => {

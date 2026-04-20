@@ -31,8 +31,8 @@ import { Route as LegalDeleteAccountRouteImport } from './routes/legal.delete-ac
 import { Route as LegalContentPolicyRouteImport } from './routes/legal.content-policy'
 import { Route as LegalChildSafetyRouteImport } from './routes/legal.child-safety'
 import { Route as LegalAcceptableUseRouteImport } from './routes/legal.acceptable-use'
+import { Route as ApiRevealKeyRouteImport } from './routes/api/reveal-key'
 import { Route as ApiCurrencyPreferenceRouteImport } from './routes/api/currency-preference'
-import { Route as ApiRevealKeyRouteImport } from './routes/api/_reveal-key'
 import { Route as OverlayDonationSlugRouteImport } from './routes/overlay.donation.$slug'
 import { Route as ApiAdminUsersRouteImport } from './routes/api/admin/users'
 import { Route as ApiAdminStreamerApplicationsRouteImport } from './routes/api/admin/streamer-applications'
@@ -148,14 +148,14 @@ const LegalAcceptableUseRoute = LegalAcceptableUseRouteImport.update({
   path: '/legal/acceptable-use',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiRevealKeyRoute = ApiRevealKeyRouteImport.update({
+  id: '/api/reveal-key',
+  path: '/api/reveal-key',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCurrencyPreferenceRoute = ApiCurrencyPreferenceRouteImport.update({
   id: '/api/currency-preference',
   path: '/api/currency-preference',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiRevealKeyRoute = ApiRevealKeyRouteImport.update({
-  id: '/api/_reveal-key',
-  path: '/api',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OverlayDonationSlugRoute = OverlayDonationSlugRouteImport.update({
@@ -193,8 +193,8 @@ export interface FileRoutesByFullPath {
   '/streamers': typeof StreamersRoute
   '/studio': typeof StudioRoute
   '/tasks': typeof TasksRoute
-  '/api': typeof ApiRevealKeyRoute
   '/api/currency-preference': typeof ApiCurrencyPreferenceRoute
+  '/api/reveal-key': typeof ApiRevealKeyRoute
   '/legal/acceptable-use': typeof LegalAcceptableUseRoute
   '/legal/child-safety': typeof LegalChildSafetyRoute
   '/legal/content-policy': typeof LegalContentPolicyRoute
@@ -223,8 +223,8 @@ export interface FileRoutesByTo {
   '/streamers': typeof StreamersRoute
   '/studio': typeof StudioRoute
   '/tasks': typeof TasksRoute
-  '/api': typeof ApiRevealKeyRoute
   '/api/currency-preference': typeof ApiCurrencyPreferenceRoute
+  '/api/reveal-key': typeof ApiRevealKeyRoute
   '/legal/acceptable-use': typeof LegalAcceptableUseRoute
   '/legal/child-safety': typeof LegalChildSafetyRoute
   '/legal/content-policy': typeof LegalContentPolicyRoute
@@ -254,8 +254,8 @@ export interface FileRoutesById {
   '/streamers': typeof StreamersRoute
   '/studio': typeof StudioRoute
   '/tasks': typeof TasksRoute
-  '/api/_reveal-key': typeof ApiRevealKeyRoute
   '/api/currency-preference': typeof ApiCurrencyPreferenceRoute
+  '/api/reveal-key': typeof ApiRevealKeyRoute
   '/legal/acceptable-use': typeof LegalAcceptableUseRoute
   '/legal/child-safety': typeof LegalChildSafetyRoute
   '/legal/content-policy': typeof LegalContentPolicyRoute
@@ -286,8 +286,8 @@ export interface FileRouteTypes {
     | '/streamers'
     | '/studio'
     | '/tasks'
-    | '/api'
     | '/api/currency-preference'
+    | '/api/reveal-key'
     | '/legal/acceptable-use'
     | '/legal/child-safety'
     | '/legal/content-policy'
@@ -316,8 +316,8 @@ export interface FileRouteTypes {
     | '/streamers'
     | '/studio'
     | '/tasks'
-    | '/api'
     | '/api/currency-preference'
+    | '/api/reveal-key'
     | '/legal/acceptable-use'
     | '/legal/child-safety'
     | '/legal/content-policy'
@@ -346,8 +346,8 @@ export interface FileRouteTypes {
     | '/streamers'
     | '/studio'
     | '/tasks'
-    | '/api/_reveal-key'
     | '/api/currency-preference'
+    | '/api/reveal-key'
     | '/legal/acceptable-use'
     | '/legal/child-safety'
     | '/legal/content-policy'
@@ -377,8 +377,8 @@ export interface RootRouteChildren {
   StreamersRoute: typeof StreamersRoute
   StudioRoute: typeof StudioRoute
   TasksRoute: typeof TasksRoute
-  ApiRevealKeyRoute: typeof ApiRevealKeyRoute
   ApiCurrencyPreferenceRoute: typeof ApiCurrencyPreferenceRoute
+  ApiRevealKeyRoute: typeof ApiRevealKeyRoute
   LegalAcceptableUseRoute: typeof LegalAcceptableUseRoute
   LegalChildSafetyRoute: typeof LegalChildSafetyRoute
   LegalContentPolicyRoute: typeof LegalContentPolicyRoute
@@ -551,18 +551,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LegalAcceptableUseRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/reveal-key': {
+      id: '/api/reveal-key'
+      path: '/api/reveal-key'
+      fullPath: '/api/reveal-key'
+      preLoaderRoute: typeof ApiRevealKeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/currency-preference': {
       id: '/api/currency-preference'
       path: '/api/currency-preference'
       fullPath: '/api/currency-preference'
       preLoaderRoute: typeof ApiCurrencyPreferenceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/_reveal-key': {
-      id: '/api/_reveal-key'
-      path: '/api'
-      fullPath: '/api'
-      preLoaderRoute: typeof ApiRevealKeyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/overlay/donation/$slug': {
@@ -609,8 +609,8 @@ const rootRouteChildren: RootRouteChildren = {
   StreamersRoute: StreamersRoute,
   StudioRoute: StudioRoute,
   TasksRoute: TasksRoute,
-  ApiRevealKeyRoute: ApiRevealKeyRoute,
   ApiCurrencyPreferenceRoute: ApiCurrencyPreferenceRoute,
+  ApiRevealKeyRoute: ApiRevealKeyRoute,
   LegalAcceptableUseRoute: LegalAcceptableUseRoute,
   LegalChildSafetyRoute: LegalChildSafetyRoute,
   LegalContentPolicyRoute: LegalContentPolicyRoute,
