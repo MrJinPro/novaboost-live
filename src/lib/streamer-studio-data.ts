@@ -734,7 +734,7 @@ export async function loadPublicStreamerPage(id: string) {
     return null;
   }
 
-  const shouldLookupTikTokProfile = !streamer.user_id && (
+  const shouldLookupTikTokProfile = (
     !streamer.avatar_url
     || !streamer.bio
     || !streamer.followers_count
