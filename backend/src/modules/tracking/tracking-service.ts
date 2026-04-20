@@ -26,6 +26,11 @@ export class TrackingService {
   private socketHub: TrackingSocketHub | null = null;
   private liveEventBridge: TrackingLiveEventBridge | null = null;
   private tickInFlight = false;
+  private startupRecoveryRunning = false;
+  private startupRecoveryLastStartedAt: string | null = null;
+  private startupRecoveryLastCompletedAt: string | null = null;
+  private startupRecoveryCandidateCount = 0;
+  private startupRecoveryRecoveredCount = 0;
 
   constructor(
     private readonly logger: Logger,
@@ -55,6 +60,15 @@ export class TrackingService {
       intervalMs: this.env.TRACKING_POLL_INTERVAL_MS,
       source: this.adapter.sourceName,
       lastRunAt: this.lastRunAt,
+      tickInFlight: this.tickInFlight,
+      startupRecovery: {
+        running: this.startupRecoveryRunning,
+        lastStartedAt: this.startupRecoveryLastStartedAt,
+        lastCompletedAt: this.startupRecoveryLastCompletedAt,
+        candidates: this.startupRecoveryCandidateCount,
+        recovered: this.startupRecoveryRecoveredCount,
+      },
+      liveEventBridge: this.liveEventBridge?.getHealth() ?? null,
       realtimeState: this.realtimeStateStore?.getHealth() ?? null,
     };
   }
@@ -350,12 +364,19 @@ export class TrackingService {
       return;
     }
 
+    this.startupRecoveryRunning = true;
+    this.startupRecoveryLastStartedAt = new Date().toISOString();
+    this.startupRecoveryRecoveredCount = 0;
+
     const trackingRepository = this.trackingRepository;
     const liveEventBridge = this.liveEventBridge;
     const streamers = await trackingRepository.getTrackedStreamers();
     const liveCandidates = streamers.filter((streamer) => streamer.is_live && Boolean(normalizeTikTokUsername(streamer.tiktok_username)));
+    this.startupRecoveryCandidateCount = liveCandidates.length;
 
     if (liveCandidates.length === 0) {
+      this.startupRecoveryRunning = false;
+      this.startupRecoveryLastCompletedAt = new Date().toISOString();
       return;
     }
 
@@ -382,6 +403,7 @@ export class TrackingService {
           source: liveSession.source,
           rawSnapshot: liveSession.raw_snapshot,
         }, liveSession.id);
+        this.startupRecoveryRecoveredCount += 1;
       } catch (error) {
         this.logger.warn("Tracking startup recovery failed for streamer", {
           streamerId: streamer.id,
@@ -392,6 +414,9 @@ export class TrackingService {
 
     this.logger.info("Tracking startup recovery finished", {
       candidates: liveCandidates.length,
+      recovered: this.startupRecoveryRecoveredCount,
     });
+    this.startupRecoveryRunning = false;
+    this.startupRecoveryLastCompletedAt = new Date().toISOString();
   }
 }

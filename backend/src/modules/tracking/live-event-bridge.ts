@@ -1,5 +1,13 @@
 import { ControlEvent, TikTokLiveConnection, WebcastEvent } from "tiktok-live-connector";
-import type { WebcastChatMessage, WebcastGiftMessage, WebcastLikeMessage, WebcastMemberMessage, WebcastRoomUserSeqMessage } from "tiktok-live-connector";
+import type {
+  WebcastChatMessage,
+  WebcastGiftMessage,
+  WebcastLikeMessage,
+  WebcastLinkMicArmies,
+  WebcastLinkMicBattle,
+  WebcastMemberMessage,
+  WebcastRoomUserSeqMessage,
+} from "tiktok-live-connector";
 
 import type { Logger } from "../../lib/logger.js";
 import type { ScoringService } from "../scoring/scoring-service.js";
@@ -54,6 +62,17 @@ export class TrackingLiveEventBridge {
   private static readonly RECONNECT_DELAY_MS = 2_000;
 
   constructor(private readonly options: LiveEventBridgeOptions) {}
+
+  getHealth() {
+    return {
+      service: "tracking-live-event-bridge",
+      status: this.activeConnections.size > 0 || this.connectingPromises.size > 0 ? "active" as const : "idle" as const,
+      activeConnections: this.activeConnections.size,
+      connecting: this.connectingPromises.size,
+      reconnectScheduled: this.reconnectTimers.size,
+      idleWatchers: this.idleTimers.size,
+    };
+  }
 
   private hasCookie(cookieHeader: string, cookieName: string) {
     return new RegExp(`(?:^|;\\s*)${cookieName}=`).test(cookieHeader);
@@ -251,6 +270,8 @@ export class TrackingLiveEventBridge {
     connection.on(WebcastEvent.LIKE, (data) => this.handleLikeEvent(streamer, streamSessionId, data));
     connection.on(WebcastEvent.GIFT, (data) => this.handleGiftEvent(streamer, streamSessionId, data));
     connection.on(WebcastEvent.ROOM_USER, (data) => this.handleRoomUserEvent(streamer, streamSessionId, data));
+    connection.on(WebcastEvent.LINK_MIC_BATTLE, (data) => this.handleLinkMicBattleEvent(streamer, streamSessionId, data));
+    connection.on(WebcastEvent.LINK_MIC_ARMIES, (data) => this.handleLinkMicArmiesEvent(streamer, streamSessionId, data));
     connection.on(WebcastEvent.STREAM_END, async () => {
       await this.disconnectStreamer(streamer.id, "stream_end");
     });
@@ -473,6 +494,41 @@ export class TrackingLiveEventBridge {
         popularity: data.popularity,
       },
     }));
+  }
+
+  private async handleLinkMicBattleEvent(streamer: TrackedStreamer, streamSessionId: string, data: WebcastLinkMicBattle) {
+    await this.applyBattleMode(streamer.id, streamSessionId, {
+      battleId: data.battleId,
+      action: data.action,
+      battleUsers: Object.values(data.anchorInfo ?? {}).map((entry) => entry?.user?.displayId).filter(Boolean),
+      bubbleText: data.bubbleText,
+    });
+  }
+
+  private async handleLinkMicArmiesEvent(streamer: TrackedStreamer, streamSessionId: string, data: WebcastLinkMicArmies) {
+    await this.applyBattleMode(streamer.id, streamSessionId, {
+      battleId: data.battleId,
+      battleStatus: data.battleStatus,
+      giftCount: data.giftCount,
+      totalDiamondCount: data.totalDiamondCount,
+    });
+  }
+
+  private async applyBattleMode(streamerId: string, streamSessionId: string, rawPayload: Record<string, unknown>) {
+    await this.options.realtimeStateStore?.applyRoomInfo(streamerId, {
+      streamId: streamSessionId,
+      source: "tiktok-live-connector",
+      occurredAt: new Date().toISOString(),
+      isLinkMic: true,
+      liveStatusLabel: "В эфире",
+      liveModeLabel: "Батл",
+    });
+
+    this.options.logger.info("Live battle mode detected", {
+      streamerId,
+      streamSessionId,
+      ...rawPayload,
+    });
   }
 
   private async processLiveEvent(event: LiveEngagementEvent) {
