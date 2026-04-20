@@ -542,6 +542,28 @@ function mapLiveEvent(row: DbStreamEvent) {
   }
 }
 
+function compactRepeatedLiveEvents<T extends { type: string; title: string; description: string }>(events: T[]) {
+  const compacted: T[] = [];
+
+  for (const event of events) {
+    const previousEvent = compacted.at(-1);
+
+    if (
+      previousEvent
+      && event.type === "snapshot_updated"
+      && previousEvent.type === "snapshot_updated"
+      && previousEvent.title === event.title
+      && previousEvent.description === event.description
+    ) {
+      continue;
+    }
+
+    compacted.push(event);
+  }
+
+  return compacted;
+}
+
 async function getRecentLiveEvents(streamerId: string) {
   const { data, error } = await supabase
     .from("stream_events")
@@ -855,9 +877,11 @@ export async function loadPublicStreamerPage(idOrUsername: string) {
         }
       : null)
     ?? latestSession;
-  const resolvedEvents = trackingDetails?.recentEvents?.length
-    ? trackingDetails.recentEvents.map(mapLiveEvent)
-    : recentLiveEvents;
+  const resolvedEvents = compactRepeatedLiveEvents(
+    trackingDetails?.recentEvents?.length
+      ? trackingDetails.recentEvents.map(mapLiveEvent)
+      : recentLiveEvents,
+  );
   const currentViewerCount = trackingRealtimeState?.viewerCount
     ?? trackingDetails?.state?.viewer_count
     ?? resolvedSession?.current_viewer_count

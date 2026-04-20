@@ -34,6 +34,14 @@ function parseNumber(value: unknown) {
   return null;
 }
 
+function getSnapshotFollowersCount(rawSnapshot: Record<string, unknown> | null | undefined) {
+  if (!rawSnapshot) {
+    return null;
+  }
+
+  return parseNumber(rawSnapshot.followers_count ?? rawSnapshot.follower_count);
+}
+
 function deriveRecentEventCounters(events: StreamEventRecord[]) {
   let likeCount = 0;
   let giftCount = 0;
@@ -392,6 +400,10 @@ export class TrackingService {
           } else if (snapshot.isLive && liveSession) {
             await this.trackingRepository.updateLiveSession(liveSession.id, snapshot, liveSession.peak_viewer_count);
             const likeDelta = Math.max(0, (snapshot.likeCount ?? 0) - (liveSession.like_count ?? 0));
+            const previousFollowersCount = getSnapshotFollowersCount(liveSession.raw_snapshot);
+            const hasMeaningfulSnapshotChange = likeDelta > 0
+              || snapshot.viewerCount !== liveSession.current_viewer_count
+              || (previousFollowersCount !== null && snapshot.followersCount !== previousFollowersCount);
 
             if (likeDelta > 0 || snapshot.viewerCount !== liveSession.current_viewer_count) {
               await this.trackingRepository.updateSessionEngagement(liveSession.id, {
@@ -401,19 +413,21 @@ export class TrackingService {
               });
             }
 
-            await this.trackingRepository.insertStreamEvent({
-              streamerId: streamer.id,
-              streamSessionId: liveSession.id,
-              eventType: "snapshot_updated",
-              source: snapshot.source,
-              eventTimestamp: snapshot.checkedAt,
-              normalizedPayload: {
-                viewer_count: snapshot.viewerCount,
-                like_count: snapshot.likeCount ?? liveSession.like_count,
-                followers_count: snapshot.followersCount,
-              },
-              rawPayload: snapshot.rawSnapshot,
-            });
+            if (hasMeaningfulSnapshotChange) {
+              await this.trackingRepository.insertStreamEvent({
+                streamerId: streamer.id,
+                streamSessionId: liveSession.id,
+                eventType: "snapshot_updated",
+                source: snapshot.source,
+                eventTimestamp: snapshot.checkedAt,
+                normalizedPayload: {
+                  viewer_count: snapshot.viewerCount,
+                  like_count: snapshot.likeCount ?? liveSession.like_count,
+                  followers_count: snapshot.followersCount,
+                },
+                rawPayload: snapshot.rawSnapshot,
+              });
+            }
           }
 
           await this.realtimeStateStore?.applySnapshot(streamer.id, {
