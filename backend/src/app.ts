@@ -11,6 +11,7 @@ import { createTrackingEventQueue } from "./modules/tracking/tracking-event-queu
 import { TrackingEventProcessor } from "./modules/tracking/tracking-event-processor.js";
 import { TrackingLiveEventBridge } from "./modules/tracking/live-event-bridge.js";
 import { createTrackingRealtimeStateStore } from "./modules/tracking/tracking-realtime-state.js";
+import { TikTokSignKeyPool } from "./modules/tracking/tiktok-sign-key-pool.js";
 import { createLiveStorage } from "./storage/create-live-storage.js";
 import { TelegramService } from "./modules/telegram/telegram-service.js";
 import { TrackingService } from "./modules/tracking/tracking-service.js";
@@ -24,7 +25,8 @@ export function bootstrapBackend() {
   const notificationRoutingRepository = supabaseAdmin ? new NotificationRoutingRepository(supabaseAdmin) : undefined;
   const promotionOrderRepository = supabaseAdmin ? new PromotionOrderRepository(supabaseAdmin) : undefined;
   const { trackingStore, engagementStore } = createLiveStorage(env, supabaseAdmin);
-  const trackingAdapter = createTrackingAdapter(logger, env);
+  const signKeyPool = new TikTokSignKeyPool(env.TIKTOK_SIGN_API_KEYS);
+  const trackingAdapter = createTrackingAdapter(logger, env, signKeyPool);
   const trackingEventQueue = createTrackingEventQueue(env, logger);
   const realtimeStateStore = createTrackingRealtimeStateStore(env, logger);
 
@@ -53,6 +55,7 @@ export function bootstrapBackend() {
       realtimeStateStore,
       requestTimeoutMs: env.TIKTOK_REQUEST_TIMEOUT_MS,
       signApiKey: env.TIKTOK_SIGN_API_KEY,
+      signKeyPool,
       sessionId: env.TIKTOK_SESSION_ID,
       ttTargetIdc: env.TIKTOK_TT_TARGET_IDC,
       msToken: env.TIKTOK_MS_TOKEN,

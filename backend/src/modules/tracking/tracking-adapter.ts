@@ -3,6 +3,7 @@ import { TikTokLiveConnection } from "tiktok-live-connector";
 import type { BackendEnv } from "../../config/env.js";
 import type { Logger } from "../../lib/logger.js";
 import type { TrackingSnapshot, TrackedStreamer } from "../../repositories/tracking-repository.js";
+import type { TikTokSignKeyPool } from "./tiktok-sign-key-pool.js";
 
 export interface TrackingAdapter {
   readonly sourceName: string;
@@ -179,6 +180,7 @@ type TikTokTrackingAdapterOptions = {
   logger: Logger;
   requestTimeoutMs: number;
   signApiKey?: string;
+  signKeyPool?: TikTokSignKeyPool;
   sessionId?: string;
   ttTargetIdc?: string;
   msToken?: string;
@@ -255,6 +257,8 @@ export class TikTokLiveTrackingAdapter implements TrackingAdapter {
       });
     }
 
+    const signApiKey = this.options.signKeyPool?.getKey() ?? this.options.signApiKey;
+
     try {
       const connectionOptions: ConstructorParameters<typeof TikTokLiveConnection>[1] = {
         processInitialData: false,
@@ -263,7 +267,7 @@ export class TikTokLiveTrackingAdapter implements TrackingAdapter {
         requestPollingIntervalMs: 1_000,
         sessionId: (this.options.sessionId as never) ?? null,
         ttTargetIdc: (this.options.ttTargetIdc as never) ?? null,
-        signApiKey: this.options.signApiKey ?? null,
+        signApiKey: signApiKey ?? null,
         authenticateWs: false,
         webClientOptions: {
           timeout: this.options.requestTimeoutMs,
@@ -350,6 +354,7 @@ export class TikTokLiveTrackingAdapter implements TrackingAdapter {
     } catch (error) {
       const rawMessage = error instanceof Error ? error.message : String(error);
       const message = rawMessage.trim() || "Unknown TikTok request failure";
+      this.options.signKeyPool?.reportFailure(signApiKey, message);
       this.recordFailure({
         streamerId: streamer.id,
         username,
@@ -377,7 +382,7 @@ export class TikTokLiveTrackingAdapter implements TrackingAdapter {
   }
 }
 
-export function createTrackingAdapter(logger: Logger, env: BackendEnv): TrackingAdapter {
+export function createTrackingAdapter(logger: Logger, env: BackendEnv, signKeyPool?: TikTokSignKeyPool): TrackingAdapter {
   if (env.TRACKING_ADAPTER === "passive") {
     return new PassiveTrackingAdapter();
   }
@@ -386,6 +391,7 @@ export function createTrackingAdapter(logger: Logger, env: BackendEnv): Tracking
     logger,
     requestTimeoutMs: env.TIKTOK_REQUEST_TIMEOUT_MS,
     signApiKey: env.TIKTOK_SIGN_API_KEY,
+    signKeyPool,
     sessionId: env.TIKTOK_SESSION_ID,
     ttTargetIdc: env.TIKTOK_TT_TARGET_IDC,
     msToken: env.TIKTOK_MS_TOKEN,

@@ -20,6 +20,16 @@ const optionalUrl = () =>
     return trimmed.length > 0 ? trimmed : undefined;
   }, z.string().url().optional());
 
+const optionalCsv = () =>
+  z.preprocess((value) => {
+    if (typeof value !== "string") {
+      return value;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }, z.string().min(1).optional());
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   BACKEND_PORT: z.coerce.number().int().positive().default(4310),
@@ -37,6 +47,7 @@ const envSchema = z.object({
   TIKTOK_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(30_000).default(10_000),
   TIKTOK_PROFILE_SYNC_INTERVAL_MS: z.coerce.number().int().min(0).max(86_400_000).default(21_600_000),
   TIKTOK_SIGN_API_KEY: optionalString(),
+  TIKTOK_SIGN_API_KEYS: optionalCsv(),
   TIKTOK_SESSION_ID: optionalString(),
   TIKTOK_TT_TARGET_IDC: optionalString(),
   TIKTOK_MS_TOKEN: optionalString(),
@@ -48,10 +59,40 @@ const envSchema = z.object({
   MEDIA_PUBLIC_BASE_URL: optionalUrl(),
 });
 
-export type BackendEnv = z.infer<typeof envSchema>;
+type ParsedBackendEnv = z.infer<typeof envSchema>;
+
+export type BackendEnv = Omit<ParsedBackendEnv, "TIKTOK_SIGN_API_KEYS"> & {
+  TIKTOK_SIGN_API_KEYS: string[];
+};
+
+function collectTikTokSignApiKeys(source: NodeJS.ProcessEnv, parsedEnv: ParsedBackendEnv) {
+  const numberedKeys = Object.entries(source)
+    .filter(([name, value]) => /^TIKTOK_SIGN_API_KEY\d+$/.test(name) && typeof value === "string" && value.trim().length > 0)
+    .sort(([leftName], [rightName]) => {
+      const leftNumber = Number(leftName.replace("TIKTOK_SIGN_API_KEY", ""));
+      const rightNumber = Number(rightName.replace("TIKTOK_SIGN_API_KEY", ""));
+      return leftNumber - rightNumber;
+    })
+    .map(([, value]) => value!.trim());
+
+  const csvKeys = (parsedEnv.TIKTOK_SIGN_API_KEYS ?? "")
+    .split(/[;,\n]/)
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  return [...new Set([
+    parsedEnv.TIKTOK_SIGN_API_KEY,
+    ...csvKeys,
+    ...numberedKeys,
+  ].filter((value): value is string => typeof value === "string" && value.trim().length > 0))];
+}
 
 export function loadEnv(): BackendEnv {
-  return envSchema.parse(process.env);
+  const parsedEnv = envSchema.parse(process.env);
+  return {
+    ...parsedEnv,
+    TIKTOK_SIGN_API_KEYS: collectTikTokSignApiKeys(process.env, parsedEnv),
+  };
 }
 
 export function hasSupabaseAdminCredentials(env: BackendEnv) {

@@ -20,6 +20,7 @@ import type { TrackingStore, ViewerEngagementStore } from "../../storage/live-st
 import type { TrackingEventQueue } from "./tracking-event-queue.js";
 import type { TrackingRealtimeStateStore } from "./tracking-realtime-state.js";
 import { createTrackingQueueEvent } from "./tracking-event-processor.js";
+import { isTikTokSignRateLimitError, type TikTokSignKeyPool } from "./tiktok-sign-key-pool.js";
 
 type LiveEventBridgeOptions = {
   logger: Logger;
@@ -30,6 +31,7 @@ type LiveEventBridgeOptions = {
   realtimeStateStore?: TrackingRealtimeStateStore;
   requestTimeoutMs: number;
   signApiKey?: string;
+  signKeyPool?: TikTokSignKeyPool;
   sessionId?: string;
   ttTargetIdc?: string;
   msToken?: string;
@@ -194,6 +196,7 @@ export class TrackingLiveEventBridge {
   }
 
   private async connectStreamerInternal(streamer: TrackedStreamer, streamSessionId: string, username: string) {
+    const signApiKey = this.options.signKeyPool?.getKey() ?? this.options.signApiKey;
     const connectionOptions: ConstructorParameters<typeof TikTokLiveConnection>[1] = {
       processInitialData: false,
       fetchRoomInfoOnConnect: true,
@@ -202,7 +205,7 @@ export class TrackingLiveEventBridge {
       requestPollingIntervalMs: 1_000,
       sessionId: (this.options.sessionId as never) ?? null,
       ttTargetIdc: (this.options.ttTargetIdc as never) ?? null,
-      signApiKey: this.options.signApiKey ?? undefined,
+      signApiKey: signApiKey ?? undefined,
       authenticateWs: false,
       webClientOptions: {
         timeout: this.options.requestTimeoutMs,
@@ -234,6 +237,7 @@ export class TrackingLiveEventBridge {
     } catch (error) {
       const rawErrorMessage = error instanceof Error ? error.message : String(error);
       const errorMessage = rawErrorMessage.trim() || "Unknown bridge connect failure";
+      this.options.signKeyPool?.reportFailure(signApiKey, errorMessage);
 
       this.recordFailure(streamer.id, {
         streamerId: streamer.id,
@@ -807,7 +811,7 @@ function shouldMarkStreamEnded(reason: string) {
 }
 
 function computeReconnectDelayMs(attempt: number, error?: string | null) {
-  if (isSignServerRateLimitError(error)) {
+  if (isTikTokSignRateLimitError(error)) {
     const jitter = Math.floor(Math.random() * 60_000);
     return BRIDGE_RATE_LIMIT_RECONNECT_MS + jitter;
   }
@@ -818,14 +822,6 @@ function computeReconnectDelayMs(attempt: number, error?: string | null) {
   );
   const jitter = Math.floor(Math.random() * Math.max(250, Math.floor(baseDelay * 0.35)));
   return baseDelay + jitter;
-}
-
-function isSignServerRateLimitError(error?: string | null) {
-  if (!error) {
-    return false;
-  }
-
-  return /rate_limit_account_day|too many connections started|you have reached the rate limit/i.test(error);
 }
 
 function resolveSceneModeLabel(scene: unknown) {
