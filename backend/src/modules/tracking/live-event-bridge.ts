@@ -59,6 +59,7 @@ type ReconnectScheduleState = {
   username: string;
   streamSessionId: string;
   reason: string;
+  error?: string | null;
   attempt: number;
   delayMs: number;
   scheduledAt: string;
@@ -230,21 +231,23 @@ export class TrackingLiveEventBridge {
         streamSessionId,
       });
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
       this.recordFailure(streamer.id, {
         streamerId: streamer.id,
         username,
         streamSessionId,
         reason: "connect_failed",
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage,
         attempt: this.reconnectAttempts.get(streamer.id) ?? 0,
         occurredAt: new Date().toISOString(),
       });
       this.options.logger.warn("Live event bridge connection failed", {
         streamerId: streamer.id,
         username,
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage,
       });
-      this.scheduleReconnect(streamer, streamSessionId, username, "connect_failed");
+      this.scheduleReconnect(streamer, streamSessionId, username, "connect_failed", errorMessage);
     }
   }
 
@@ -354,7 +357,7 @@ export class TrackingLiveEventBridge {
     this.idleTimers.set(streamerId, idleTimer);
   }
 
-  private scheduleReconnect(streamer: TrackedStreamer, streamSessionId: string, username: string, reason: string) {
+  private scheduleReconnect(streamer: TrackedStreamer, streamSessionId: string, username: string, reason: string, error?: string | null) {
     if (this.reconnectTimers.has(streamer.id)) {
       return;
     }
@@ -368,6 +371,7 @@ export class TrackingLiveEventBridge {
       username,
       streamSessionId,
       reason,
+      error: error ?? null,
       attempt,
       delayMs,
       scheduledAt,
@@ -378,7 +382,7 @@ export class TrackingLiveEventBridge {
       username,
       streamSessionId,
       reason,
-      error: null,
+      error: error ?? null,
       attempt,
       occurredAt: scheduledAt,
     });
