@@ -43,6 +43,14 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
+function normalizeAccessLevel(value: string | null | undefined): AdminStaffAccessLevel | null {
+  if (value === "support" || value === "moderator" || value === "admin") {
+    return value;
+  }
+
+  return null;
+}
+
 function isMissingRelationError(error: { code?: string; message?: string } | null | undefined) {
   return error?.code === "42P01" || Boolean(error?.message?.includes("admin_staff_assignments"));
 }
