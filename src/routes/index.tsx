@@ -14,6 +14,7 @@ import { useStreamerDirectory } from "@/hooks/use-streamer-directory";
 import { ArrowRight, Crown, Eye, ExternalLink, Flame, Send, Smartphone, Sparkles, Trophy, Zap } from "lucide-react";
 import { formatNumber } from "@/lib/format";
 import { loadHomeActivityFeed, type HomeActivityItem } from "@/lib/home-activity-data";
+import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 import { getStreamerPublicRouteParam } from "@/lib/streamer-public-route";
 
@@ -31,6 +32,7 @@ export const Route = createFileRoute("/")({
 
 function HomePage() {
   const [activityFeed, setActivityFeed] = useState<HomeActivityItem[]>([]);
+  const { user } = useAuth();
   const { streamers, isInitialLoading, error } = useStreamerDirectory();
 
   useEffect(() => {
@@ -133,12 +135,14 @@ function HomePage() {
                     Запустить буст
                   </Button>
                 </Link>
-                <Link to="/auth">
-                  <Button size="lg" variant="outline" className="w-full border-border/60 gap-2 hover:bg-surface sm:w-auto">
-                    <Crown className="h-4 w-4 text-crown" />
-                    Я стример
-                  </Button>
-                </Link>
+                {!user && (
+                  <Link to="/auth">
+                    <Button size="lg" variant="outline" className="w-full border-border/60 gap-2 hover:bg-surface sm:w-auto">
+                      <Crown className="h-4 w-4 text-crown" />
+                      Я стример
+                    </Button>
+                  </Link>
+                )}
               </div>
               <div className="mt-4 rounded-2xl border border-cosmic/30 bg-cosmic/8 p-4 backdrop-blur">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -260,24 +264,26 @@ function HomePage() {
             </BentoBlock>
 
             {/* CTA — стать стримером */}
-            <BentoBlock className="md:col-span-4 relative overflow-hidden" accent="cosmic">
-              <div className="absolute inset-0 bg-gradient-cosmic opacity-10" />
-              <div className="relative">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cosmic/20">
-                  <Zap className="h-5 w-5 text-cosmic" />
+            {!user && (
+              <BentoBlock className="md:col-span-4 relative overflow-hidden" accent="cosmic">
+                <div className="absolute inset-0 bg-gradient-cosmic opacity-10" />
+                <div className="relative">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cosmic/20">
+                    <Zap className="h-5 w-5 text-cosmic" />
+                  </div>
+                  <h3 className="mt-3 font-display font-bold text-lg">Ты стример?</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Зарегистрируй TikTok username один раз, а дальше система сама начнёт отслеживать твои эфиры и собирать сигналы роста.
+                  </p>
+                  <Link to="/auth">
+                    <Button size="sm" className="mt-4 bg-gradient-cosmic text-foreground hover:opacity-90 font-bold gap-2 shadow-glow-cosmic">
+                      Подключиться
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Button>
+                  </Link>
                 </div>
-                <h3 className="mt-3 font-display font-bold text-lg">Ты стример?</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Зарегистрируй TikTok username один раз, а дальше система сама начнёт отслеживать твои эфиры и собирать сигналы роста.
-                </p>
-                <Link to="/auth">
-                  <Button size="sm" className="mt-4 bg-gradient-cosmic text-foreground hover:opacity-90 font-bold gap-2 shadow-glow-cosmic">
-                    Подключиться
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </Button>
-                </Link>
-              </div>
-            </BentoBlock>
+              </BentoBlock>
+            )}
 
             {/* Лента активности */}
             <BentoBlock className="md:col-span-8">
