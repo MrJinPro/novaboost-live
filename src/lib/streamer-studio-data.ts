@@ -454,6 +454,26 @@ function mapLiveEvent(row: DbStreamEvent) {
         title: "Новый зритель в эфире",
         description: username ? `К эфиру подключился @${username}.` : "К эфиру подключился новый зритель.",
       };
+    case "battle_mode_changed":
+      return {
+        id: row.id,
+        type: row.event_type,
+        createdAt: formatEventTime(row.event_timestamp),
+        title: "Режим батла обновлён",
+        description: typeof payload.live_mode_label === "string"
+          ? `Эфир перешёл в режим: ${payload.live_mode_label}.`
+          : "Система зафиксировала изменение battle-режима.",
+      };
+    case "link_scene_changed":
+      return {
+        id: row.id,
+        type: row.event_type,
+        createdAt: formatEventTime(row.event_timestamp),
+        title: "Режим эфира обновлён",
+        description: typeof payload.live_mode_label === "string"
+          ? `Текущий режим эфира: ${payload.live_mode_label}.`
+          : "Система зафиксировала изменение сцены link mic.",
+      };
     default:
       return {
         id: row.id,

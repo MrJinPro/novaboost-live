@@ -5,6 +5,8 @@ import type {
   WebcastLikeMessage,
   WebcastLinkMicArmies,
   WebcastLinkMicBattle,
+  WebcastLinkLayerMessage,
+  WebcastLinkMessage,
   WebcastMemberMessage,
   WebcastRoomUserSeqMessage,
 } from "tiktok-live-connector";
@@ -272,6 +274,8 @@ export class TrackingLiveEventBridge {
     connection.on(WebcastEvent.ROOM_USER, (data) => this.handleRoomUserEvent(streamer, streamSessionId, data));
     connection.on(WebcastEvent.LINK_MIC_BATTLE, (data) => this.handleLinkMicBattleEvent(streamer, streamSessionId, data));
     connection.on(WebcastEvent.LINK_MIC_ARMIES, (data) => this.handleLinkMicArmiesEvent(streamer, streamSessionId, data));
+    connection.on(WebcastEvent.LINK_MESSAGE, (data) => this.handleLinkMessageEvent(streamer, streamSessionId, data));
+    connection.on(WebcastEvent.LINK_LAYER, (data) => this.handleLinkLayerEvent(streamer, streamSessionId, data));
     connection.on(WebcastEvent.STREAM_END, async () => {
       await this.disconnectStreamer(streamer.id, "stream_end");
     });
@@ -497,37 +501,132 @@ export class TrackingLiveEventBridge {
   }
 
   private async handleLinkMicBattleEvent(streamer: TrackedStreamer, streamSessionId: string, data: WebcastLinkMicBattle) {
-    await this.applyBattleMode(streamer.id, streamSessionId, {
+    const battleUsers = Object.values(data.anchorInfo ?? {}).map((entry) => entry?.user?.displayId).filter(Boolean);
+    const liveModeLabel = resolveBattleModeLabel(data.action, battleUsers.length);
+    if (!liveModeLabel) {
+      return;
+    }
+
+    await this.applyLiveMode(streamer.id, streamSessionId, {
+      liveModeLabel,
+      force: true,
+      eventType: "battle_mode_changed",
+      normalizedPayload: {
+        live_mode_label: liveModeLabel,
+        battle_action: data.action,
+        battle_users: battleUsers,
+      },
+      rawPayload: {
       battleId: data.battleId,
       action: data.action,
-      battleUsers: Object.values(data.anchorInfo ?? {}).map((entry) => entry?.user?.displayId).filter(Boolean),
+        battleUsers,
       bubbleText: data.bubbleText,
+      },
     });
   }
 
   private async handleLinkMicArmiesEvent(streamer: TrackedStreamer, streamSessionId: string, data: WebcastLinkMicArmies) {
-    await this.applyBattleMode(streamer.id, streamSessionId, {
+    await this.applyLiveMode(streamer.id, streamSessionId, {
+      liveModeLabel: "Батл",
+      force: true,
+      eventType: "battle_mode_changed",
+      normalizedPayload: {
+        live_mode_label: "Батл",
+        battle_status: data.battleStatus,
+        gift_count: data.giftCount,
+        total_diamond_count: data.totalDiamondCount,
+      },
+      rawPayload: {
       battleId: data.battleId,
       battleStatus: data.battleStatus,
       giftCount: data.giftCount,
       totalDiamondCount: data.totalDiamondCount,
+      },
     });
   }
 
-  private async applyBattleMode(streamerId: string, streamSessionId: string, rawPayload: Record<string, unknown>) {
+  private async handleLinkMessageEvent(streamer: TrackedStreamer, streamSessionId: string, data: WebcastLinkMessage) {
+    const liveModeLabel = resolveSceneModeLabel(data.Scene);
+    if (!liveModeLabel) {
+      return;
+    }
+
+    await this.applyLiveMode(streamer.id, streamSessionId, {
+      liveModeLabel,
+      eventType: "link_scene_changed",
+      normalizedPayload: {
+        live_mode_label: liveModeLabel,
+        scene: data.Scene,
+        message_type: data.MessageType,
+      },
+      rawPayload: {
+        scene: data.Scene,
+        messageType: data.MessageType,
+        linkerId: data.LinkerId,
+        expireTimestamp: data.expireTimestamp,
+      },
+    });
+  }
+
+  private async handleLinkLayerEvent(streamer: TrackedStreamer, streamSessionId: string, data: WebcastLinkLayerMessage) {
+    const liveModeLabel = resolveSceneModeLabel(data.scene);
+    if (!liveModeLabel) {
+      return;
+    }
+
+    await this.applyLiveMode(streamer.id, streamSessionId, {
+      liveModeLabel,
+      eventType: "link_scene_changed",
+      normalizedPayload: {
+        live_mode_label: liveModeLabel,
+        scene: data.scene,
+        message_type: data.messageType,
+      },
+      rawPayload: {
+        scene: data.scene,
+        messageType: data.messageType,
+        channelId: data.channelId,
+        rtcRoomId: data.rtcRoomId,
+      },
+    });
+  }
+
+  private async applyLiveMode(streamerId: string, streamSessionId: string, input: {
+    liveModeLabel: string;
+    eventType: string;
+    normalizedPayload: Record<string, unknown>;
+    rawPayload: Record<string, unknown>;
+    force?: boolean;
+  }) {
+    const currentState = await this.options.realtimeStateStore?.getStreamerState(streamerId);
+    if (!input.force && !shouldReplaceLiveMode(currentState?.liveModeLabel ?? null, input.liveModeLabel)) {
+      return;
+    }
+
     await this.options.realtimeStateStore?.applyRoomInfo(streamerId, {
       streamId: streamSessionId,
       source: "tiktok-live-connector",
       occurredAt: new Date().toISOString(),
       isLinkMic: true,
       liveStatusLabel: "В эфире",
-      liveModeLabel: "Батл",
+      liveModeLabel: input.liveModeLabel,
     });
 
-    this.options.logger.info("Live battle mode detected", {
+    await this.options.trackingRepository.insertStreamEvent({
       streamerId,
       streamSessionId,
-      ...rawPayload,
+      eventType: input.eventType,
+      source: "tiktok-live-connector",
+      eventTimestamp: new Date().toISOString(),
+      normalizedPayload: input.normalizedPayload,
+      rawPayload: input.rawPayload,
+    });
+
+    this.options.logger.info("Live mode updated from runtime event", {
+      streamerId,
+      streamSessionId,
+      liveModeLabel: input.liveModeLabel,
+      eventType: input.eventType,
     });
   }
 
@@ -599,6 +698,45 @@ export class TrackingLiveEventBridge {
 
 function shouldMarkStreamEnded(reason: string) {
   return reason === "stream_not_live" || reason === "stream_end";
+}
+
+function resolveSceneModeLabel(scene: unknown) {
+  const numericScene = typeof scene === "number" ? scene : typeof scene === "string" ? Number(scene) : null;
+  if (numericScene === 4) {
+    return "Мультигость";
+  }
+
+  if (numericScene === 2) {
+    return "Гостевой эфир";
+  }
+
+  return null;
+}
+
+function resolveBattleModeLabel(action: unknown, participantCount: number) {
+  const numericAction = typeof action === "number" ? action : typeof action === "string" ? Number(action) : null;
+  if (numericAction === 5 || numericAction === 6 || numericAction === 11) {
+    return participantCount > 2 ? "Мультигость" : "Гостевой эфир";
+  }
+
+  return "Батл";
+}
+
+function getLiveModePriority(value: string | null) {
+  switch (value) {
+    case "Батл":
+      return 3;
+    case "Мультигость":
+      return 2;
+    case "Гостевой эфир":
+      return 1;
+    default:
+      return 0;
+  }
+}
+
+function shouldReplaceLiveMode(currentValue: string | null, nextValue: string) {
+  return getLiveModePriority(nextValue) >= getLiveModePriority(currentValue);
 }
 
 function normalizeTikTokUsername(input: string) {
