@@ -5,6 +5,7 @@ import type { TrackingStore } from "../../storage/live-storage.js";
 import type { TrackingAdapter } from "./tracking-adapter.js";
 import type { TrackingLiveEventBridge } from "./live-event-bridge.js";
 import type { TrackingSocketHub } from "./tracking-socket-hub.js";
+import type { TrackingRealtimeStateStore } from "./tracking-realtime-state.js";
 
 export type ResolvedLiveStatus = {
   tiktokUsername: string;
@@ -26,6 +27,7 @@ export class TrackingService {
     private readonly env: BackendEnv,
     private readonly adapter: TrackingAdapter,
     private readonly trackingRepository?: TrackingStore,
+    private readonly realtimeStateStore?: TrackingRealtimeStateStore,
   ) {}
 
   attachSocketHub(socketHub: TrackingSocketHub) {
@@ -48,6 +50,7 @@ export class TrackingService {
       intervalMs: this.env.TRACKING_POLL_INTERVAL_MS,
       source: this.adapter.sourceName,
       lastRunAt: this.lastRunAt,
+      realtimeState: this.realtimeStateStore?.getHealth() ?? null,
     };
   }
 
@@ -86,14 +89,16 @@ export class TrackingService {
       return null;
     }
 
-    const [state, latestSession, recentEvents] = await Promise.all([
+    const [state, latestSession, recentEvents, realtimeState] = await Promise.all([
       this.trackingRepository.getStreamerLiveState(streamerId),
       this.trackingRepository.getLatestSessionSummary(streamerId),
       this.trackingRepository.listRecentStreamEvents(streamerId, 12),
+      this.realtimeStateStore?.getStreamerState(streamerId) ?? Promise.resolve(null),
     ]);
 
     return {
       state,
+      realtimeState,
       latestSession,
       recentEvents,
     };
@@ -212,6 +217,20 @@ export class TrackingService {
               followers_count: snapshot.followersCount,
             },
             rawPayload: snapshot.rawSnapshot,
+          });
+        }
+
+        await this.realtimeStateStore?.applySnapshot(streamer.id, {
+          streamId: sessionId,
+          snapshot,
+        });
+
+        if (!snapshot.isLive) {
+          await this.realtimeStateStore?.markStreamEnded(streamer.id, {
+            streamId: sessionId,
+            source: snapshot.source,
+            occurredAt: snapshot.checkedAt,
+            viewerCount: snapshot.viewerCount,
           });
         }
 

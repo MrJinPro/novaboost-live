@@ -7,7 +7,9 @@ import { PRMotionService } from "./modules/prmotion/prmotion-service.js";
 import { PromotionOrderRepository } from "./repositories/promotion-order-repository.js";
 import { ScoringService } from "./modules/scoring/scoring-service.js";
 import { createTrackingAdapter } from "./modules/tracking/tracking-adapter.js";
+import { MemoryTrackingEventQueue } from "./modules/tracking/tracking-event-queue.js";
 import { TrackingLiveEventBridge } from "./modules/tracking/live-event-bridge.js";
+import { createTrackingRealtimeStateStore } from "./modules/tracking/tracking-realtime-state.js";
 import { createLiveStorage } from "./storage/create-live-storage.js";
 import { TelegramService } from "./modules/telegram/telegram-service.js";
 import { TrackingService } from "./modules/tracking/tracking-service.js";
@@ -22,8 +24,10 @@ export function bootstrapBackend() {
   const promotionOrderRepository = supabaseAdmin ? new PromotionOrderRepository(supabaseAdmin) : undefined;
   const { trackingStore, engagementStore } = createLiveStorage(env, supabaseAdmin);
   const trackingAdapter = createTrackingAdapter(logger, env);
+  const trackingEventQueue = new MemoryTrackingEventQueue(logger);
+  const realtimeStateStore = createTrackingRealtimeStateStore(env, logger);
 
-  const tracking = new TrackingService(logger, env, trackingAdapter, trackingStore);
+  const tracking = new TrackingService(logger, env, trackingAdapter, trackingStore, realtimeStateStore);
   const scoring = new ScoringService();
   const telegram = new TelegramService(logger);
   const notifications = new NotificationService(logger, telegram, notificationRoutingRepository);
@@ -36,6 +40,7 @@ export function bootstrapBackend() {
       trackingRepository: trackingStore,
       engagementRepository: engagementStore,
       scoringService: scoring,
+      realtimeStateStore,
       requestTimeoutMs: env.TIKTOK_REQUEST_TIMEOUT_MS,
       signApiKey: env.TIKTOK_SIGN_API_KEY,
       sessionId: env.TIKTOK_SESSION_ID,

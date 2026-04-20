@@ -7,12 +7,14 @@ import type { TrackingSnapshot, TrackedStreamer } from "../../repositories/track
 import type { TeamMembershipSnapshot } from "../../repositories/viewer-engagement-repository.js";
 import type { LiveEngagementEvent } from "../../domain/events.js";
 import type { TrackingStore, ViewerEngagementStore } from "../../storage/live-storage.js";
+import type { TrackingRealtimeStateStore } from "./tracking-realtime-state.js";
 
 type LiveEventBridgeOptions = {
   logger: Logger;
   trackingRepository: TrackingStore;
   engagementRepository?: ViewerEngagementStore;
   scoringService: ScoringService;
+  realtimeStateStore?: TrackingRealtimeStateStore;
   requestTimeoutMs: number;
   signApiKey?: string;
   sessionId?: string;
@@ -23,6 +25,7 @@ type LiveEventBridgeOptions = {
 
 type ActiveConnection = {
   streamerId: string;
+  streamer: TrackedStreamer;
   streamSessionId: string;
   username: string;
   connection: TikTokLiveConnection;
@@ -40,6 +43,11 @@ type TeamProgress = {
 
 export class TrackingLiveEventBridge {
   private readonly activeConnections = new Map<string, ActiveConnection>();
+  private readonly reconnectTimers = new Map<string, NodeJS.Timeout>();
+  private readonly idleTimers = new Map<string, NodeJS.Timeout>();
+
+  private static readonly IDLE_RECONNECT_MS = 30_000;
+  private static readonly RECONNECT_DELAY_MS = 2_000;
 
   constructor(private readonly options: LiveEventBridgeOptions) {}
 
@@ -79,6 +87,16 @@ export class TrackingLiveEventBridge {
   }
 
   async stopAll() {
+    for (const timer of this.reconnectTimers.values()) {
+      clearTimeout(timer);
+    }
+
+    for (const timer of this.idleTimers.values()) {
+      clearTimeout(timer);
+    }
+
+    this.reconnectTimers.clear();
+    this.idleTimers.clear();
     await Promise.all(Array.from(this.activeConnections.keys()).map((streamerId) => this.disconnectStreamer(streamerId, "shutdown")));
   }
 
@@ -110,7 +128,8 @@ export class TrackingLiveEventBridge {
 
     try {
       const state = await connection.connect();
-      this.activeConnections.set(streamer.id, { streamerId: streamer.id, streamSessionId, username, connection });
+      this.activeConnections.set(streamer.id, { streamerId: streamer.id, streamer, streamSessionId, username, connection });
+      this.touchConnection(streamer.id);
       await this.seedSessionFromRoomInfo(streamer, streamSessionId, state.roomInfo);
       this.options.logger.info("Live event bridge connected", {
         streamerId: streamer.id,
@@ -123,11 +142,13 @@ export class TrackingLiveEventBridge {
         username,
         error: error instanceof Error ? error.message : String(error),
       });
+      this.scheduleReconnect(streamer, streamSessionId, username, "connect_failed");
     }
   }
 
   private registerHandlers(streamer: TrackedStreamer, streamSessionId: string, connection: TikTokLiveConnection) {
     connection.on(ControlEvent.CONNECTED, (state) => {
+      this.touchConnection(streamer.id);
       this.options.logger.info("Live event bridge transport connected", {
         streamerId: streamer.id,
         streamSessionId,
@@ -135,9 +156,19 @@ export class TrackingLiveEventBridge {
       });
     });
     connection.on(ControlEvent.WEBSOCKET_CONNECTED, () => {
+      this.touchConnection(streamer.id);
       this.options.logger.info("Live event bridge websocket connected", {
         streamerId: streamer.id,
         streamSessionId,
+      });
+    });
+    connection.on(ControlEvent.RAW_DATA, (type, data) => {
+      this.touchConnection(streamer.id);
+      this.options.logger.info("Live event bridge raw data", {
+        streamerId: streamer.id,
+        streamSessionId,
+        messageType: type,
+        payloadBase64: Buffer.from(data).toString("base64"),
       });
     });
     connection.on(ControlEvent.DISCONNECTED, (event) => {
@@ -147,6 +178,7 @@ export class TrackingLiveEventBridge {
         code: event.code,
         reason: event.reason,
       });
+      void this.reconnectStreamer(streamer.id, "transport_disconnected");
     });
     connection.on(ControlEvent.ERROR, (error) => {
       this.options.logger.warn("Live event bridge transport error", {
@@ -154,6 +186,7 @@ export class TrackingLiveEventBridge {
         streamSessionId,
         error: error instanceof Error ? error.message : String(error),
       });
+      void this.reconnectStreamer(streamer.id, "transport_error");
     });
     connection.on(WebcastEvent.MEMBER, (data) => this.handleMemberEvent(streamer, streamSessionId, data));
     connection.on(WebcastEvent.CHAT, (data) => this.handleChatEvent(streamer, streamSessionId, data));
@@ -163,6 +196,54 @@ export class TrackingLiveEventBridge {
     connection.on(WebcastEvent.STREAM_END, async () => {
       await this.disconnectStreamer(streamer.id, "stream_end");
     });
+  }
+
+  private touchConnection(streamerId: string) {
+    const active = this.activeConnections.get(streamerId);
+    if (!active) {
+      return;
+    }
+
+    const existingTimer = this.idleTimers.get(streamerId);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+
+    const idleTimer = setTimeout(() => {
+      void this.reconnectStreamer(streamerId, "idle_timeout");
+    }, TrackingLiveEventBridge.IDLE_RECONNECT_MS);
+
+    this.idleTimers.set(streamerId, idleTimer);
+  }
+
+  private scheduleReconnect(streamer: TrackedStreamer, streamSessionId: string, username: string, reason: string) {
+    if (this.reconnectTimers.has(streamer.id)) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      this.reconnectTimers.delete(streamer.id);
+      void this.connectStreamer(streamer, streamSessionId, username);
+    }, TrackingLiveEventBridge.RECONNECT_DELAY_MS);
+
+    this.reconnectTimers.set(streamer.id, timer);
+    this.options.logger.info("Live event bridge reconnect scheduled", {
+      streamerId: streamer.id,
+      streamSessionId,
+      reason,
+      delayMs: TrackingLiveEventBridge.RECONNECT_DELAY_MS,
+    });
+  }
+
+  private async reconnectStreamer(streamerId: string, reason: string) {
+    const active = this.activeConnections.get(streamerId);
+    if (!active) {
+      return;
+    }
+
+    const { streamer, streamSessionId, username } = active;
+    await this.disconnectStreamer(streamerId, reason);
+    this.scheduleReconnect(streamer, streamSessionId, username, reason);
   }
 
   private async seedSessionFromRoomInfo(streamer: TrackedStreamer, streamSessionId: string, roomInfo: unknown) {
@@ -271,6 +352,14 @@ export class TrackingLiveEventBridge {
         last_chat_at: new Date().toISOString(),
       },
     });
+
+    await this.options.realtimeStateStore?.applyEngagement(streamer.id, {
+      streamId: streamSessionId,
+      source: "tiktok-live-connector",
+      eventType: "chat_message",
+      occurredAt: new Date().toISOString(),
+      messageDelta: 1,
+    });
   }
 
   private async handleLikeEvent(streamer: TrackedStreamer, streamSessionId: string, data: WebcastLikeMessage) {
@@ -307,6 +396,14 @@ export class TrackingLiveEventBridge {
         last_like_at: new Date().toISOString(),
         total_like_count: data.totalLikeCount,
       },
+    });
+
+    await this.options.realtimeStateStore?.applyEngagement(streamer.id, {
+      streamId: streamSessionId,
+      source: "tiktok-live-connector",
+      eventType: "like_received",
+      occurredAt: new Date().toISOString(),
+      likeDelta: data.likeCount,
     });
   }
 
@@ -355,6 +452,14 @@ export class TrackingLiveEventBridge {
         last_gift_diamond_count: diamondCount,
       },
     });
+
+    await this.options.realtimeStateStore?.applyEngagement(streamer.id, {
+      streamId: streamSessionId,
+      source: "tiktok-live-connector",
+      eventType: "gift_received",
+      occurredAt: new Date().toISOString(),
+      giftDelta: giftCount,
+    });
   }
 
   private async handleRoomUserEvent(streamer: TrackedStreamer, streamSessionId: string, data: WebcastRoomUserSeqMessage) {
@@ -365,6 +470,14 @@ export class TrackingLiveEventBridge {
         total_user: data.totalUser,
         popularity: data.popularity,
       },
+    });
+
+    await this.options.realtimeStateStore?.applyEngagement(streamer.id, {
+      streamId: streamSessionId,
+      source: "tiktok-live-connector",
+      eventType: "room_user",
+      occurredAt: new Date().toISOString(),
+      viewerCount: data.viewerCount,
     });
 
     await this.options.trackingRepository.insertStreamEvent({
@@ -556,6 +669,12 @@ export class TrackingLiveEventBridge {
     }
 
     this.activeConnections.delete(streamerId);
+    const idleTimer = this.idleTimers.get(streamerId);
+    if (idleTimer) {
+      clearTimeout(idleTimer);
+      this.idleTimers.delete(streamerId);
+    }
+
     try {
       await active.connection.disconnect();
     } catch (error) {
@@ -571,6 +690,12 @@ export class TrackingLiveEventBridge {
       streamerId,
       reason,
       streamSessionId: active.streamSessionId,
+    });
+
+    await this.options.realtimeStateStore?.markStreamEnded(streamerId, {
+      streamId: active.streamSessionId,
+      source: "tiktok-live-connector",
+      occurredAt: new Date().toISOString(),
     });
   }
 }
