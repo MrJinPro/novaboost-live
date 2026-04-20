@@ -54,14 +54,40 @@ type TeamProgress = {
   achievementCount: number;
 };
 
+type ReconnectScheduleState = {
+  streamerId: string;
+  username: string;
+  streamSessionId: string;
+  reason: string;
+  attempt: number;
+  delayMs: number;
+  scheduledAt: string;
+};
+
+type BridgeFailureState = {
+  streamerId: string;
+  username: string;
+  streamSessionId: string;
+  reason: string;
+  error: string | null;
+  attempt: number;
+  occurredAt: string;
+};
+
+const BRIDGE_IDLE_RECONNECT_MS = 30_000;
+const BRIDGE_RECONNECT_DELAY_MS = 2_000;
+const BRIDGE_MAX_RECONNECT_DELAY_MS = 30_000;
+
 export class TrackingLiveEventBridge {
   private readonly activeConnections = new Map<string, ActiveConnection>();
   private readonly connectingPromises = new Map<string, Promise<void>>();
   private readonly reconnectTimers = new Map<string, NodeJS.Timeout>();
   private readonly idleTimers = new Map<string, NodeJS.Timeout>();
+  private readonly reconnectAttempts = new Map<string, number>();
+  private readonly reconnectStates = new Map<string, ReconnectScheduleState>();
+  private readonly lastFailures = new Map<string, BridgeFailureState>();
 
-  private static readonly IDLE_RECONNECT_MS = 30_000;
-  private static readonly RECONNECT_DELAY_MS = 2_000;
+  private static readonly MAX_FAILURES_IN_DIAGNOSTICS = 20;
 
   constructor(private readonly options: LiveEventBridgeOptions) {}
 
@@ -73,6 +99,24 @@ export class TrackingLiveEventBridge {
       connecting: this.connectingPromises.size,
       reconnectScheduled: this.reconnectTimers.size,
       idleWatchers: this.idleTimers.size,
+      reconnectingStreamers: this.reconnectAttempts.size,
+      recentFailures: this.lastFailures.size,
+    };
+  }
+
+  getDiagnostics() {
+    return {
+      ...this.getHealth(),
+      scheduledReconnects: Array.from(this.reconnectStates.values())
+        .sort((left, right) => right.scheduledAt.localeCompare(left.scheduledAt)),
+      activeStreamers: Array.from(this.activeConnections.values()).map((active) => ({
+        streamerId: active.streamerId,
+        username: active.username,
+        streamSessionId: active.streamSessionId,
+      })),
+      recentFailures: Array.from(this.lastFailures.values())
+        .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt))
+        .slice(0, TrackingLiveEventBridge.MAX_FAILURES_IN_DIAGNOSTICS),
     };
   }
 
@@ -97,6 +141,7 @@ export class TrackingLiveEventBridge {
       if (existing) {
         await this.disconnectStreamer(streamer.id, "stream_not_live");
       }
+      this.clearReconnectState(streamer.id);
       return;
     }
 
@@ -175,6 +220,7 @@ export class TrackingLiveEventBridge {
     try {
       const state = await connection.connect();
       this.activeConnections.set(streamer.id, { streamerId: streamer.id, streamer, streamSessionId, username, connection });
+      this.clearReconnectState(streamer.id);
       this.touchConnection(streamer.id);
       await this.applyRoomInfo(streamer.id, streamSessionId, state.roomInfo);
       await this.seedSessionFromRoomInfo(streamer, streamSessionId, state.roomInfo);
@@ -184,6 +230,15 @@ export class TrackingLiveEventBridge {
         streamSessionId,
       });
     } catch (error) {
+      this.recordFailure(streamer.id, {
+        streamerId: streamer.id,
+        username,
+        streamSessionId,
+        reason: "connect_failed",
+        error: error instanceof Error ? error.message : String(error),
+        attempt: this.reconnectAttempts.get(streamer.id) ?? 0,
+        occurredAt: new Date().toISOString(),
+      });
       this.options.logger.warn("Live event bridge connection failed", {
         streamerId: streamer.id,
         username,
@@ -294,7 +349,7 @@ export class TrackingLiveEventBridge {
 
     const idleTimer = setTimeout(() => {
       void this.reconnectStreamer(streamerId, "idle_timeout");
-    }, TrackingLiveEventBridge.IDLE_RECONNECT_MS);
+    }, BRIDGE_IDLE_RECONNECT_MS);
 
     this.idleTimers.set(streamerId, idleTimer);
   }
@@ -304,17 +359,43 @@ export class TrackingLiveEventBridge {
       return;
     }
 
+    const attempt = (this.reconnectAttempts.get(streamer.id) ?? 0) + 1;
+    this.reconnectAttempts.set(streamer.id, attempt);
+    const delayMs = computeReconnectDelayMs(attempt);
+    const scheduledAt = new Date().toISOString();
+    this.reconnectStates.set(streamer.id, {
+      streamerId: streamer.id,
+      username,
+      streamSessionId,
+      reason,
+      attempt,
+      delayMs,
+      scheduledAt,
+    });
+
+    this.recordFailure(streamer.id, {
+      streamerId: streamer.id,
+      username,
+      streamSessionId,
+      reason,
+      error: null,
+      attempt,
+      occurredAt: scheduledAt,
+    });
+
     const timer = setTimeout(() => {
       this.reconnectTimers.delete(streamer.id);
+      this.reconnectStates.delete(streamer.id);
       void this.connectStreamer(streamer, streamSessionId, username);
-    }, TrackingLiveEventBridge.RECONNECT_DELAY_MS);
+    }, delayMs);
 
     this.reconnectTimers.set(streamer.id, timer);
     this.options.logger.info("Live event bridge reconnect scheduled", {
       streamerId: streamer.id,
       streamSessionId,
       reason,
-      delayMs: TrackingLiveEventBridge.RECONNECT_DELAY_MS,
+      attempt,
+      delayMs,
     });
   }
 
@@ -669,6 +750,10 @@ export class TrackingLiveEventBridge {
       this.idleTimers.delete(streamerId);
     }
 
+    if (options?.markEnded ?? shouldMarkStreamEnded(reason)) {
+      this.clearReconnectState(streamerId);
+    }
+
     try {
       await active.connection.disconnect();
     } catch (error) {
@@ -694,10 +779,34 @@ export class TrackingLiveEventBridge {
       });
     }
   }
+
+  private clearReconnectState(streamerId: string) {
+    this.reconnectAttempts.delete(streamerId);
+    this.reconnectStates.delete(streamerId);
+    this.lastFailures.delete(streamerId);
+    const reconnectTimer = this.reconnectTimers.get(streamerId);
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      this.reconnectTimers.delete(streamerId);
+    }
+  }
+
+  private recordFailure(streamerId: string, failure: BridgeFailureState) {
+    this.lastFailures.set(streamerId, failure);
+  }
 }
 
 function shouldMarkStreamEnded(reason: string) {
   return reason === "stream_not_live" || reason === "stream_end";
+}
+
+function computeReconnectDelayMs(attempt: number) {
+  const baseDelay = Math.min(
+    BRIDGE_RECONNECT_DELAY_MS * (2 ** Math.max(0, attempt - 1)),
+    BRIDGE_MAX_RECONNECT_DELAY_MS,
+  );
+  const jitter = Math.floor(Math.random() * Math.max(250, Math.floor(baseDelay * 0.35)));
+  return baseDelay + jitter;
 }
 
 function resolveSceneModeLabel(scene: unknown) {

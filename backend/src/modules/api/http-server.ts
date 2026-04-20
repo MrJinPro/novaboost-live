@@ -69,7 +69,7 @@ export function startHttpServer(env: BackendEnv, logger: Logger, services: Servi
 
       if (url.pathname === "/manifest") {
         writeJson(response, 200, {
-          api: ["/health", "/manifest", "/tracking/status", "/tracking/live?username=...", "/tracking/stream/:streamerId", "/tiktok/profile?username=...", "/notifications/stream/:streamerId/preview?trigger=...", "/growth/tiktok/services", "/growth/orders", "/media/upload?kind=...", "/media/*"],
+          api: ["/health", "/manifest", "/tracking/status", "/tracking/diagnostics", "/tracking/live?username=...", "/tracking/stream/:streamerId", "/tiktok/profile?username=...", "/notifications/stream/:streamerId/preview?trigger=...", "/growth/tiktok/services", "/growth/orders", "/media/upload?kind=...", "/media/*"],
           ws: ["/ws/tracking"],
           capabilities: [
             "tracking scheduler foundation",
@@ -95,6 +95,11 @@ export function startHttpServer(env: BackendEnv, logger: Logger, services: Servi
 
       if (url.pathname === "/tracking/status") {
         writeJson(response, 200, { tracking: services.tracking.getHealth() });
+        return;
+      }
+
+      if (url.pathname === "/tracking/diagnostics") {
+        writeJson(response, 200, { tracking: services.tracking.getDiagnostics() });
         return;
       }
 

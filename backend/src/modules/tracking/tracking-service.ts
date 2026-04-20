@@ -31,6 +31,11 @@ export class TrackingService {
   private startupRecoveryLastCompletedAt: string | null = null;
   private startupRecoveryCandidateCount = 0;
   private startupRecoveryRecoveredCount = 0;
+  private readonly startupRecoveryFailures: Array<{
+    streamerId: string;
+    error: string;
+    occurredAt: string;
+  }> = [];
 
   constructor(
     private readonly logger: Logger,
@@ -67,9 +72,21 @@ export class TrackingService {
         lastCompletedAt: this.startupRecoveryLastCompletedAt,
         candidates: this.startupRecoveryCandidateCount,
         recovered: this.startupRecoveryRecoveredCount,
+        failureCount: this.startupRecoveryFailures.length,
       },
       liveEventBridge: this.liveEventBridge?.getHealth() ?? null,
       realtimeState: this.realtimeStateStore?.getHealth() ?? null,
+    };
+  }
+
+  getDiagnostics() {
+    return {
+      ...this.getHealth(),
+      startupRecovery: {
+        ...this.getHealth().startupRecovery,
+        recentFailures: this.startupRecoveryFailures.slice(0, 20),
+      },
+      liveEventBridge: this.liveEventBridge?.getDiagnostics() ?? null,
     };
   }
 
@@ -367,6 +384,7 @@ export class TrackingService {
     this.startupRecoveryRunning = true;
     this.startupRecoveryLastStartedAt = new Date().toISOString();
     this.startupRecoveryRecoveredCount = 0;
+    this.startupRecoveryFailures.length = 0;
 
     const trackingRepository = this.trackingRepository;
     const liveEventBridge = this.liveEventBridge;
@@ -405,6 +423,14 @@ export class TrackingService {
         }, liveSession.id);
         this.startupRecoveryRecoveredCount += 1;
       } catch (error) {
+        this.startupRecoveryFailures.unshift({
+          streamerId: streamer.id,
+          error: error instanceof Error ? error.message : String(error),
+          occurredAt: new Date().toISOString(),
+        });
+        if (this.startupRecoveryFailures.length > 20) {
+          this.startupRecoveryFailures.length = 20;
+        }
         this.logger.warn("Tracking startup recovery failed for streamer", {
           streamerId: streamer.id,
           error: error instanceof Error ? error.message : String(error),
