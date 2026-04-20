@@ -6,6 +6,25 @@ import type { AdminStaffAccessLevel } from "@/lib/admin-moderation-data";
 
 type VerificationStatus = Database["public"]["Enums"]["streamer_verification_status"];
 
+async function updateUserMetadataRole(userId: string, role: "viewer" | "streamer") {
+  const { data, error } = await supabaseAdmin.auth.admin.getUserById(userId);
+  if (error || !data.user) {
+    throw error ?? new Error("Пользователь auth не найден.");
+  }
+
+  const metadata = typeof data.user.user_metadata === "object" && data.user.user_metadata ? data.user.user_metadata : {};
+  const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+    user_metadata: {
+      ...metadata,
+      account_role: role,
+    },
+  });
+
+  if (updateError) {
+    throw updateError;
+  }
+}
+
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -105,7 +124,7 @@ async function reviewApplication(adminUserId: string, input: { verificationId?: 
 
   const { data: verification, error: verificationError } = await supabaseAdmin
     .from("streamer_verifications")
-    .select("id, streamer_id")
+    .select("id, streamer_id, submitted_by, streamers(user_id)")
     .eq("id", verificationId)
     .maybeSingle();
 
@@ -122,6 +141,8 @@ async function reviewApplication(adminUserId: string, input: { verificationId?: 
       headers: { "content-type": "application/json" },
     });
   }
+
+  const targetUserId = verification.streamers?.user_id ?? verification.submitted_by ?? null;
 
   const now = new Date().toISOString();
   const { error: verificationUpdateError } = await supabaseAdmin
@@ -155,6 +176,17 @@ async function reviewApplication(adminUserId: string, input: { verificationId?: 
       status: 500,
       headers: { "content-type": "application/json" },
     });
+  }
+
+  if (targetUserId) {
+    try {
+      await updateUserMetadataRole(targetUserId, decision === "verified" ? "streamer" : "viewer");
+    } catch (metadataError) {
+      return new Response(JSON.stringify({ error: metadataError instanceof Error ? metadataError.message : "Не удалось обновить роль пользователя." }), {
+        status: 500,
+        headers: { "content-type": "application/json" },
+      });
+    }
   }
 
   return Response.json({ ok: true });

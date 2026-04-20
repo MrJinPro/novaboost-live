@@ -7,6 +7,7 @@ export type LinkedStreamerRow = Pick<
   | "user_id"
   | "display_name"
   | "tiktok_username"
+  | "verification_status"
   | "avatar_url"
   | "bio"
   | "banner_url"
@@ -21,7 +22,7 @@ export type LinkedStreamerRow = Pick<
   | "total_boost_amount"
 >;
 
-const STREAMER_SELECT = "id, user_id, display_name, tiktok_username, avatar_url, bio, banner_url, logo_url, tagline, telegram_channel, is_live, viewer_count, followers_count, tracking_enabled, needs_boost, total_boost_amount";
+const STREAMER_SELECT = "id, user_id, display_name, tiktok_username, verification_status, avatar_url, bio, banner_url, logo_url, tagline, telegram_channel, is_live, viewer_count, followers_count, tracking_enabled, needs_boost, total_boost_amount";
 
 export function normalizeTikTokUsername(value: string) {
   return value.trim().replace(/^@+/, "");
