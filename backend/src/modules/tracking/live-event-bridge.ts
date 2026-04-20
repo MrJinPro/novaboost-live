@@ -21,6 +21,7 @@ import type { TrackingEventQueue } from "./tracking-event-queue.js";
 import type { TrackingRealtimeStateStore } from "./tracking-realtime-state.js";
 import { createTrackingQueueEvent } from "./tracking-event-processor.js";
 import { isTikTokSignRateLimitError, type TikTokSignKeyPool } from "./tiktok-sign-key-pool.js";
+import type { TikTokSigningService } from "./tiktok-signing-service.js";
 
 type LiveEventBridgeOptions = {
   logger: Logger;
@@ -32,6 +33,7 @@ type LiveEventBridgeOptions = {
   requestTimeoutMs: number;
   signApiKey?: string;
   signKeyPool?: TikTokSignKeyPool;
+  signingService?: TikTokSigningService;
   sessionId?: string;
   ttTargetIdc?: string;
   msToken?: string;
@@ -111,6 +113,7 @@ export class TrackingLiveEventBridge {
   getDiagnostics() {
     return {
       ...this.getHealth(),
+      signing: this.options.signingService?.getDiagnostics() ?? null,
       scheduledReconnects: Array.from(this.reconnectStates.values())
         .sort((left, right) => right.scheduledAt.localeCompare(left.scheduledAt)),
       activeStreamers: Array.from(this.activeConnections.values()).map((active) => ({
@@ -207,6 +210,9 @@ export class TrackingLiveEventBridge {
       ttTargetIdc: (this.options.ttTargetIdc as never) ?? null,
       signApiKey: signApiKey ?? undefined,
       authenticateWs: false,
+      signedWebSocketProvider: this.options.signingService
+        ? (params) => this.options.signingService!.fetchSignedWebSocket(params)
+        : undefined,
       webClientOptions: {
         timeout: this.options.requestTimeoutMs,
       },

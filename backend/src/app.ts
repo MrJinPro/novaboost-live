@@ -17,6 +17,7 @@ import { TelegramService } from "./modules/telegram/telegram-service.js";
 import { TrackingService } from "./modules/tracking/tracking-service.js";
 import { NotificationRoutingRepository } from "./repositories/notification-routing-repository.js";
 import { TikTokProfileSyncService } from "./modules/tiktok/tiktok-profile-sync-service.js";
+import { TikTokSigningService } from "./modules/tracking/tiktok-signing-service.js";
 
 export function bootstrapBackend() {
   const env = loadEnv();
@@ -26,6 +27,7 @@ export function bootstrapBackend() {
   const promotionOrderRepository = supabaseAdmin ? new PromotionOrderRepository(supabaseAdmin) : undefined;
   const { trackingStore, engagementStore } = createLiveStorage(env, supabaseAdmin);
   const signKeyPool = new TikTokSignKeyPool(env.TIKTOK_SIGN_API_KEYS);
+  const tiktokSigningService = new TikTokSigningService(logger, env, signKeyPool);
   const trackingAdapter = createTrackingAdapter(logger, env, signKeyPool);
   const trackingEventQueue = createTrackingEventQueue(env, logger);
   const realtimeStateStore = createTrackingRealtimeStateStore(env, logger);
@@ -56,6 +58,7 @@ export function bootstrapBackend() {
       requestTimeoutMs: env.TIKTOK_REQUEST_TIMEOUT_MS,
       signApiKey: env.TIKTOK_SIGN_API_KEY,
       signKeyPool,
+      signingService: tiktokSigningService,
       sessionId: env.TIKTOK_SESSION_ID,
       ttTargetIdc: env.TIKTOK_TT_TARGET_IDC,
       msToken: env.TIKTOK_MS_TOKEN,
