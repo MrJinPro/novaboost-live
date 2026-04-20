@@ -348,7 +348,8 @@ export class TikTokLiveTrackingAdapter implements TrackingAdapter {
         rawSnapshot: summarizeRoomInfo(roomInfo),
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const rawMessage = error instanceof Error ? error.message : String(error);
+      const message = rawMessage.trim() || "Unknown TikTok request failure";
       this.recordFailure({
         streamerId: streamer.id,
         username,

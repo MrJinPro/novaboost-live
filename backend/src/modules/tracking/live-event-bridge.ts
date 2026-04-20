@@ -78,6 +78,7 @@ type BridgeFailureState = {
 const BRIDGE_IDLE_RECONNECT_MS = 30_000;
 const BRIDGE_RECONNECT_DELAY_MS = 2_000;
 const BRIDGE_MAX_RECONNECT_DELAY_MS = 30_000;
+const BRIDGE_RATE_LIMIT_RECONNECT_MS = 15 * 60_000;
 
 export class TrackingLiveEventBridge {
   private readonly activeConnections = new Map<string, ActiveConnection>();
@@ -231,7 +232,8 @@ export class TrackingLiveEventBridge {
         streamSessionId,
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const rawErrorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = rawErrorMessage.trim() || "Unknown bridge connect failure";
 
       this.recordFailure(streamer.id, {
         streamerId: streamer.id,
@@ -364,7 +366,7 @@ export class TrackingLiveEventBridge {
 
     const attempt = (this.reconnectAttempts.get(streamer.id) ?? 0) + 1;
     this.reconnectAttempts.set(streamer.id, attempt);
-    const delayMs = computeReconnectDelayMs(attempt);
+    const delayMs = computeReconnectDelayMs(attempt, error);
     const scheduledAt = new Date().toISOString();
     this.reconnectStates.set(streamer.id, {
       streamerId: streamer.id,
@@ -804,13 +806,26 @@ function shouldMarkStreamEnded(reason: string) {
   return reason === "stream_not_live" || reason === "stream_end";
 }
 
-function computeReconnectDelayMs(attempt: number) {
+function computeReconnectDelayMs(attempt: number, error?: string | null) {
+  if (isSignServerRateLimitError(error)) {
+    const jitter = Math.floor(Math.random() * 60_000);
+    return BRIDGE_RATE_LIMIT_RECONNECT_MS + jitter;
+  }
+
   const baseDelay = Math.min(
     BRIDGE_RECONNECT_DELAY_MS * (2 ** Math.max(0, attempt - 1)),
     BRIDGE_MAX_RECONNECT_DELAY_MS,
   );
   const jitter = Math.floor(Math.random() * Math.max(250, Math.floor(baseDelay * 0.35)));
   return baseDelay + jitter;
+}
+
+function isSignServerRateLimitError(error?: string | null) {
+  if (!error) {
+    return false;
+  }
+
+  return /rate_limit_account_day|too many connections started|you have reached the rate limit/i.test(error);
 }
 
 function resolveSceneModeLabel(scene: unknown) {
