@@ -31,10 +31,12 @@ function isMissingRelationError(error: { code?: string; message?: string } | nul
 
 async function validateAccessToken(token: string) {
   const supabaseUrl = normalizeSupabaseEnvValue(process.env.SUPABASE_URL);
-  const supabasePublishableKey = normalizeSupabaseEnvValue(process.env.SUPABASE_PUBLISHABLE_KEY);
+  const supabasePublishableKey = normalizeSupabaseEnvValue(
+    process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY,
+  );
 
   if (!supabaseUrl || !supabasePublishableKey) {
-    throw new Error("Missing Supabase environment variables. Ensure SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY are set.");
+    throw new Error("Missing Supabase environment variables. Ensure SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY or SUPABASE_PUBLISHABLE_KEY are set.");
   }
 
   const supabase = createClient<Database>(supabaseUrl, supabasePublishableKey, {

@@ -20,6 +20,7 @@ export const Route = createFileRoute("/api/reveal-key")({
 
         const key = normalizeSupabaseEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY);
         const url = normalizeSupabaseEnvValue(process.env.SUPABASE_URL);
+        const publishableKey = normalizeSupabaseEnvValue(process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY);
 
         if (!key) {
           return new Response("SUPABASE_SERVICE_ROLE_KEY is not set on the server", { status: 500 });
@@ -27,6 +28,7 @@ export const Route = createFileRoute("/api/reveal-key")({
 
         return Response.json({
           SUPABASE_URL: url ?? null,
+          SUPABASE_PUBLISHABLE_KEY: publishableKey ?? null,
           SUPABASE_SERVICE_ROLE_KEY: key,
         });
       },
