@@ -67,6 +67,9 @@ async function claimStreamerProfile(input: {
   userId: string;
   tiktokUsername: string;
   displayName?: string;
+  avatarUrl?: string | null;
+  bio?: string | null;
+  followersCount?: number | null;
 }) {
   const normalizedUsername = normalizeTikTokUsername(input.tiktokUsername);
   const { data, error } = await supabase
@@ -76,6 +79,9 @@ async function claimStreamerProfile(input: {
       tiktok_username: normalizedUsername,
       tracking_enabled: true,
       ...(input.displayName ? { display_name: input.displayName } : {}),
+      ...(input.avatarUrl ? { avatar_url: input.avatarUrl, logo_url: input.avatarUrl } : {}),
+      ...(input.bio ? { bio: input.bio } : {}),
+      ...(typeof input.followersCount === "number" ? { followers_count: Math.max(0, input.followersCount) } : {}),
     })
     .eq("id", input.streamerId)
     .is("user_id", null)
@@ -104,6 +110,9 @@ export async function resolveLinkedStreamer(input: {
   userId: string;
   tiktokUsername?: string;
   displayName?: string;
+  avatarUrl?: string | null;
+  bio?: string | null;
+  followersCount?: number | null;
   claimIfNeeded?: boolean;
 }) {
   const ownedStreamer = await getStreamerByUserId(input.userId);
@@ -146,6 +155,9 @@ export async function resolveLinkedStreamer(input: {
     userId: input.userId,
     tiktokUsername: normalizedUsername,
     displayName: input.displayName,
+    avatarUrl: input.avatarUrl,
+    bio: input.bio,
+    followersCount: input.followersCount,
   });
 
   if (claimedStreamer) {
@@ -159,12 +171,18 @@ export async function ensureLinkedStreamer(input: {
   userId: string;
   tiktokUsername: string;
   displayName: string;
+  avatarUrl?: string | null;
+  bio?: string | null;
+  followersCount?: number | null;
 }) {
   const normalizedUsername = normalizeTikTokUsername(input.tiktokUsername);
   const existing = await resolveLinkedStreamer({
     userId: input.userId,
     tiktokUsername: normalizedUsername,
     displayName: input.displayName,
+    avatarUrl: input.avatarUrl,
+    bio: input.bio,
+    followersCount: input.followersCount,
     claimIfNeeded: true,
   });
 
@@ -179,6 +197,10 @@ export async function ensureLinkedStreamer(input: {
       tiktok_username: normalizedUsername,
       display_name: input.displayName,
       tracking_enabled: true,
+      avatar_url: input.avatarUrl ?? null,
+      logo_url: input.avatarUrl ?? null,
+      bio: input.bio ?? null,
+      followers_count: typeof input.followersCount === "number" ? Math.max(0, input.followersCount) : 0,
     })
     .select(STREAMER_SELECT)
     .single();

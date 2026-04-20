@@ -148,6 +148,8 @@ async function buildAppUser(session: Session): Promise<AppUser> {
         userId: session.user.id,
         tiktokUsername: normalizedTikTokUsername,
         displayName: normalizedDisplayName,
+        avatarUrl: profile?.avatar_url ?? (typeof session.user.user_metadata.avatar_url === "string" ? session.user.user_metadata.avatar_url : null),
+        bio: profile?.bio ?? (typeof session.user.user_metadata.bio === "string" ? session.user.user_metadata.bio : null),
       })
     : await resolveLinkedStreamer({
         userId: session.user.id,
@@ -307,6 +309,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           userId: data.user.id,
           tiktokUsername: normalizedTikTokUsername,
           displayName: normalizedDisplayName,
+          avatarUrl: tiktokProfile?.avatarUrl ?? null,
+          bio: tiktokProfile?.bio ?? null,
+          followersCount: tiktokProfile?.followersCount ?? null,
         });
       }
 
