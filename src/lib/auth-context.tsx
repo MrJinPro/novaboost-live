@@ -28,6 +28,18 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+function getAuthEmailRedirectUrl() {
+  const configuredAppUrl = import.meta.env.VITE_APP_URL || process.env.VITE_APP_URL;
+  const appOrigin = configuredAppUrl?.trim().replace(/\/$/, "")
+    || (typeof window !== "undefined" ? window.location.origin : "");
+
+  if (!appOrigin) {
+    return undefined;
+  }
+
+  return `${appOrigin}/auth`;
+}
+
 async function getProfile(userId: string) {
   return getAuthProfileCompat(userId);
 }
@@ -266,6 +278,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email: payload.email,
       password: payload.password,
       options: {
+        emailRedirectTo: getAuthEmailRedirectUrl(),
         data: {
           username: normalizedUsername,
           display_name: normalizedDisplayName,
