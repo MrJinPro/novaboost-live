@@ -760,6 +760,7 @@ export async function loadPublicStreamerPage(id: string) {
   return {
     id: streamer.id,
     owner_user_id: streamer.user_id,
+    is_registered: Boolean(streamer.user_id),
     display_name: streamer.display_name,
     tiktok_username: streamer.tiktok_username,
     avatar_url: settings?.logo_url ?? streamer.logo_url ?? streamer.avatar_url,
@@ -772,7 +773,7 @@ export async function loadPublicStreamerPage(id: string) {
     followers_count: liveStatus?.followersCount || streamer.followers_count,
     needs_boost: streamer.needs_boost,
     total_boost_amount: boostTotals.get(streamer.id) ?? streamer.total_boost_amount,
-    subscription_count: subscriptionCount,
+    subscription_count: streamer.user_id ? subscriptionCount : 0,
     telegram_channel: streamer.telegram_channel ?? "",
     social_links: (() => {
       const socialLinks = parseStreamerSocialLinks(settings?.layout ?? null);
@@ -799,17 +800,31 @@ export async function loadPublicStreamerPage(id: string) {
         : createDefaultTags(streamer.tiktok_username).split(", ");
     })(),
     perks: ["ранний доступ к анонсам", "сигналы по эфирам"],
-    donation_link_slug: donationLink?.slug ?? null,
-    donation_link_title: donationLink?.title ?? null,
-    donation_overlay: toPublicDonationOverlaySettings(settings?.layout ?? null),
+    donation_link_slug: streamer.user_id ? (donationLink?.slug ?? null) : null,
+    donation_link_title: streamer.user_id ? (donationLink?.title ?? null) : null,
+    donation_overlay: streamer.user_id ? toPublicDonationOverlaySettings(settings?.layout ?? null) : null,
     recent_donations: recentDonations,
     recent_live_events: resolvedEvents,
-    posts,
-    videos: media,
+    posts: streamer.user_id ? posts : [],
+    videos: streamer.user_id ? media : [],
   } satisfies StreamerPageData;
 }
 
 export async function getStreamerSubscriptionState(streamerId: string, userId: string) {
+  const { data: streamer, error: streamerError } = await supabase
+    .from("streamers")
+    .select("user_id")
+    .eq("id", streamerId)
+    .maybeSingle();
+
+  if (streamerError) {
+    throw streamerError;
+  }
+
+  if (!streamer?.user_id) {
+    return false;
+  }
+
   const { data, error } = await supabase
     .from("streamer_subscriptions")
     .select("id")
@@ -825,6 +840,20 @@ export async function getStreamerSubscriptionState(streamerId: string, userId: s
 }
 
 export async function toggleStreamerSubscription(streamerId: string, userId: string, subscribed: boolean) {
+  const { data: streamer, error: streamerError } = await supabase
+    .from("streamers")
+    .select("user_id")
+    .eq("id", streamerId)
+    .maybeSingle();
+
+  if (streamerError) {
+    throw streamerError;
+  }
+
+  if (!streamer?.user_id) {
+    throw new Error("На незарегистрированного стримера нельзя оформить подписку. Пока мы отслеживаем только его live-статус.");
+  }
+
   if (subscribed) {
     const { error } = await supabase
       .from("streamer_subscriptions")

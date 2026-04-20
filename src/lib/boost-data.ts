@@ -20,6 +20,20 @@ export async function createBoost(user: AppUser, streamerId: string, amount: num
     throw new Error("Стоимость буста должна быть больше нуля.");
   }
 
+  const { data: streamer, error: streamerError } = await supabase
+    .from("streamers")
+    .select("user_id")
+    .eq("id", streamerId)
+    .maybeSingle();
+
+  if (streamerError) {
+    throw streamerError;
+  }
+
+  if (!streamer?.user_id) {
+    throw new Error("Этот TikTok-аккаунт ещё не зарегистрирован в NovaBoost Live. Пока для него доступно только отслеживание live-статуса.");
+  }
+
   const viewerProfile = await getViewerProfileStatsCompat(user.id);
 
   if ((viewerProfile.points ?? 0) < amount) {

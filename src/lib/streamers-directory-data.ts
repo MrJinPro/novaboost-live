@@ -9,6 +9,7 @@ function normalizeTikTokUsername(username: string) {
 
 type DbStreamerCard = {
   id: string;
+  user_id?: string | null;
   display_name: string;
   tiktok_username: string;
   avatar_url: string | null;
@@ -42,6 +43,7 @@ function normalizeStreamer(row: DbStreamerCard): StreamerCardData {
     tiktok_username: row.tiktok_username,
     avatar_url: row.logo_url ?? row.avatar_url ?? fallback?.avatar_url ?? null,
     bio: row.bio ?? fallback?.bio ?? null,
+    is_registered: row.user_id !== null,
     is_live: row.is_live,
     viewer_count: row.viewer_count ?? 0,
     like_count: fallback?.like_count ?? 0,
@@ -59,7 +61,7 @@ export async function loadStreamerDirectory() {
   const [streamersResult, boostTotals] = await Promise.all([
     supabase
       .from("streamers")
-      .select("id, display_name, tiktok_username, avatar_url, logo_url, bio, is_live, viewer_count, followers_count, needs_boost, total_boost_amount")
+      .select("id, user_id, display_name, tiktok_username, avatar_url, logo_url, bio, is_live, viewer_count, followers_count, needs_boost, total_boost_amount")
       .order("is_live", { ascending: false })
       .order("followers_count", { ascending: false }),
     loadActiveBoostTotals(),

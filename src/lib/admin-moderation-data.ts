@@ -45,6 +45,17 @@ export type AdminConsoleUser = {
   adminNotes: string | null;
 };
 
+export type AdminTrackedStreamer = {
+  streamerId: string;
+  displayName: string;
+  tiktokUsername: string;
+  isLive: boolean;
+  viewerCount: number;
+  followersCount: number;
+  trackingEnabled: boolean;
+  createdAt: string | null;
+};
+
 export class AdminApiError extends Error {
   status: number;
 
@@ -102,11 +113,27 @@ export async function reviewAdminStreamerApplication(session: Session, payload: 
 }
 
 export async function loadAdminUsers(session: Session) {
-  const data = await requestAdminPath<{ users: AdminConsoleUser[]; currentAccessLevel: AdminPanelAccessLevel }>(session, "/api/admin/users", { method: "GET" });
+  const data = await requestAdminPath<{ users: AdminConsoleUser[]; trackedStreamers: AdminTrackedStreamer[]; currentAccessLevel: AdminPanelAccessLevel }>(session, "/api/admin/users", { method: "GET" });
   return {
     users: data.users ?? [],
+    trackedStreamers: data.trackedStreamers ?? [],
     currentAccessLevel: data.currentAccessLevel ?? "none",
   };
+}
+
+export async function createAdminTrackedStreamer(session: Session, payload: {
+  tiktokUsername: string;
+}) {
+  return requestAdminPath<{ ok: true }>(session, "/api/admin/users", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      action: "create-tracked-streamer",
+      tiktokUsername: payload.tiktokUsername,
+    }),
+  });
 }
 
 export async function updateAdminUserPlatformRole(session: Session, payload: {

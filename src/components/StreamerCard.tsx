@@ -13,6 +13,7 @@ interface StreamerCardProps {
 
 export function StreamerCard({ streamer, variant = "default" }: StreamerCardProps) {
   const boosted = streamer.total_boost_amount > 0;
+  const isRegistered = streamer.is_registered ?? true;
   const platformSubscriberCount = streamer.subscription_count ?? 0;
   const liveMetrics = [
     { key: "viewers", icon: Eye, value: streamer.viewer_count },
@@ -44,6 +45,7 @@ export function StreamerCard({ streamer, variant = "default" }: StreamerCardProp
             {boosted && <span className="text-crown">👑</span>}
           </div>
           <div className="text-xs text-muted-foreground truncate">@{streamer.tiktok_username}</div>
+          {!isRegistered && <div className="mt-1 text-[10px] text-amber-300">Не зарегистрирован в NovaBoost Live</div>}
           {streamer.is_live && (
             <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
               {liveMetrics.map(({ key, icon: Icon, value }) => (
@@ -108,6 +110,11 @@ export function StreamerCard({ streamer, variant = "default" }: StreamerCardProp
               {boosted && <span className="text-crown text-lg">👑</span>}
             </div>
             <div className="text-xs text-muted-foreground">@{streamer.tiktok_username}</div>
+            {!isRegistered && (
+              <div className="mt-1 inline-flex items-center rounded-full border border-amber-400/30 bg-amber-500/10 px-2.5 py-1 text-[11px] text-amber-200">
+                Стример ещё не зарегистрирован
+              </div>
+            )}
           </div>
         </div>
 
@@ -117,6 +124,12 @@ export function StreamerCard({ streamer, variant = "default" }: StreamerCardProp
       {streamer.bio && (
         <p className="relative mt-3 text-sm text-muted-foreground line-clamp-2">
           {streamer.bio}
+        </p>
+      )}
+
+      {!isRegistered && (
+        <p className="relative mt-3 text-xs leading-5 text-muted-foreground">
+          Пока мы отслеживаем только live-статус этого TikTok-аккаунта. Пригласите стримера зарегистрироваться, чтобы открыть страницу, бонусы и бусты NovaBoost Live.
         </p>
       )}
 

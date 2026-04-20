@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { AdminApplicationStatus, AdminManagedPlatformRole, AdminPanelAccessLevel, AdminStaffAccessLevel } from "@/lib/admin-moderation-data";
+import { lookupTikTokProfile } from "@/lib/tiktok-profile-data";
 
 type StaffAssignmentRow = {
   user_id: string;
@@ -22,8 +23,17 @@ type StreamerRow = {
   user_id: string | null;
   display_name: string;
   tiktok_username: string;
+  is_live: boolean;
+  viewer_count: number;
+  followers_count: number;
+  tracking_enabled: boolean;
   verification_status: AdminApplicationStatus;
+  created_at?: string | null;
 };
+
+function normalizeTikTokUsername(value: string) {
+  return value.trim().replace(/^https?:\/\/www\.tiktok\.com\//i, "").replace(/^@+/, "").replace(/\/live$/i, "").trim().toLowerCase();
+}
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -99,7 +109,7 @@ async function requireAdmin(request: Request) {
 async function loadUsers() {
   const [{ data: profiles, error: profilesError }, { data: streamers, error: streamersError }, { data: roles, error: rolesError }, { data: assignments, error: assignmentsError }, authUsersResponse] = await Promise.all([
     supabaseAdmin.from("profiles").select("id, username, display_name, tiktok_username, created_at").order("created_at", { ascending: false }).limit(300),
-    supabaseAdmin.from("streamers").select("id, user_id, display_name, tiktok_username, verification_status"),
+    supabaseAdmin.from("streamers").select("id, user_id, display_name, tiktok_username, is_live, viewer_count, followers_count, tracking_enabled, verification_status, created_at"),
     supabaseAdmin.from("user_roles").select("user_id, role"),
     supabaseAdmin.from("admin_staff_assignments").select("user_id, access_level, is_active, notes"),
     supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 300 }),
@@ -129,7 +139,7 @@ async function loadUsers() {
 
   const authUserById = new Map((authUsersResponse.data?.users ?? []).map((item) => [item.id, item]));
 
-  return ((profiles ?? []) as ProfileRow[]).map((profile) => {
+  const users = ((profiles ?? []) as ProfileRow[]).map((profile) => {
     const streamer = streamerByUserId.get(profile.id) ?? null;
     const authUser = authUserById.get(profile.id);
     const declaredRole = authUser?.user_metadata?.account_role === "streamer" ? "streamer" : "viewer";
@@ -152,6 +162,91 @@ async function loadUsers() {
       adminNotes: assignment?.notes ?? null,
     };
   });
+
+  const trackedStreamers = ((streamers ?? []) as StreamerRow[])
+    .filter((streamer) => !streamer.user_id)
+    .sort((left, right) => (right.created_at ?? "").localeCompare(left.created_at ?? ""))
+    .map((streamer) => ({
+      streamerId: streamer.id,
+      displayName: streamer.display_name,
+      tiktokUsername: streamer.tiktok_username,
+      isLive: streamer.is_live,
+      viewerCount: streamer.viewer_count ?? 0,
+      followersCount: streamer.followers_count ?? 0,
+      trackingEnabled: streamer.tracking_enabled,
+      createdAt: streamer.created_at ?? null,
+    }));
+
+  return { users, trackedStreamers };
+}
+
+async function createTrackedStreamer(tiktokUsername: string) {
+  const normalizedUsername = normalizeTikTokUsername(tiktokUsername);
+  if (!normalizedUsername) {
+    throw new Error("Укажи TikTok username.");
+  }
+
+  const profile = await lookupTikTokProfile(normalizedUsername).catch(() => null);
+
+  const { data: existing, error: existingError } = await supabaseAdmin
+    .from("streamers")
+    .select("id, user_id, tracking_enabled")
+    .ilike("tiktok_username", normalizedUsername)
+    .maybeSingle();
+
+  if (existingError) {
+    throw existingError;
+  }
+
+  if (existing?.user_id) {
+    throw new Error("Этот TikTok username уже привязан к зарегистрированному стримеру.");
+  }
+
+  if (existing) {
+    const { error: updateError } = await supabaseAdmin
+      .from("streamers")
+      .update({
+        tracking_enabled: true,
+        display_name: profile?.displayName?.trim() || normalizedUsername,
+        avatar_url: profile?.avatarUrl ?? null,
+        logo_url: profile?.avatarUrl ?? null,
+        bio: profile?.bio ?? null,
+        followers_count: profile?.followersCount ?? 0,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id);
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const { error: insertError } = await supabaseAdmin
+    .from("streamers")
+    .insert({
+      user_id: null,
+      tiktok_username: normalizedUsername,
+      display_name: profile?.displayName?.trim() || normalizedUsername,
+      avatar_url: profile?.avatarUrl ?? null,
+      logo_url: profile?.avatarUrl ?? null,
+      bio: profile?.bio ?? null,
+      tracking_enabled: true,
+      verification_status: "pending",
+      needs_boost: false,
+      total_boost_amount: 0,
+      is_live: false,
+      viewer_count: 0,
+      followers_count: profile?.followersCount ?? 0,
+      created_at: now,
+      updated_at: now,
+    });
+
+  if (insertError) {
+    throw insertError;
+  }
 }
 
 async function updateUserMetadataRole(userId: string, role: AdminManagedPlatformRole) {
@@ -253,10 +348,38 @@ export const Route = createFileRoute("/api/admin/users")({
         }
 
         try {
-          const users = await loadUsers();
-          return jsonResponse({ users, currentAccessLevel: auth.accessLevel });
+          const data = await loadUsers();
+          return jsonResponse({ ...data, currentAccessLevel: auth.accessLevel });
         } catch (error) {
           return jsonResponse({ error: error instanceof Error ? error.message : "Не удалось загрузить пользователей." }, 500);
+        }
+      },
+      POST: async ({ request }) => {
+        const auth = await requireAdmin(request);
+        if ("error" in auth) {
+          return auth.error;
+        }
+
+        if (auth.accessLevel === "support") {
+          return jsonResponse({ error: "Support не может добавлять tracked-only стримеров." }, 403);
+        }
+
+        let body: { action?: string; tiktokUsername?: string } = {};
+        try {
+          body = (await request.json()) as typeof body;
+        } catch {
+          return jsonResponse({ error: "Некорректный JSON body." }, 400);
+        }
+
+        if (body.action !== "create-tracked-streamer") {
+          return jsonResponse({ error: "Неизвестное действие." }, 400);
+        }
+
+        try {
+          await createTrackedStreamer(body.tiktokUsername ?? "");
+          return jsonResponse({ ok: true });
+        } catch (error) {
+          return jsonResponse({ error: error instanceof Error ? error.message : "Не удалось добавить tracked-only стримера." }, 500);
         }
       },
       PATCH: async ({ request }) => {

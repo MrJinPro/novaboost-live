@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth-context";
 import {
   AdminApiError,
+  createAdminTrackedStreamer,
   loadAdminStreamerApplications,
   loadAdminUsers,
   reviewAdminStreamerApplication,
@@ -15,6 +16,7 @@ import {
   type AdminConsoleUser,
   type AdminPanelAccessLevel,
   type AdminStreamerApplication,
+  type AdminTrackedStreamer,
 } from "@/lib/admin-moderation-data";
 import { ArrowUpDown, History, Search, ShieldAlert, ShieldCheck, UserCog, UserRound, Users } from "lucide-react";
 import { toast } from "sonner";
@@ -97,6 +99,7 @@ function AdminPage() {
   const { user, session, loading } = useAuth();
   const [applications, setApplications] = useState<AdminStreamerApplication[]>([]);
   const [users, setUsers] = useState<AdminConsoleUser[]>([]);
+  const [trackedStreamers, setTrackedStreamers] = useState<AdminTrackedStreamer[]>([]);
   const [pageLoading, setPageLoading] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
   const [usersLoading, setUsersLoading] = useState(false);
@@ -108,6 +111,7 @@ function AdminPage() {
   const [sortMode, setSortMode] = useState<SortMode>("pending-first");
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [userSortMode, setUserSortMode] = useState<UserSortMode>("newest");
+  const [trackedStreamerUsername, setTrackedStreamerUsername] = useState("");
   const [actionKey, setActionKey] = useState<string | null>(null);
 
   const syncApplications = async () => {
@@ -151,6 +155,7 @@ function AdminPage() {
     try {
       const response = await loadAdminUsers(session);
       setUsers(response.users);
+      setTrackedStreamers(response.trackedStreamers);
       setCurrentAccessLevel(response.currentAccessLevel);
     } catch (error) {
       if (error instanceof AdminApiError && error.status === 403) {
@@ -330,6 +335,30 @@ function AdminPage() {
       await syncUsers();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Не удалось обновить staff access.");
+    } finally {
+      setActionKey(null);
+    }
+  };
+
+  const handleTrackedStreamerCreate = async () => {
+    if (!session) {
+      return;
+    }
+
+    const normalizedUsername = trackedStreamerUsername.trim();
+    if (!normalizedUsername) {
+      toast.error("Укажи TikTok username.");
+      return;
+    }
+
+    setActionKey("tracked-streamer:create");
+    try {
+      await createAdminTrackedStreamer(session, { tiktokUsername: normalizedUsername });
+      setTrackedStreamerUsername("");
+      toast.success("Tracked-only стример добавлен в каталог.");
+      await syncUsers();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось добавить tracked-only стримера.");
     } finally {
       setActionKey(null);
     }
@@ -630,11 +659,84 @@ function AdminPage() {
             </label>
           </div>
 
+          <div className="mt-6 rounded-3xl border border-border/50 bg-background/30 p-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h3 className="font-display text-2xl font-bold">Добавить стримера без регистрации</h3>
+                <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+                  Введи TikTok username, чтобы карточка появилась в каталоге до регистрации. Мы попробуем сразу подтянуть имя, аватар и базовую информацию из TikTok. Такой стример будет отмечен как незарегистрированный: мы показываем только его live-статус и приглашаем владельца подключиться к NovaBoost Live.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-border/50 bg-surface/40 px-4 py-3 text-sm text-muted-foreground">
+                Доступно для moderator и admin.
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-col gap-3 lg:flex-row">
+              <Input
+                value={trackedStreamerUsername}
+                onChange={(event) => setTrackedStreamerUsername(event.target.value)}
+                placeholder="@username или ссылка TikTok"
+                disabled={currentAccessLevel === "support" || actionKey === "tracked-streamer:create"}
+              />
+              <Button
+                type="button"
+                className="bg-gradient-blast text-blast-foreground"
+                disabled={currentAccessLevel === "support" || actionKey === "tracked-streamer:create"}
+                onClick={() => void handleTrackedStreamerCreate()}
+              >
+                {actionKey === "tracked-streamer:create" ? "Добавляем…" : "Добавить в каталог"}
+              </Button>
+            </div>
+          </div>
+
           {usersError && (
             <div className="mt-6 rounded-3xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive-foreground">
               {usersError}
             </div>
           )}
+
+          <div className="mt-6 rounded-3xl border border-border/50 bg-background/30 p-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h3 className="font-display text-2xl font-bold">Отслеживаемые без регистрации</h3>
+                <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+                  Эти карточки уже могут жить в публичном каталоге и показывать live-статус, но бусты, подписки и внутренняя страница стримера для них ещё не активны, пока владелец сам не зарегистрируется и не привяжет TikTok username.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-border/50 bg-surface/40 px-4 py-3 text-sm text-muted-foreground">
+                Сейчас: {trackedStreamers.length}
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {trackedStreamers.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border/50 bg-surface/30 p-4 text-sm text-muted-foreground">
+                  Пока нет tracked-only стримеров.
+                </div>
+              ) : (
+                trackedStreamers.map((streamer) => (
+                  <div key={streamer.streamerId} className="rounded-2xl border border-border/50 bg-surface/30 p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <div className="font-semibold text-foreground">{streamer.displayName}</div>
+                          <RoleBadge label="Не зарегистрирован" tone="pending" />
+                          <RoleBadge label={streamer.isLive ? "В эфире" : "Оффлайн"} tone={streamer.isLive ? "verified" : "all"} />
+                        </div>
+                        <div className="mt-2 text-sm text-muted-foreground">@{streamer.tiktokUsername}</div>
+                      </div>
+                      <div className="grid gap-2 text-right text-sm text-muted-foreground sm:grid-cols-3 sm:text-left">
+                        <div>Зрителей: <span className="text-foreground">{streamer.viewerCount}</span></div>
+                        <div>Подписчиков TikTok: <span className="text-foreground">{streamer.followersCount}</span></div>
+                        <div>Добавлен: <span className="text-foreground">{formatDateTime(streamer.createdAt)}</span></div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
 
           <div className="mt-4 text-sm text-muted-foreground">
             Показано {visibleUsers.length} из {users.length} пользователей.

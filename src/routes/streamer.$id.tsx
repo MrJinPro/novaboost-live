@@ -114,7 +114,7 @@ function StreamerProfile() {
   useEffect(() => {
     let active = true;
 
-    if (!streamer || !user || streamer.owner_user_id === user.id) {
+    if (!streamer || !user || streamer.owner_user_id === user.id || streamer.is_registered === false) {
       setSubscribed(false);
       return;
     }
@@ -142,7 +142,7 @@ function StreamerProfile() {
   useEffect(() => {
     let active = true;
 
-    if (!streamer) {
+    if (!streamer || streamer.is_registered === false) {
       setMembershipState({ subscribed: false, planKey: "free", paidUntil: null, totalPaidAmount: 0 });
       return;
     }
@@ -198,7 +198,7 @@ function StreamerProfile() {
   useEffect(() => {
     let active = true;
 
-    if (!streamer) {
+    if (!streamer || streamer.is_registered === false) {
       setReactionSummaries(new Map());
       return;
     }
@@ -263,11 +263,12 @@ function StreamerProfile() {
   }
 
   const boosted = streamer.total_boost_amount > 0;
+  const isRegistered = streamer.is_registered ?? Boolean(streamer.owner_user_id);
   const hasFeaturedVideo = Boolean(streamer.featured_video_url);
   const featuredVideoCover = streamer.featured_video_url ?? streamer.videos[0]?.cover ?? "";
   const membershipPlan = SUBSCRIPTION_PLANS.find((plan) => plan.key === streamer.membership_settings?.highlightedPlanKey)
     ?? getPaidSubscriptionPlans()[0];
-  const showPaidMembership = Boolean(streamer.membership_settings?.paidEnabled);
+  const showPaidMembership = isRegistered && Boolean(streamer.membership_settings?.paidEnabled);
   const socialButtons = [
     { key: "telegram", icon: <Send className="h-4 w-4" />, href: resolveSocialLinkHref("telegram", streamer.social_links?.telegram ?? streamer.telegram_channel ?? ""), label: "Telegram" },
     { key: "instagram", icon: <Instagram className="h-4 w-4" />, href: resolveSocialLinkHref("instagram", streamer.social_links?.instagram ?? ""), label: "Instagram" },
@@ -276,6 +277,11 @@ function StreamerProfile() {
   ].filter((item) => item.href);
 
   const handleSubscription = async () => {
+    if (!isRegistered) {
+      toast.error("Этот стример ещё не зарегистрирован в NovaBoost Live. Пока мы отслеживаем только его live-статус.");
+      return;
+    }
+
     if (!user) {
       toast.error("Войди в аккаунт, чтобы подписываться на стримеров");
       navigate({ to: "/auth" });
@@ -304,6 +310,11 @@ function StreamerProfile() {
   };
 
   const handlePlanUpgrade = (planKey: SubscriptionPlanKey) => {
+    if (!isRegistered) {
+      toast.error("Платные сценарии станут доступны после регистрации стримера в NovaBoost Live.");
+      return;
+    }
+
     const plan = SUBSCRIPTION_PLANS.find((item) => item.key === planKey);
     openSurvey({
       userId: user?.id ?? null,
@@ -322,6 +333,11 @@ function StreamerProfile() {
   };
 
   const handleReactionToggle = async (postId: string, reactionType: PostReactionType) => {
+    if (!isRegistered) {
+      toast.error("Для незарегистрированного стримера доступны только live-метрики и статус эфира.");
+      return;
+    }
+
     if (!user) {
       toast.error("Войди как зритель, чтобы ставить реакции");
       navigate({ to: "/auth" });
@@ -375,7 +391,7 @@ function StreamerProfile() {
         <div className="mt-6 overflow-hidden rounded-3xl border border-border/50 bg-surface/70">
           <div className={`relative h-36 w-full overflow-hidden bg-linear-to-r sm:h-44 ${streamer.accent}`} style={{ backgroundImage: `linear-gradient(135deg, rgba(255,255,255,0.08), rgba(8,12,20,0.22)), url(${streamer.banner_url})`, backgroundSize: "cover", backgroundPosition: "center" }}>
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_36%)]" />
-            <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-background/45 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 h-20 bg-linear-to-t from-background/45 to-transparent" />
             <div className="absolute right-4 top-4 hidden rounded-full border border-white/15 bg-black/20 px-3 py-1 text-[10px] uppercase tracking-[0.25em] text-white/75 sm:block">
               NovaBoost Live
             </div>
@@ -404,6 +420,12 @@ function StreamerProfile() {
                 <p className="mt-3 max-w-3xl text-sm leading-6 text-foreground/90 sm:text-base">{streamer.tagline}</p>
                 {streamer.bio && <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">{streamer.bio}</p>}
 
+                {!isRegistered && (
+                  <div className="mt-4 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-4 text-sm leading-6 text-amber-50">
+                    Этот стример ещё не зарегистрирован в NovaBoost Live. Сейчас мы показываем только его TikTok username и live-статус эфира. Пригласите владельца страницы подключиться, чтобы открыть бусты, подписки, контент и бонусы платформы.
+                  </div>
+                )}
+
                 <div className="mt-4 flex flex-wrap gap-2">
                   {streamer.tags.map((tag) => (
                     <span key={tag} className="rounded-full border border-border/60 bg-background/40 px-3 py-1 text-xs text-muted-foreground">
@@ -420,27 +442,41 @@ function StreamerProfile() {
               </div>
 
               <div className="flex w-full shrink-0 flex-col gap-3 pt-1 sm:pt-3 md:w-auto md:pt-0">
-                <Button size="lg" variant={subscribed ? "secondary" : "outline"} className="gap-2 w-full" onClick={handleSubscription} disabled={subscriptionLoading}>
-                  <Bell className="h-4 w-4" /> {subscriptionLoading ? "Обновляю…" : subscribed ? "Подписка активна" : "Подписаться"}
-                </Button>
-                {showPaidMembership && membershipPlan ? (
-                  <Button size="lg" variant={membershipState.planKey === membershipPlan.key ? "secondary" : "outline"} className="gap-2 w-full border-crown/40" onClick={() => void handlePlanUpgrade(membershipPlan.key)} disabled={membershipLoading}>
-                    <Crown className="h-4 w-4 text-crown" /> {membershipState.planKey === membershipPlan.key ? "Boost-подписка активна" : `Оформить Boost-подписку ${membershipPlan.price.toFixed(2)}`}
-                  </Button>
-                ) : null}
+                {isRegistered ? (
+                  <>
+                    <Button size="lg" variant={subscribed ? "secondary" : "outline"} className="gap-2 w-full" onClick={handleSubscription} disabled={subscriptionLoading}>
+                      <Bell className="h-4 w-4" /> {subscriptionLoading ? "Обновляю…" : subscribed ? "Подписка активна" : "Подписаться"}
+                    </Button>
+                    {showPaidMembership && membershipPlan ? (
+                      <Button size="lg" variant={membershipState.planKey === membershipPlan.key ? "secondary" : "outline"} className="gap-2 w-full border-crown/40" onClick={() => void handlePlanUpgrade(membershipPlan.key)} disabled={membershipLoading}>
+                        <Crown className="h-4 w-4 text-crown" /> {membershipState.planKey === membershipPlan.key ? "Boost-подписка активна" : `Оформить Boost-подписку ${membershipPlan.price.toFixed(2)}`}
+                      </Button>
+                    ) : null}
+                  </>
+                ) : (
+                  <div className="rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-50">
+                    Внутренние действия NovaBoost Live пока закрыты. Доступно только отслеживание live-статуса этого TikTok-аккаунта.
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-2">
                   <a href={`https://www.tiktok.com/@${streamer.tiktok_username}/live`} target="_blank" rel="noopener noreferrer">
                     <Button size="sm" className="w-full gap-2 bg-gradient-blast text-blast-foreground hover:opacity-90">
                       <ExternalLink className="h-4 w-4" /> TikTok LIVE
                     </Button>
                   </a>
-                  <Link to="/boost" search={{ streamerId: streamer.id }}>
-                    <Button size="sm" variant="outline" className="w-full gap-2 border-cosmic/40">
-                      <Zap className="h-4 w-4 text-cosmic" /> Буст
+                  {isRegistered ? (
+                    <Link to="/boost" search={{ streamerId: streamer.id }}>
+                      <Button size="sm" variant="outline" className="w-full gap-2 border-cosmic/40">
+                        <Zap className="h-4 w-4 text-cosmic" /> Буст
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Button size="sm" variant="outline" className="w-full gap-2 border-border/60 text-muted-foreground" disabled>
+                      <Zap className="h-4 w-4" /> Boost недоступен
                     </Button>
-                  </Link>
+                  )}
                 </div>
-                {streamer.donation_link_slug ? (
+                {isRegistered && streamer.donation_link_slug ? (
                   <Link to="/support/$slug" params={{ slug: streamer.donation_link_slug }}>
                     <Button size="sm" variant="outline" className="gap-2 w-full border-blast/40 hover:bg-blast/10">
                       <Wallet className="h-4 w-4 text-blast" /> Поддержать стримера
@@ -502,7 +538,9 @@ function StreamerProfile() {
                 <div className="text-xs uppercase tracking-wider text-muted-foreground">Позиционирование</div>
                 <p className="mt-3 text-base leading-7 text-foreground/90">{streamer.tagline}</p>
                 <p className="mt-4 text-sm leading-6 text-muted-foreground">
-                  {streamer.bio || "Стример ещё не заполнил расширенное описание, но страница уже готова принимать подписчиков, посты и короткий видеоконтент."}
+                  {isRegistered
+                    ? (streamer.bio || "Стример ещё не заполнил расширенное описание, но страница уже готова принимать подписчиков, посты и короткий видеоконтент.")
+                    : "Это tracked-only карточка. Мы отслеживаем live-статус и базовые TikTok-метрики, пока владелец не зарегистрируется в NovaBoost Live и не активирует полную страницу."}
                 </p>
               </div>
 
@@ -510,8 +548,8 @@ function StreamerProfile() {
                 <div className="text-xs uppercase tracking-wider text-muted-foreground">Что есть на странице</div>
                 <div className="mt-4 space-y-3 text-sm text-muted-foreground">
                   <div className="rounded-xl border border-border/40 bg-surface/60 px-4 py-3">Здесь видны username, аватар, баннер и текущее live-состояние.</div>
-                  <div className="rounded-xl border border-border/40 bg-surface/60 px-4 py-3">Здесь публикуются анонсы, новости и посты между эфирами.</div>
-                  <div className="rounded-xl border border-border/40 bg-surface/60 px-4 py-3">Короткие видео и отдельный блок для главного видео появляются только если их добавили.</div>
+                  <div className="rounded-xl border border-border/40 bg-surface/60 px-4 py-3">{isRegistered ? "Здесь публикуются анонсы, новости и посты между эфирами." : "Пока здесь нет внутренних постов, подписок и донатов NovaBoost Live."}</div>
+                  <div className="rounded-xl border border-border/40 bg-surface/60 px-4 py-3">{isRegistered ? "Короткие видео и отдельный блок для главного видео появляются только если их добавили." : "После регистрации стример сможет настроить полную страницу, бонусы, бусты и отдельный медиаблок."}</div>
                 </div>
               </div>
             </div>
@@ -529,17 +567,17 @@ function StreamerProfile() {
               )}
               <div className="relative flex h-full min-h-72 flex-col justify-end p-5 sm:min-h-80 sm:p-6">
                 <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/15 bg-black/25 px-3 py-1 text-xs uppercase tracking-[0.2em] text-white/80">
-                  <Play className="h-3.5 w-3.5" /> Главное видео
+                  <Play className="h-3.5 w-3.5" /> {isRegistered ? "Главное видео" : "Статус страницы"}
                 </div>
-                <h2 className="mt-4 max-w-lg font-display text-2xl font-bold text-white sm:text-3xl">{streamer.display_name} показывает страницу не только для live, но и между эфирами.</h2>
-                <p className="mt-3 max-w-xl text-sm leading-6 text-white/75">Этот блок можно использовать для главного видео страницы: анонса следующего эфира, лучшего фрагмента или короткого знакомства.</p>
+                <h2 className="mt-4 max-w-lg font-display text-2xl font-bold text-white sm:text-3xl">{isRegistered ? `${streamer.display_name} показывает страницу не только для live, но и между эфирами.` : `${streamer.display_name} пока доступен в каталоге только как отслеживаемый TikTok-аккаунт.`}</h2>
+                <p className="mt-3 max-w-xl text-sm leading-6 text-white/75">{isRegistered ? "Этот блок можно использовать для главного видео страницы: анонса следующего эфира, лучшего фрагмента или короткого знакомства." : "Мы продолжаем отслеживать эфир и live-статус. Пригласите этого стримера зарегистрироваться в NovaBoost Live, чтобы открыть полную публичную страницу."}</p>
                 <div className="mt-5 grid gap-3 sm:flex sm:flex-wrap">
                   <a href={`https://www.tiktok.com/@${streamer.tiktok_username}/live`} target="_blank" rel="noopener noreferrer">
                     <Button className="w-full gap-2 bg-white text-black hover:bg-white/90 sm:w-auto">
                       <ExternalLink className="h-4 w-4" /> Открыть TikTok LIVE
                     </Button>
                   </a>
-                  {hasFeaturedVideo && (
+                  {isRegistered && hasFeaturedVideo && (
                     <Button variant="outline" className="w-full gap-2 border-white/20 bg-black/20 text-white hover:bg-black/30 sm:w-auto">
                       <Play className="h-4 w-4" /> Главное видео добавлено
                     </Button>
@@ -553,11 +591,11 @@ function StreamerProfile() {
         <div className="mt-6 grid gap-4 lg:grid-cols-[1.3fr_0.7fr]">
           <section className="rounded-3xl border border-border/50 bg-surface/60 p-5 sm:p-6">
             <h2 className="font-display text-xl font-bold sm:text-2xl">Контент стримера</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Платформа должна жить между эфирами, поэтому здесь посты, анонсы и сигналы для подписчиков.</p>
+            <p className="mt-2 text-sm text-muted-foreground">{isRegistered ? "Платформа должна жить между эфирами, поэтому здесь посты, анонсы и сигналы для подписчиков." : "Пока стример не зарегистрирован, контентный слой NovaBoost Live не активирован."}</p>
             <div className="mt-5 space-y-3">
               {streamer.posts.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-border/50 bg-background/20 p-5 text-sm text-muted-foreground">
-                  Пока нет опубликованных постов. Как только стример добавит анонс или новость в студии, они появятся здесь.
+                  {isRegistered ? "Пока нет опубликованных постов. Как только стример добавит анонс или новость в студии, они появятся здесь." : "У этого TikTok-аккаунта пока нет внутреннего контента NovaBoost Live. Мы показываем только live-статус и ждём регистрации владельца страницы."}
                 </div>
               ) : (
                 streamer.posts.map((post) => {
@@ -612,7 +650,7 @@ function StreamerProfile() {
           </section>
 
           <section className="space-y-4">
-            {streamer.donation_link_slug ? (
+            {isRegistered && streamer.donation_link_slug ? (
               <div>
                 <div className="overflow-hidden rounded-4xl border border-blast/30 bg-[radial-gradient(circle_at_top,rgba(255,133,32,0.18),transparent_58%),linear-gradient(180deg,rgba(19,13,44,0.96),rgba(14,11,34,0.96))] p-5 sm:p-6 shadow-glow">
                   <div className="flex items-center gap-2">
@@ -704,11 +742,11 @@ function StreamerProfile() {
 
         <section className="mt-6 rounded-3xl border border-border/50 bg-surface/60 p-5 sm:p-6">
           <h2 className="font-display text-xl font-bold sm:text-2xl">Короткие видео и тизеры</h2>
-          <p className="mt-2 text-sm text-muted-foreground">Здесь собираются несколько видео стримера: тизеры, клипы и обложки главных моментов.</p>
+          <p className="mt-2 text-sm text-muted-foreground">{isRegistered ? "Здесь собираются несколько видео стримера: тизеры, клипы и обложки главных моментов." : "Медиатека откроется после регистрации стримера в NovaBoost Live."}</p>
           <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {streamer.videos.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-border/50 bg-background/20 p-5 text-sm text-muted-foreground md:col-span-2 xl:col-span-3">
-                Пока нет добавленных видео. После заполнения медиатеки здесь появится витрина роликов стримера.
+                {isRegistered ? "Пока нет добавленных видео. После заполнения медиатеки здесь появится витрина роликов стримера." : "Пока владелец аккаунта не зарегистрировался, здесь будет только сообщение о tracking-only режиме."}
               </div>
             ) : (
               streamer.videos.map((video) => (
@@ -732,6 +770,7 @@ function StreamerProfile() {
           </div>
         </section>
 
+        {isRegistered ? (
         <section className="mt-6 rounded-3xl border border-border/50 bg-surface/60 p-5 sm:p-6">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>
@@ -870,6 +909,23 @@ function StreamerProfile() {
             </Collapsible>
           </div>
         </section>
+        ) : (
+        <section className="mt-6 rounded-3xl border border-amber-400/30 bg-amber-500/10 p-5 sm:p-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div>
+              <h2 className="font-display text-2xl font-bold text-amber-50">Пригласите этого стримера в NovaBoost Live</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-amber-100/90">
+                Сейчас карточка работает в tracking-only режиме: мы следим за статусом эфира и показываем базовые метрики. После регистрации стример сможет настроить страницу, открыть бусты, бонусы, подписки и дополнительный контент.
+              </p>
+            </div>
+            <a href={`https://www.tiktok.com/@${streamer.tiktok_username}`} target="_blank" rel="noopener noreferrer">
+              <Button className="gap-2 bg-white text-black hover:bg-white/90">
+                <ExternalLink className="h-4 w-4" /> Открыть TikTok профиль
+              </Button>
+            </a>
+          </div>
+        </section>
+        )}
         {surveyDialog}
       </div>
     </div>

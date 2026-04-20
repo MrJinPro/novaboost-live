@@ -78,6 +78,7 @@ function BoostPage() {
   }, [user]);
 
   const streamer = streamers.find((s) => s.id === selected);
+  const canBoostSelectedStreamer = Boolean(streamer?.is_registered ?? true);
   const canAffordTier = availablePoints >= tier;
 
   const helpPanel = (
@@ -119,6 +120,11 @@ function BoostPage() {
 
     if (!selected) {
       toast.error("Выбери стримера");
+      return;
+    }
+
+    if (!canBoostSelectedStreamer) {
+      toast.error("Этот стример ещё не зарегистрирован в NovaBoost Live. Пока для него доступно только отслеживание live-статуса.");
       return;
     }
 
@@ -187,10 +193,15 @@ function BoostPage() {
             <option value="">{isInitialLoading ? "Загружаю стримеров…" : "— Выбрать стримера —"}</option>
             {streamers.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.display_name} (@{s.tiktok_username}) {s.is_live ? "🔴" : ""}
+                  {s.display_name} (@{s.tiktok_username}) {s.is_live ? "🔴" : ""} {s.is_registered === false ? "• tracking only" : ""}
               </option>
             ))}
           </select>
+            {streamer && !canBoostSelectedStreamer && (
+              <div className="mt-3 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                Этот TikTok-аккаунт ещё не зарегистрирован в NovaBoost Live. Мы можем отслеживать его live-статус, но boost для него пока недоступен.
+              </div>
+            )}
         </section>
 
         <section className="mt-8">
@@ -232,7 +243,7 @@ function BoostPage() {
             </div>
             <Button
               size="lg"
-              disabled={!selected || !canAffordTier || submitting}
+              disabled={!selected || !canAffordTier || !canBoostSelectedStreamer || submitting}
               onClick={() => void handleBoost()}
               className="bg-gradient-blast text-blast-foreground font-bold shadow-glow gap-2 disabled:opacity-50"
             >

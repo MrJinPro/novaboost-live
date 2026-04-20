@@ -29,6 +29,7 @@ export interface StreamerCardData {
   tiktok_username: string;
   avatar_url: string | null;
   bio: string | null;
+  is_registered?: boolean;
   is_live: boolean;
   viewer_count: number;
   like_count?: number;
