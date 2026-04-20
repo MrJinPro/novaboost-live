@@ -1,6 +1,6 @@
 import { createReadStream } from "node:fs";
 import { mkdir, stat, writeFile } from "node:fs/promises";
-import { basename, extname, resolve, sep } from "node:path";
+import { basename, extname, join, resolve, sep } from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
 import Busboy from "busboy";
@@ -52,11 +52,11 @@ function getMediaSubdirectory(userId: string, kind: MediaKind) {
 
   switch (kind) {
     case "viewer-avatar":
-      return resolve("users", safeUserId, "profile", "avatar");
+      return join("users", safeUserId, "profile", "avatar");
     case "streamer-avatar":
-      return resolve("users", safeUserId, "streamer", "avatar");
+      return join("users", safeUserId, "streamer", "avatar");
     case "streamer-banner":
-      return resolve("users", safeUserId, "streamer", "banner");
+      return join("users", safeUserId, "streamer", "banner");
   }
 }
 
