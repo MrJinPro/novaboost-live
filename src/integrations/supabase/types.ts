@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_staff_assignments: {
+        Row: {
+          access_level: string
+          created_at: string
+          created_by: string | null
+          is_active: boolean
+          notes: string | null
+          updated_at: string
+          updated_by: string | null
+          user_id: string
+        }
+        Insert: {
+          access_level: string
+          created_at?: string
+          created_by?: string | null
+          is_active?: boolean
+          notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          user_id: string
+        }
+        Update: {
+          access_level?: string
+          created_at?: string
+          created_by?: string | null
+          is_active?: boolean
+          notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       boosts: {
         Row: {
           amount: number

@@ -4,8 +4,19 @@ import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth-context";
-import { AdminApiError, loadAdminStreamerApplications, reviewAdminStreamerApplication, type AdminApplicationStatus, type AdminStreamerApplication } from "@/lib/admin-moderation-data";
-import { ArrowUpDown, History, Search, ShieldAlert, ShieldCheck, UserRound } from "lucide-react";
+import {
+  AdminApiError,
+  loadAdminStreamerApplications,
+  loadAdminUsers,
+  reviewAdminStreamerApplication,
+  updateAdminUserPlatformRole,
+  updateAdminUserStaffAccess,
+  type AdminApplicationStatus,
+  type AdminConsoleUser,
+  type AdminPanelAccessLevel,
+  type AdminStreamerApplication,
+} from "@/lib/admin-moderation-data";
+import { ArrowUpDown, History, Search, ShieldAlert, ShieldCheck, UserCog, UserRound, Users } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin")({
@@ -26,6 +37,7 @@ const STATUS_LABELS: Record<"all" | AdminApplicationStatus, string> = {
 };
 
 type SortMode = "newest" | "oldest" | "pending-first" | "name";
+type UserSortMode = "newest" | "name" | "platform-role" | "staff-access";
 
 const SORT_LABELS: Record<SortMode, string> = {
   newest: "Сначала новые",
@@ -38,6 +50,20 @@ const STATUS_PRIORITY: Record<AdminApplicationStatus, number> = {
   pending: 0,
   verified: 1,
   rejected: 2,
+};
+
+const STAFF_ACCESS_LABELS: Record<AdminPanelAccessLevel, string> = {
+  none: "Без staff доступа",
+  support: "Тех поддержка",
+  moderator: "Модератор",
+  admin: "Админ",
+};
+
+const USER_SORT_LABELS: Record<UserSortMode, string> = {
+  newest: "Сначала новые",
+  name: "По имени",
+  "platform-role": "По платформенной роли",
+  "staff-access": "По уровню staff",
 };
 
 function toTimestamp(value: string | null) {
@@ -70,12 +96,18 @@ function isExternalLink(value: string | null) {
 function AdminPage() {
   const { user, session, loading } = useAuth();
   const [applications, setApplications] = useState<AdminStreamerApplication[]>([]);
+  const [users, setUsers] = useState<AdminConsoleUser[]>([]);
   const [pageLoading, setPageLoading] = useState(false);
   const [pageError, setPageError] = useState<string | null>(null);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState(false);
+  const [currentAccessLevel, setCurrentAccessLevel] = useState<AdminPanelAccessLevel>("none");
   const [activeFilter, setActiveFilter] = useState<"all" | AdminApplicationStatus>("pending");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("pending-first");
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [userSortMode, setUserSortMode] = useState<UserSortMode>("newest");
   const [actionKey, setActionKey] = useState<string | null>(null);
 
   const syncApplications = async () => {
@@ -88,8 +120,9 @@ function AdminPage() {
     setAccessDenied(false);
 
     try {
-      const nextApplications = await loadAdminStreamerApplications(session);
-      setApplications(nextApplications);
+      const response = await loadAdminStreamerApplications(session);
+      setApplications(response.applications);
+      setCurrentAccessLevel(response.currentAccessLevel);
     } catch (error) {
       if (error instanceof AdminApiError && error.status === 403) {
         setAccessDenied(true);
@@ -107,8 +140,33 @@ function AdminPage() {
     }
   };
 
+  const syncUsers = async () => {
+    if (!session) {
+      return;
+    }
+
+    setUsersLoading(true);
+    setUsersError(null);
+
+    try {
+      const response = await loadAdminUsers(session);
+      setUsers(response.users);
+      setCurrentAccessLevel(response.currentAccessLevel);
+    } catch (error) {
+      if (error instanceof AdminApiError && error.status === 403) {
+        setAccessDenied(true);
+        return;
+      }
+
+      setUsersError(error instanceof Error ? error.message : "Не удалось загрузить пользователей.");
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
   useEffect(() => {
     void syncApplications();
+    void syncUsers();
   }, [session]);
 
   const stats = useMemo(() => ({
@@ -181,6 +239,44 @@ function AdminPage() {
     });
   }, [activeFilter, applications, searchQuery, sortMode]);
 
+  const visibleUsers = useMemo(() => {
+    const normalizedSearch = userSearchQuery.trim().toLowerCase();
+
+    const filtered = users.filter((item) => {
+      if (!normalizedSearch) {
+        return true;
+      }
+
+      const haystack = [
+        item.displayName,
+        item.username,
+        item.email,
+        item.tiktokUsername,
+        item.streamerDisplayName,
+        STAFF_ACCESS_LABELS[item.staffAccessLevel],
+        item.streamerVerificationStatus,
+      ].filter(Boolean).join(" ").toLowerCase();
+
+      return haystack.includes(normalizedSearch);
+    });
+
+    return [...filtered].sort((left, right) => {
+      if (userSortMode === "name") {
+        return left.displayName.localeCompare(right.displayName, "ru");
+      }
+
+      if (userSortMode === "platform-role") {
+        return left.platformRole.localeCompare(right.platformRole, "ru") || left.displayName.localeCompare(right.displayName, "ru");
+      }
+
+      if (userSortMode === "staff-access") {
+        return left.staffAccessLevel.localeCompare(right.staffAccessLevel, "ru") || left.displayName.localeCompare(right.displayName, "ru");
+      }
+
+      return toTimestamp(right.createdAt) - toTimestamp(left.createdAt);
+    });
+  }, [userSearchQuery, userSortMode, users]);
+
   const handleReview = async (application: AdminStreamerApplication, decision: Exclude<AdminApplicationStatus, "pending">) => {
     if (!session) {
       return;
@@ -197,6 +293,43 @@ function AdminPage() {
       await syncApplications();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Не удалось обновить статус заявки.");
+    } finally {
+      setActionKey(null);
+    }
+  };
+
+  const handlePlatformRoleChange = async (adminUser: AdminConsoleUser, role: "viewer" | "streamer") => {
+    if (!session) {
+      return;
+    }
+
+    const nextActionKey = `${adminUser.userId}:platform:${role}`;
+    setActionKey(nextActionKey);
+    try {
+      await updateAdminUserPlatformRole(session, { userId: adminUser.userId, role });
+      toast.success(role === "streamer" ? "Пользователь переведён в стримеры." : "Пользователь переведён в зрители.");
+      await syncUsers();
+      await syncApplications();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось изменить роль пользователя.");
+    } finally {
+      setActionKey(null);
+    }
+  };
+
+  const handleStaffAccessChange = async (adminUser: AdminConsoleUser, accessLevel: AdminPanelAccessLevel) => {
+    if (!session) {
+      return;
+    }
+
+    const nextActionKey = `${adminUser.userId}:staff:${accessLevel}`;
+    setActionKey(nextActionKey);
+    try {
+      await updateAdminUserStaffAccess(session, { userId: adminUser.userId, accessLevel });
+      toast.success(accessLevel === "none" ? "Staff доступ снят." : `Доступ обновлён: ${STAFF_ACCESS_LABELS[accessLevel]}.`);
+      await syncUsers();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось обновить staff access.");
     } finally {
       setActionKey(null);
     }
@@ -250,12 +383,20 @@ function AdminPage() {
             </div>
             <h1 className="mt-4 font-display text-4xl font-bold">Админка заявок стримеров</h1>
             <p className="mt-3 max-w-3xl text-muted-foreground">
-              Здесь можно проверить доказательства стримера, увидеть историю модерации и переключить статус между pending, verified и rejected.
+              Здесь можно проверить доказательства стримера, видеть всех пользователей, менять viewer/streamer состояние и раздавать staff access для moderator, tech support и admin.
             </p>
+            <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-border/50 bg-background/30 px-3 py-1 text-xs text-muted-foreground">
+              Текущий доступ: <span className="font-semibold text-foreground">{STAFF_ACCESS_LABELS[currentAccessLevel]}</span>
+            </div>
           </div>
-          <Button variant="outline" onClick={() => void syncApplications()} disabled={pageLoading}>
-            {pageLoading ? "Обновляем…" : "Обновить"}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => void syncApplications()} disabled={pageLoading}>
+              {pageLoading ? "Обновляем заявки…" : "Обновить заявки"}
+            </Button>
+            <Button variant="outline" onClick={() => void syncUsers()} disabled={usersLoading}>
+              {usersLoading ? "Обновляем пользователей…" : "Обновить пользователей"}
+            </Button>
+          </div>
         </div>
 
         <div className="mt-8 grid gap-4 md:grid-cols-4">
@@ -354,7 +495,7 @@ function AdminPage() {
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {application.status !== "verified" && (
+                    {currentAccessLevel !== "support" && application.status !== "verified" && (
                       <Button
                         type="button"
                         className="bg-emerald-500 text-black hover:bg-emerald-400"
@@ -364,7 +505,7 @@ function AdminPage() {
                         {actionKey === `${application.verificationId}:verified` ? "Подтверждаем…" : "Подтвердить"}
                       </Button>
                     )}
-                    {application.status !== "rejected" && (
+                    {currentAccessLevel !== "support" && application.status !== "rejected" && (
                       <Button
                         type="button"
                         variant="outline"
@@ -446,8 +587,138 @@ function AdminPage() {
             ))
           )}
         </div>
+
+        <section className="mt-10 rounded-3xl border border-border/50 bg-surface/60 p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/30 px-3 py-1 text-xs text-muted-foreground">
+                <Users className="h-3.5 w-3.5 text-cosmic" /> User Directory
+              </div>
+              <h2 className="mt-4 font-display text-3xl font-bold">Пользователи, роли и уровни доступа</h2>
+              <p className="mt-3 max-w-3xl text-muted-foreground">
+                Полный список пользователей платформы. Здесь можно без заявки перевести человека в стримеры или вернуть в зрители, а также выдать staff access support, moderator или admin.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-border/50 bg-background/30 px-4 py-3 text-sm text-muted-foreground">
+              Support: только просмотр. Moderator: заявки и platform role. Admin: полный контроль.
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-3 lg:grid-cols-[1fr_260px]">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={userSearchQuery}
+                onChange={(event) => setUserSearchQuery(event.target.value)}
+                placeholder="Поиск по email, имени, username, TikTok username или staff access"
+                className="pl-10"
+              />
+            </div>
+            <label className="flex items-center gap-3 rounded-xl border border-border/50 bg-surface/60 px-3 py-2 text-sm text-muted-foreground">
+              <ArrowUpDown className="h-4 w-4" />
+              <select
+                value={userSortMode}
+                onChange={(event) => setUserSortMode(event.target.value as UserSortMode)}
+                className="w-full bg-transparent text-foreground outline-none"
+              >
+                {(Object.keys(USER_SORT_LABELS) as UserSortMode[]).map((mode) => (
+                  <option key={mode} value={mode} className="bg-background text-foreground">
+                    {USER_SORT_LABELS[mode]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          {usersError && (
+            <div className="mt-6 rounded-3xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive-foreground">
+              {usersError}
+            </div>
+          )}
+
+          <div className="mt-4 text-sm text-muted-foreground">
+            Показано {visibleUsers.length} из {users.length} пользователей.
+          </div>
+
+          <div className="mt-6 space-y-4">
+            {visibleUsers.length === 0 ? (
+              <div className="rounded-3xl border border-border/50 bg-background/30 p-8 text-center text-muted-foreground">
+                Пользователи по этому фильтру не найдены.
+              </div>
+            ) : (
+              visibleUsers.map((adminUser) => (
+                <article key={adminUser.userId} className="rounded-3xl border border-border/50 bg-background/30 p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-display text-2xl font-bold">{adminUser.displayName}</h3>
+                        <RoleBadge label={adminUser.platformRole === "streamer" ? "Стример" : "Зритель"} tone={adminUser.platformRole === "streamer" ? "verified" : "all"} />
+                        <RoleBadge label={STAFF_ACCESS_LABELS[adminUser.staffAccessLevel]} tone={adminUser.staffAccessLevel === "admin" ? "verified" : adminUser.staffAccessLevel === "moderator" ? "pending" : adminUser.staffAccessLevel === "support" ? "all" : "rejected"} />
+                        <RoleBadge label={adminUser.streamerVerificationStatus === "none" ? "Без streamer-профиля" : adminUser.streamerVerificationStatus} tone={adminUser.streamerVerificationStatus === "verified" ? "verified" : adminUser.streamerVerificationStatus === "pending" ? "pending" : adminUser.streamerVerificationStatus === "rejected" ? "rejected" : "all"} />
+                      </div>
+                      <div className="mt-2 grid gap-2 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
+                        <div>@{adminUser.username}</div>
+                        <div>{adminUser.email || "Email не найден"}</div>
+                        <div>{adminUser.tiktokUsername ? `TikTok: @${adminUser.tiktokUsername}` : "TikTok не указан"}</div>
+                        <div>Регистрация: {formatDateTime(adminUser.createdAt)}</div>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {currentAccessLevel !== "support" && adminUser.platformRole !== "viewer" && (
+                        <Button variant="outline" disabled={actionKey !== null} onClick={() => void handlePlatformRoleChange(adminUser, "viewer")}>
+                          {actionKey === `${adminUser.userId}:platform:viewer` ? "Переводим…" : "Сделать зрителем"}
+                        </Button>
+                      )}
+                      {currentAccessLevel !== "support" && adminUser.platformRole !== "streamer" && (
+                        <Button className="bg-gradient-blast text-blast-foreground" disabled={actionKey !== null} onClick={() => void handlePlatformRoleChange(adminUser, "streamer")}>
+                          {actionKey === `${adminUser.userId}:platform:streamer` ? "Переводим…" : "Сделать стримером"}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid gap-4 lg:grid-cols-3">
+                    <InfoBlock label="Последний вход" value={formatDateTime(adminUser.lastSignInAt)} />
+                    <InfoBlock label="Streamer профиль" value={adminUser.streamerDisplayName || "Не создан"} />
+                    <InfoBlock label="Staff заметки" value={adminUser.adminNotes || "Пока пусто"} />
+                  </div>
+
+                  {currentAccessLevel === "admin" && (
+                    <div className="mt-5 rounded-2xl border border-border/50 bg-surface/40 p-4">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                        <UserCog className="h-4 w-4 text-cosmic" /> Staff access
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {(["none", "support", "moderator", "admin"] as AdminPanelAccessLevel[]).map((level) => (
+                          <Button
+                            key={level}
+                            type="button"
+                            variant={adminUser.staffAccessLevel === level ? "default" : "outline"}
+                            className={adminUser.staffAccessLevel === level ? "bg-gradient-blast text-blast-foreground" : undefined}
+                            disabled={actionKey !== null}
+                            onClick={() => void handleStaffAccessChange(adminUser, level)}
+                          >
+                            {actionKey === `${adminUser.userId}:staff:${level}` ? "Сохраняем…" : STAFF_ACCESS_LABELS[level]}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </article>
+              ))
+            )}
+          </div>
+        </section>
       </div>
     </div>
+  );
+}
+
+function RoleBadge({ label, tone }: { label: string; tone: "pending" | "verified" | "rejected" | "all" }) {
+  return (
+    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${tone === "verified" ? "bg-emerald-500/15 text-emerald-300" : tone === "pending" ? "bg-amber-500/15 text-amber-200" : tone === "rejected" ? "bg-rose-500/15 text-rose-300" : "bg-surface-2 text-foreground"}`}>
+      {label}
+    </span>
   );
 }
 

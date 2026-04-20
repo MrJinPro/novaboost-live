@@ -1,6 +1,9 @@
 import type { Session } from "@supabase/supabase-js";
 
 export type AdminApplicationStatus = "pending" | "verified" | "rejected";
+export type AdminStaffAccessLevel = "support" | "moderator" | "admin";
+export type AdminPanelAccessLevel = AdminStaffAccessLevel | "none";
+export type AdminManagedPlatformRole = "viewer" | "streamer";
 
 export type AdminStreamerApplication = {
   verificationId: string;
@@ -25,6 +28,23 @@ export type AdminStreamerApplication = {
   reviewerDisplayName: string | null;
 };
 
+export type AdminConsoleUser = {
+  userId: string;
+  email: string | null;
+  username: string;
+  displayName: string;
+  tiktokUsername: string | null;
+  platformRole: AdminManagedPlatformRole;
+  staffAccessLevel: AdminPanelAccessLevel;
+  streamerId: string | null;
+  streamerDisplayName: string | null;
+  streamerVerificationStatus: AdminApplicationStatus | "none";
+  hasStreamerProfile: boolean;
+  createdAt: string | null;
+  lastSignInAt: string | null;
+  adminNotes: string | null;
+};
+
 export class AdminApiError extends Error {
   status: number;
 
@@ -36,7 +56,11 @@ export class AdminApiError extends Error {
 }
 
 async function requestAdmin<T>(session: Session, init?: RequestInit): Promise<T> {
-  const response = await fetch("/api/admin/streamer-applications", {
+  return requestAdminPath<T>(session, "/api/admin/streamer-applications", init);
+}
+
+async function requestAdminPath<T>(session: Session, path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(path, {
     ...init,
     headers: {
       accept: "application/json",
@@ -57,8 +81,11 @@ async function requestAdmin<T>(session: Session, init?: RequestInit): Promise<T>
 }
 
 export async function loadAdminStreamerApplications(session: Session) {
-  const data = await requestAdmin<{ applications: AdminStreamerApplication[] }>(session, { method: "GET" });
-  return data.applications ?? [];
+  const data = await requestAdmin<{ applications: AdminStreamerApplication[]; currentAccessLevel: AdminPanelAccessLevel }>(session, { method: "GET" });
+  return {
+    applications: data.applications ?? [],
+    currentAccessLevel: data.currentAccessLevel ?? "none",
+  };
 }
 
 export async function reviewAdminStreamerApplication(session: Session, payload: {
@@ -71,5 +98,49 @@ export async function reviewAdminStreamerApplication(session: Session, payload: 
       "content-type": "application/json",
     },
     body: JSON.stringify(payload),
+  });
+}
+
+export async function loadAdminUsers(session: Session) {
+  const data = await requestAdminPath<{ users: AdminConsoleUser[]; currentAccessLevel: AdminPanelAccessLevel }>(session, "/api/admin/users", { method: "GET" });
+  return {
+    users: data.users ?? [],
+    currentAccessLevel: data.currentAccessLevel ?? "none",
+  };
+}
+
+export async function updateAdminUserPlatformRole(session: Session, payload: {
+  userId: string;
+  role: AdminManagedPlatformRole;
+}) {
+  return requestAdminPath<{ ok: true }>(session, "/api/admin/users", {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      action: "set-platform-role",
+      userId: payload.userId,
+      role: payload.role,
+    }),
+  });
+}
+
+export async function updateAdminUserStaffAccess(session: Session, payload: {
+  userId: string;
+  accessLevel: AdminPanelAccessLevel;
+  notes?: string;
+}) {
+  return requestAdminPath<{ ok: true }>(session, "/api/admin/users", {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      action: "set-staff-access",
+      userId: payload.userId,
+      accessLevel: payload.accessLevel,
+      notes: payload.notes,
+    }),
   });
 }
