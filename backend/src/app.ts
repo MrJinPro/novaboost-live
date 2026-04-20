@@ -7,7 +7,8 @@ import { PRMotionService } from "./modules/prmotion/prmotion-service.js";
 import { PromotionOrderRepository } from "./repositories/promotion-order-repository.js";
 import { ScoringService } from "./modules/scoring/scoring-service.js";
 import { createTrackingAdapter } from "./modules/tracking/tracking-adapter.js";
-import { MemoryTrackingEventQueue } from "./modules/tracking/tracking-event-queue.js";
+import { createTrackingEventQueue } from "./modules/tracking/tracking-event-queue.js";
+import { TrackingEventProcessor } from "./modules/tracking/tracking-event-processor.js";
 import { TrackingLiveEventBridge } from "./modules/tracking/live-event-bridge.js";
 import { createTrackingRealtimeStateStore } from "./modules/tracking/tracking-realtime-state.js";
 import { createLiveStorage } from "./storage/create-live-storage.js";
@@ -24,7 +25,7 @@ export function bootstrapBackend() {
   const promotionOrderRepository = supabaseAdmin ? new PromotionOrderRepository(supabaseAdmin) : undefined;
   const { trackingStore, engagementStore } = createLiveStorage(env, supabaseAdmin);
   const trackingAdapter = createTrackingAdapter(logger, env);
-  const trackingEventQueue = new MemoryTrackingEventQueue(logger);
+  const trackingEventQueue = createTrackingEventQueue(env, logger);
   const realtimeStateStore = createTrackingRealtimeStateStore(env, logger);
 
   const tracking = new TrackingService(logger, env, trackingAdapter, trackingStore, realtimeStateStore);
@@ -33,6 +34,14 @@ export function bootstrapBackend() {
   const notifications = new NotificationService(logger, telegram, notificationRoutingRepository);
   const prmotion = new PRMotionService(env, logger, promotionOrderRepository, trackingStore);
   const tiktokProfileSync = supabaseAdmin ? new TikTokProfileSyncService(supabaseAdmin, logger, env) : null;
+  const trackingEventProcessor = trackingStore ? new TrackingEventProcessor({
+    logger,
+    trackingRepository: trackingStore,
+    engagementRepository: engagementStore,
+    realtimeStateStore,
+    scoringService: scoring,
+    queue: trackingEventQueue,
+  }) : null;
 
   if (trackingStore) {
     tracking.attachLiveEventBridge(new TrackingLiveEventBridge({
@@ -40,6 +49,7 @@ export function bootstrapBackend() {
       trackingRepository: trackingStore,
       engagementRepository: engagementStore,
       scoringService: scoring,
+      eventQueue: trackingEventQueue,
       realtimeStateStore,
       requestTimeoutMs: env.TIKTOK_REQUEST_TIMEOUT_MS,
       signApiKey: env.TIKTOK_SIGN_API_KEY,
@@ -65,8 +75,9 @@ export function bootstrapBackend() {
   tracking.attachSocketHub(trackingSocketHub);
 
   tracking.scheduleRegisteredStreamers();
+  trackingEventProcessor?.schedule();
   tiktokProfileSync?.scheduleStreamerProfileSync();
   prmotion.scheduleOrderQueue();
 
-  return { env, logger, server, tracking, scoring, notifications, telegram, prmotion, tiktokProfileSync };
+  return { env, logger, server, tracking, scoring, notifications, telegram, prmotion, tiktokProfileSync, trackingEventProcessor };
 }
