@@ -605,6 +605,20 @@ function ProfilePage() {
                 </div>
               </section>
             )}
+
+            <section className="rounded-3xl border border-border/50 bg-surface/60 p-5 sm:p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="font-display text-xl font-bold">Сохранение настроек</h2>
+                  <div className="mt-2 text-sm text-muted-foreground">
+                    Можно сохранять изменения прямо отсюда, не возвращаясь к верхней части страницы.
+                  </div>
+                </div>
+                <Button onClick={handleSave} disabled={settingsSaving || settingsLoading || !settings} className="w-full gap-2 bg-gradient-cosmic text-foreground sm:w-auto">
+                  <Save className="h-4 w-4" /> {settingsSaving ? "Сохраняю…" : "Сохранить настройки"}
+                </Button>
+              </div>
+            </section>
           </div>
 
           <div className="space-y-6">

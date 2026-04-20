@@ -70,7 +70,7 @@ export type StreamerApplicationState = {
 type UploadMediaKind = "viewer-avatar" | "streamer-avatar" | "streamer-banner";
 
 export async function loadProfileSettings(user: AppUser): Promise<ProfileSettingsDraft> {
-  const [profileCompat, profileResult, streamerResult, pageSettingsResult] = await Promise.all([
+  const [profileCompat, profileResult, streamerResult] = await Promise.all([
     getAuthProfileCompat(user.id),
     supabase
       .from("profiles")
@@ -82,11 +82,6 @@ export async function loadProfileSettings(user: AppUser): Promise<ProfileSetting
       .select("id, display_name, tiktok_username, avatar_url, bio, banner_url, logo_url, tagline, telegram_channel, verification_status, verification_method")
       .eq("user_id", user.id)
       .maybeSingle(),
-    supabase
-      .from("streamer_page_settings")
-      .select("layout")
-      .eq("streamer_id", user.id)
-      .maybeSingle(),
   ]);
 
   if (profileResult.error) {
@@ -97,13 +92,24 @@ export async function loadProfileSettings(user: AppUser): Promise<ProfileSetting
     throw streamerResult.error;
   }
 
-  if (pageSettingsResult.error && pageSettingsResult.error.code !== "PGRST116") {
-    throw pageSettingsResult.error;
-  }
-
   const profile = (profileResult.data ?? null) as ProfileRow | null;
   const streamer = (streamerResult.data ?? null) as StreamerRow | null;
-  const pageSettings = (pageSettingsResult.data ?? null) as PageSettingsRow | null;
+  let pageSettings: PageSettingsRow | null = null;
+
+  if (streamer?.id) {
+    const { data: pageSettingsData, error: pageSettingsError } = await supabase
+      .from("streamer_page_settings")
+      .select("layout")
+      .eq("streamer_id", streamer.id)
+      .maybeSingle();
+
+    if (pageSettingsError && pageSettingsError.code !== "PGRST116") {
+      throw pageSettingsError;
+    }
+
+    pageSettings = (pageSettingsData ?? null) as PageSettingsRow | null;
+  }
+
   const socialLinks = parseStreamerSocialLinks(pageSettings?.layout ?? null);
   const membership = parseStreamerMembershipSettings(pageSettings?.layout ?? null);
 
