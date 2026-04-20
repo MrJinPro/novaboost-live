@@ -59,7 +59,7 @@ class RedisStreamsTrackingEventQueue implements TrackingEventQueue {
   private readonly client: TrackingRedisClient;
   private ready = false;
   private failed = false;
-  private lastId = "0-0";
+  private lastId = "$";
 
   constructor(
     private readonly logger: Logger,

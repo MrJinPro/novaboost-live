@@ -8,11 +8,13 @@ import { ScoringService } from "../scoring/scoring-service.js";
 import { TelegramService } from "../telegram/telegram-service.js";
 import { lookupTikTokProfile } from "../tiktok/tiktok-profile-service.js";
 import { TrackingService } from "../tracking/tracking-service.js";
+import { TrackingEventProcessor } from "../tracking/tracking-event-processor.js";
 import { TrackingSocketHub } from "../tracking/tracking-socket-hub.js";
 import { handleMediaUploadRequest, tryServeMediaRequest } from "./media-storage.js";
 
 type ServiceBundle = {
   tracking: TrackingService;
+  trackingProcessor?: TrackingEventProcessor | null;
   scoring: ScoringService;
   notifications: NotificationService;
   telegram: TelegramService;
@@ -55,6 +57,7 @@ export function startHttpServer(env: BackendEnv, logger: Logger, services: Servi
           env: env.NODE_ENV,
           modules: [
             services.tracking.getHealth(),
+            services.trackingProcessor?.getHealth() ?? null,
             services.scoring.getHealth(),
             services.notifications.getHealth(),
             services.telegram.getHealth(),

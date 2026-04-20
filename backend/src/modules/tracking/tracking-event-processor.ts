@@ -20,6 +20,7 @@ type TrackingEventProcessorOptions = {
 
 export class TrackingEventProcessor {
   private poller: NodeJS.Timeout | null = null;
+  private processing = false;
 
   constructor(private readonly options: TrackingEventProcessorOptions) {}
 
@@ -52,6 +53,13 @@ export class TrackingEventProcessor {
   }
 
   private async runTick() {
+    if (this.processing) {
+      return;
+    }
+
+    this.processing = true;
+
+    try {
     const events = await this.options.queue.drain(100);
     if (events.length === 0) {
       return;
@@ -69,6 +77,9 @@ export class TrackingEventProcessor {
           error: error instanceof Error ? error.message : String(error),
         });
       }
+    }
+    } finally {
+      this.processing = false;
     }
   }
 

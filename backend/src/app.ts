@@ -66,6 +66,7 @@ export function bootstrapBackend() {
 
   const { server, trackingSocketHub } = startHttpServer(env, logger, {
     tracking,
+    trackingProcessor: trackingEventProcessor,
     scoring,
     notifications,
     telegram,
