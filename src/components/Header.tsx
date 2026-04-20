@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ExternalLink, LogOut, Menu, ShieldCheck, User as UserIcon } from "lucide-react";
 import { getOwnedStreamerPublicPage } from "@/lib/streamer-studio-data";
+import { getStreamerPublicRouteParam } from "@/lib/streamer-public-route";
 
 const BASE_NAV = [
   { to: "/" as const, label: "Главная" },
@@ -18,7 +19,7 @@ const BASE_NAV = [
 export function Header() {
   const { user, signOut } = useAuth();
   const location = useLocation();
-  const [publicPageId, setPublicPageId] = useState<string | null>(null);
+  const [publicPageRouteParam, setPublicPageRouteParam] = useState<string | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const navItems = [
     ...BASE_NAV,
@@ -34,7 +35,7 @@ export function Header() {
     let active = true;
 
     if (!user || !user.isStreamer) {
-      setPublicPageId(null);
+      setPublicPageRouteParam(null);
       return;
     }
 
@@ -42,11 +43,11 @@ export function Header() {
       try {
         const page = await getOwnedStreamerPublicPage(user.id);
         if (active) {
-          setPublicPageId(page?.id ?? null);
+          setPublicPageRouteParam(page ? getStreamerPublicRouteParam({ id: page.id, tiktokUsername: page.tiktokUsername }) : null);
         }
       } catch {
         if (active) {
-          setPublicPageId(null);
+          setPublicPageRouteParam(null);
         }
       }
     };
@@ -88,8 +89,8 @@ export function Header() {
           <CurrencySwitcher />
           {user ? (
             <>
-              {user.isStreamer && publicPageId && (
-                <Link to="/streamer/$id" params={{ id: publicPageId }}>
+              {user.isStreamer && publicPageRouteParam && (
+                <Link to="/streamer/$id" params={{ id: publicPageRouteParam }}>
                   <Button variant="ghost" size="sm" className="hidden gap-2 sm:inline-flex">
                     <ExternalLink className="h-4 w-4" />
                     <span className="hidden sm:inline">Публичная</span>
@@ -175,9 +176,9 @@ export function Header() {
                     </div>
 
                     <div className="grid gap-2">
-                      {user.isStreamer && publicPageId && (
+                      {user.isStreamer && publicPageRouteParam && (
                         <SheetClose asChild>
-                          <Link to="/streamer/$id" params={{ id: publicPageId }}>
+                          <Link to="/streamer/$id" params={{ id: publicPageRouteParam }}>
                             <Button variant="outline" className="w-full justify-start gap-2 border-border/60">
                               <ExternalLink className="h-4 w-4" />
                               Публичная страница

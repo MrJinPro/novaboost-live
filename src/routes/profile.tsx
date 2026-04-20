@@ -17,6 +17,7 @@ import { getOwnedStreamerPublicPage } from "@/lib/streamer-studio-data";
 import { loadProfileSettings, loadStreamerApplicationState, saveProfileSettings, submitStreamerApplication, uploadProfileMedia, type ProfileSettingsDraft, type StreamerApplicationState } from "@/lib/profile-settings-data";
 import { getViewerProgression } from "@/lib/viewer-levels";
 import { toast } from "sonner";
+import { getStreamerPublicRouteParam } from "@/lib/streamer-public-route";
 
 export const Route = createFileRoute("/profile")({
   beforeLoad: () => {
@@ -614,7 +615,7 @@ function ProfilePage() {
                 <Link to="/boost"><Button className="w-full justify-start gap-2 bg-gradient-blast font-bold text-blast-foreground"><Zap className="h-4 w-4" /> Поддержать boost</Button></Link>
                 {isStreamer && <Link to="/studio"><Button variant="outline" className="w-full justify-start gap-2"><Sparkles className="h-4 w-4" /> Открыть студию стримера</Button></Link>}
                 {isStreamer && publicPageId && (
-                  <Link to="/streamer/$id" params={{ id: publicPageId }}>
+                  <Link to="/streamer/$id" params={{ id: getStreamerPublicRouteParam({ id: publicPageId, tiktokUsername: user.tiktokUsername }) }}>
                     <Button variant="outline" className="w-full justify-start gap-2"><ExternalLink className="h-4 w-4" /> Открыть публичную страницу</Button>
                   </Link>
                 )}
@@ -626,7 +627,7 @@ function ProfilePage() {
                 <h2 className="font-display text-xl font-bold">Подписки на стримеров</h2>
                 <div className="mt-4 grid gap-3">
                   {favoriteStreamers.map((streamer) => (
-                    <Link key={streamer.id} to="/streamer/$id" params={{ id: streamer.id }} className="rounded-2xl border border-border/50 bg-background/30 p-4 transition-colors hover:border-blast/40">
+                    <Link key={streamer.id} to="/streamer/$id" params={{ id: getStreamerPublicRouteParam({ id: streamer.id, tiktokUsername: streamer.tiktok_username }) }} className="rounded-2xl border border-border/50 bg-background/30 p-4 transition-colors hover:border-blast/40">
                       <div className="font-semibold">{streamer.display_name}</div>
                       <div className="mt-1 text-sm text-muted-foreground">@{streamer.tiktok_username}</div>
                     </Link>

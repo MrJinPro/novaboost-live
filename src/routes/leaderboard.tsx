@@ -8,6 +8,7 @@ import { formatNumber } from "@/lib/format";
 import { Link } from "@tanstack/react-router";
 import { loadViewerLeaderboard, type ViewerLeaderboardEntry } from "@/lib/leaderboard-data";
 import { toast } from "sonner";
+import { getStreamerPublicRouteParam } from "@/lib/streamer-public-route";
 
 export const Route = createFileRoute("/leaderboard")({
   head: () => ({
@@ -77,7 +78,7 @@ function LeaderboardPage() {
                   Загружаю рейтинг стримеров и live-данные…
                 </div>
               ) : streamers.map((s, idx) => (
-                <Link key={s.id} to="/streamer/$id" params={{ id: s.id }} className="flex items-center gap-3 rounded-lg p-2 hover:bg-surface-2 transition-colors">
+                <Link key={s.id} to="/streamer/$id" params={{ id: getStreamerPublicRouteParam({ id: s.id, tiktokUsername: s.tiktok_username }) }} className="flex items-center gap-3 rounded-lg p-2 hover:bg-surface-2 transition-colors">
                   <RankBadge rank={idx + 1} />
                   <img src={s.avatar_url ?? ""} className="h-10 w-10 rounded-full bg-surface-2" alt="" />
                   <div className="flex-1 min-w-0">

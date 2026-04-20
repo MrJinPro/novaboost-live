@@ -11,6 +11,7 @@ import { ArrowLeft, Crown, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { createBoost } from "@/lib/boost-data";
 import { loadViewerProfileData } from "@/lib/user-profile-data";
+import { getStreamerPublicRouteParam } from "@/lib/streamer-public-route";
 
 const searchSchema = z.object({
   streamerId: z.string().optional(),
@@ -138,7 +139,7 @@ function BoostPage() {
       const result = await createBoost(user, selected, tier);
       setAvailablePoints(result.remainingPoints);
       toast.success(`Буст запущен: ${streamer?.display_name ?? "стример"} получил +${tier} ⚡ к приоритету внутри NovaBoost.`);
-      navigate({ to: "/streamer/$id", params: { id: selected } });
+      navigate({ to: "/streamer/$id", params: { id: getStreamerPublicRouteParam({ id: selected, tiktokUsername: streamer?.tiktok_username }) } });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Не удалось запустить буст");
     } finally {

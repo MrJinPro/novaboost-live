@@ -15,6 +15,7 @@ import { ArrowRight, Crown, Eye, ExternalLink, Flame, Send, Smartphone, Sparkles
 import { formatNumber } from "@/lib/format";
 import { loadHomeActivityFeed, type HomeActivityItem } from "@/lib/home-activity-data";
 import { toast } from "sonner";
+import { getStreamerPublicRouteParam } from "@/lib/streamer-public-route";
 
 const PLAY_TESTING_URL = "https://play.google.com/apps/testing/com.novaboost.live";
 
@@ -238,7 +239,7 @@ function HomePage() {
                   <Link
                     key={s.id}
                     to="/streamer/$id"
-                    params={{ id: s.id }}
+                    params={{ id: getStreamerPublicRouteParam({ id: s.id, tiktokUsername: s.tiktok_username }) }}
                     className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-surface-2"
                   >
                     <div className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold ${

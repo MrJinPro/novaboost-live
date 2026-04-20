@@ -16,6 +16,7 @@ import { ArrowLeft, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { convertCurrency, formatEditableAmount, getLocalizedMoney, useCurrencyPreference } from "@/lib/currency";
 import { loadDonationLinkBySlug } from "@/lib/monetization-data";
+import { getStreamerPublicRouteParam } from "@/lib/streamer-public-route";
 
 export const Route = createFileRoute("/support/$slug")({
   head: () => ({
@@ -181,7 +182,7 @@ function SupportPage() {
     <div className="min-h-screen">
       <Header />
       <div className="container mx-auto max-w-3xl px-4 py-6">
-        <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/streamer/$id", params: { id: linkData.streamer_id } })} className="gap-1.5 -ml-3">
+        <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/streamer/$id", params: { id: getStreamerPublicRouteParam({ id: linkData.streamer_id, tiktokUsername: linkData.streamers?.tiktok_username }) } })} className="gap-1.5 -ml-3">
           <ArrowLeft className="h-4 w-4" /> К стримеру
         </Button>
 

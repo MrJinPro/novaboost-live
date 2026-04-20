@@ -5,6 +5,7 @@ import { BoostBadge, NeedsBoostBadge } from "./BoostBadge";
 import { AppAvatar } from "./AppAvatar";
 import { formatNumber } from "@/lib/format";
 import type { StreamerCardData } from "@/lib/mock-platform";
+import { getStreamerPublicRouteParam } from "@/lib/streamer-public-route";
 
 interface StreamerCardProps {
   streamer: StreamerCardData;
@@ -15,6 +16,7 @@ export function StreamerCard({ streamer, variant = "default" }: StreamerCardProp
   const boosted = streamer.total_boost_amount > 0;
   const isRegistered = streamer.is_registered ?? true;
   const platformSubscriberCount = streamer.subscription_count ?? 0;
+  const publicRouteParam = getStreamerPublicRouteParam({ id: streamer.id, tiktokUsername: streamer.tiktok_username });
   const liveMetrics = [
     { key: "viewers", icon: Eye, value: streamer.viewer_count },
     { key: "likes", icon: Heart, value: streamer.like_count ?? 0 },
@@ -26,7 +28,7 @@ export function StreamerCard({ streamer, variant = "default" }: StreamerCardProp
     return (
       <Link
         to="/streamer/$id"
-        params={{ id: streamer.id }}
+        params={{ id: publicRouteParam }}
         className="group flex items-center gap-3 rounded-xl border border-border/50 bg-surface/60 p-3 transition-all hover:border-blast/40 hover:bg-surface"
       >
         <div className="relative shrink-0">
@@ -79,7 +81,7 @@ export function StreamerCard({ streamer, variant = "default" }: StreamerCardProp
   return (
     <Link
       to="/streamer/$id"
-      params={{ id: streamer.id }}
+      params={{ id: publicRouteParam }}
       className={`group relative overflow-hidden rounded-2xl border bg-surface/70 p-5 transition-all hover:-translate-y-0.5 ${
         boosted
           ? "border-blast/50 shadow-glow animate-glow-breathe"

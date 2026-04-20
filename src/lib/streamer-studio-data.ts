@@ -295,6 +295,10 @@ export async function getOwnedStreamerPublicPage(userId: string) {
   };
 }
 
+function isUuidLike(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.trim());
+}
+
 async function getPageSettings(streamerId: string) {
   const { data, error } = await supabase
     .from("streamer_page_settings")
@@ -717,12 +721,15 @@ export async function publishStreamerPost(
   };
 }
 
-export async function loadPublicStreamerPage(id: string) {
-  const { data, error } = await supabase
+export async function loadPublicStreamerPage(idOrUsername: string) {
+  const normalizedValue = idOrUsername.trim();
+  const query = supabase
     .from("streamers")
-    .select("id, user_id, display_name, tiktok_username, avatar_url, bio, banner_url, logo_url, tagline, telegram_channel, is_live, viewer_count, followers_count, needs_boost, total_boost_amount")
-    .eq("id", id)
-    .maybeSingle();
+    .select("id, user_id, display_name, tiktok_username, avatar_url, bio, banner_url, logo_url, tagline, telegram_channel, is_live, viewer_count, followers_count, needs_boost, total_boost_amount");
+
+  const { data, error } = await (isUuidLike(normalizedValue)
+    ? query.eq("id", normalizedValue).maybeSingle()
+    : query.ilike("tiktok_username", normalizedValue).maybeSingle());
 
   if (error) {
     throw error;

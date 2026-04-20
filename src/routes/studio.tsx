@@ -19,6 +19,7 @@ import { deactivateStreamerCodeWordTask, loadStreamerCodeWordTasks, publishStrea
 import { calculateCodeWordReward, validateCodeWord } from "@/lib/viewer-levels";
 import { toast } from "sonner";
 import { Bell, Copy, ExternalLink, ImagePlus, LayoutPanelTop, PencilLine, Send, Sparkles, ShieldCheck, Wallet } from "lucide-react";
+import { getStreamerPublicRouteParam } from "@/lib/streamer-public-route";
 
 export const Route = createFileRoute("/studio")({
   head: () => ({
@@ -953,7 +954,7 @@ function StreamerStudioPage() {
           <div className="grid gap-3 sm:flex sm:flex-wrap">
             <Link to="/profile"><Button variant="outline" className="w-full sm:w-auto">Назад в кабинет</Button></Link>
             {publicPageId && (
-              <Link to="/streamer/$id" params={{ id: publicPageId }}>
+              <Link to="/streamer/$id" params={{ id: getStreamerPublicRouteParam({ id: publicPageId, tiktokUsername: user?.tiktokUsername ?? null }) }}>
                 <Button className="w-full bg-gradient-blast text-blast-foreground font-bold gap-2 sm:w-auto">
                   <ExternalLink className="h-4 w-4" /> Открыть публичную страницу
                 </Button>

@@ -16,6 +16,7 @@ import { calculateCustomerAmount, getPromotionTargetMeta, groupTikTokPromotionSe
 import { loadMyPromotionOrders, type PromotionOrderSummary } from "@/lib/promotion-orders-data";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { getStreamerPublicRouteParam } from "@/lib/streamer-public-route";
 
 const searchSchema = z.object({
   streamerId: z.string().optional(),
@@ -237,7 +238,7 @@ function ServicesPage() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate(selectedStreamerId ? { to: "/streamer/$id", params: { id: selectedStreamerId } } : { to: "/profile" })}
+          onClick={() => navigate(selectedStreamerId ? { to: "/streamer/$id", params: { id: getStreamerPublicRouteParam({ id: selectedStreamerId, tiktokUsername: selectedStreamer?.tiktok_username }) } } : { to: "/profile" })}
           className="gap-1.5 -ml-3"
         >
           <ArrowLeft className="h-4 w-4" /> {selectedStreamerId ? "К стримеру" : "В кабинет"}
