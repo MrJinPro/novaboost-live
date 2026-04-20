@@ -34,6 +34,7 @@ import { Route as LegalAcceptableUseRouteImport } from './routes/legal.acceptabl
 import { Route as ApiCurrencyPreferenceRouteImport } from './routes/api/currency-preference'
 import { Route as ApiRevealKeyRouteImport } from './routes/api/_reveal-key'
 import { Route as OverlayDonationSlugRouteImport } from './routes/overlay.donation.$slug'
+import { Route as ApiAdminUsersRouteImport } from './routes/api/admin/users'
 import { Route as ApiAdminStreamerApplicationsRouteImport } from './routes/api/admin/streamer-applications'
 import { Route as OverlayWidgetSlugWidgetRouteImport } from './routes/overlay.widget.$slug.$widget'
 
@@ -162,6 +163,11 @@ const OverlayDonationSlugRoute = OverlayDonationSlugRouteImport.update({
   path: '/overlay/donation/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminUsersRoute = ApiAdminUsersRouteImport.update({
+  id: '/api/admin/users',
+  path: '/api/admin/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAdminStreamerApplicationsRoute =
   ApiAdminStreamerApplicationsRouteImport.update({
     id: '/api/admin/streamer-applications',
@@ -200,6 +206,7 @@ export interface FileRoutesByFullPath {
   '/streamer/$id': typeof StreamerIdRoute
   '/support/$slug': typeof SupportSlugRoute
   '/api/admin/streamer-applications': typeof ApiAdminStreamerApplicationsRoute
+  '/api/admin/users': typeof ApiAdminUsersRoute
   '/overlay/donation/$slug': typeof OverlayDonationSlugRoute
   '/overlay/widget/$slug/$widget': typeof OverlayWidgetSlugWidgetRoute
 }
@@ -229,6 +236,7 @@ export interface FileRoutesByTo {
   '/streamer/$id': typeof StreamerIdRoute
   '/support/$slug': typeof SupportSlugRoute
   '/api/admin/streamer-applications': typeof ApiAdminStreamerApplicationsRoute
+  '/api/admin/users': typeof ApiAdminUsersRoute
   '/overlay/donation/$slug': typeof OverlayDonationSlugRoute
   '/overlay/widget/$slug/$widget': typeof OverlayWidgetSlugWidgetRoute
 }
@@ -259,6 +267,7 @@ export interface FileRoutesById {
   '/streamer/$id': typeof StreamerIdRoute
   '/support/$slug': typeof SupportSlugRoute
   '/api/admin/streamer-applications': typeof ApiAdminStreamerApplicationsRoute
+  '/api/admin/users': typeof ApiAdminUsersRoute
   '/overlay/donation/$slug': typeof OverlayDonationSlugRoute
   '/overlay/widget/$slug/$widget': typeof OverlayWidgetSlugWidgetRoute
 }
@@ -290,6 +299,7 @@ export interface FileRouteTypes {
     | '/streamer/$id'
     | '/support/$slug'
     | '/api/admin/streamer-applications'
+    | '/api/admin/users'
     | '/overlay/donation/$slug'
     | '/overlay/widget/$slug/$widget'
   fileRoutesByTo: FileRoutesByTo
@@ -319,6 +329,7 @@ export interface FileRouteTypes {
     | '/streamer/$id'
     | '/support/$slug'
     | '/api/admin/streamer-applications'
+    | '/api/admin/users'
     | '/overlay/donation/$slug'
     | '/overlay/widget/$slug/$widget'
   id:
@@ -348,6 +359,7 @@ export interface FileRouteTypes {
     | '/streamer/$id'
     | '/support/$slug'
     | '/api/admin/streamer-applications'
+    | '/api/admin/users'
     | '/overlay/donation/$slug'
     | '/overlay/widget/$slug/$widget'
   fileRoutesById: FileRoutesById
@@ -378,6 +390,7 @@ export interface RootRouteChildren {
   StreamerIdRoute: typeof StreamerIdRoute
   SupportSlugRoute: typeof SupportSlugRoute
   ApiAdminStreamerApplicationsRoute: typeof ApiAdminStreamerApplicationsRoute
+  ApiAdminUsersRoute: typeof ApiAdminUsersRoute
   OverlayDonationSlugRoute: typeof OverlayDonationSlugRoute
   OverlayWidgetSlugWidgetRoute: typeof OverlayWidgetSlugWidgetRoute
 }
@@ -559,6 +572,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OverlayDonationSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/users': {
+      id: '/api/admin/users'
+      path: '/api/admin/users'
+      fullPath: '/api/admin/users'
+      preLoaderRoute: typeof ApiAdminUsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/admin/streamer-applications': {
       id: '/api/admin/streamer-applications'
       path: '/api/admin/streamer-applications'
@@ -602,6 +622,7 @@ const rootRouteChildren: RootRouteChildren = {
   StreamerIdRoute: StreamerIdRoute,
   SupportSlugRoute: SupportSlugRoute,
   ApiAdminStreamerApplicationsRoute: ApiAdminStreamerApplicationsRoute,
+  ApiAdminUsersRoute: ApiAdminUsersRoute,
   OverlayDonationSlugRoute: OverlayDonationSlugRoute,
   OverlayWidgetSlugWidgetRoute: OverlayWidgetSlugWidgetRoute,
 }
