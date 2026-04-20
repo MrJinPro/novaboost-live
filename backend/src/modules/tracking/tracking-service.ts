@@ -16,6 +16,10 @@ export type ResolvedLiveStatus = {
   source: string;
 };
 
+function normalizeTikTokUsername(username: string) {
+  return username.trim().replace(/^@+/, "").toLowerCase();
+}
+
 export class TrackingService {
   private poller: NodeJS.Timeout | null = null;
   private lastRunAt: string | null = null;
@@ -56,9 +60,45 @@ export class TrackingService {
 
   async resolveLiveStatuses(usernames: string[]) {
     const uniqueUsernames = [...new Set(usernames.map((username) => username.trim()).filter(Boolean))];
+    const realtimeStatuses = new Map<string, ResolvedLiveStatus>();
+
+    if (this.trackingRepository && this.realtimeStateStore) {
+      const trackedStreamers = await this.trackingRepository.getTrackedStreamers();
+      const trackedByUsername = new Map(
+        trackedStreamers.map((streamer) => [normalizeTikTokUsername(streamer.tiktok_username), streamer]),
+      );
+
+      for (const username of uniqueUsernames) {
+        const trackedStreamer = trackedByUsername.get(normalizeTikTokUsername(username));
+        if (!trackedStreamer) {
+          continue;
+        }
+
+        const realtimeState = await this.realtimeStateStore.getStreamerState(trackedStreamer.id);
+        if (!realtimeState) {
+          continue;
+        }
+
+        realtimeStatuses.set(normalizeTikTokUsername(username), {
+          tiktokUsername: trackedStreamer.tiktok_username,
+          isLive: realtimeState.isLive,
+          viewerCount: realtimeState.viewerCount,
+          followersCount: trackedStreamer.followers_count,
+          checkedAt: realtimeState.lastUpdate,
+          source: realtimeState.source,
+        });
+      }
+    }
+
     const snapshots: ResolvedLiveStatus[] = [];
 
     for (const username of uniqueUsernames) {
+      const realtimeStatus = realtimeStatuses.get(normalizeTikTokUsername(username));
+      if (realtimeStatus) {
+        snapshots.push(realtimeStatus);
+        continue;
+      }
+
       const snapshot = await this.adapter.fetchSnapshot({
         id: `lookup:${username.toLowerCase()}`,
         display_name: username,
@@ -96,10 +136,31 @@ export class TrackingService {
       this.realtimeStateStore?.getStreamerState(streamerId) ?? Promise.resolve(null),
     ]);
 
+    const mergedState = realtimeState
+      ? {
+          id: state?.id ?? streamerId,
+          tiktok_username: state?.tiktok_username ?? "",
+          is_live: realtimeState.isLive,
+          viewer_count: realtimeState.viewerCount,
+        }
+      : state;
+
+    const mergedLatestSession = realtimeState && latestSession
+      ? {
+          ...latestSession,
+          status: realtimeState.isLive ? "live" : latestSession.status,
+          current_viewer_count: realtimeState.viewerCount,
+          peak_viewer_count: Math.max(latestSession.peak_viewer_count, realtimeState.viewerCount),
+          like_count: realtimeState.likeCount,
+          gift_count: realtimeState.giftCount,
+          message_count: realtimeState.messageCount,
+        }
+      : latestSession;
+
     return {
-      state,
+      state: mergedState,
       realtimeState,
-      latestSession,
+      latestSession: mergedLatestSession,
       recentEvents,
     };
   }
