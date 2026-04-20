@@ -471,6 +471,16 @@ function StreamerProfile() {
                   <h1 className="font-display text-2xl font-bold leading-tight sm:text-3xl md:text-4xl">{streamer.display_name}</h1>
                   {boosted && <span className="text-3xl text-crown">👑</span>}
                   {streamer.is_live && <LiveIndicator size="md" />}
+                  {streamer.is_live && streamer.live_mode_label && (
+                    <span className="rounded-full border border-cosmic/40 bg-cosmic/10 px-3 py-1 text-xs font-medium text-cosmic">
+                      {streamer.live_mode_label}
+                    </span>
+                  )}
+                  {streamer.is_live && streamer.live_status_label && streamer.live_status_label !== "В эфире" && (
+                    <span className="rounded-full border border-border/60 bg-background/40 px-3 py-1 text-xs font-medium text-muted-foreground">
+                      {streamer.live_status_label}
+                    </span>
+                  )}
                 </div>
                 <div className="mt-1 text-muted-foreground">@{streamer.tiktok_username}</div>
                 <p className="mt-3 max-w-3xl text-sm leading-6 text-foreground/90 sm:text-base">{streamer.tagline}</p>
@@ -608,6 +618,12 @@ function StreamerProfile() {
               <div className="rounded-2xl border border-border/50 bg-background/30 p-5">
                 <div className="text-xs uppercase tracking-wider text-muted-foreground">Что есть на странице</div>
                 <div className="mt-4 space-y-3 text-sm text-muted-foreground">
+                  {streamer.is_live && (streamer.live_mode_label || streamer.live_status_label) && (
+                    <div className="rounded-xl border border-cosmic/30 bg-cosmic/5 px-4 py-3 text-foreground">
+                      {streamer.live_mode_label ? `Режим эфира: ${streamer.live_mode_label}. ` : ""}
+                      {streamer.live_status_label ? `Статус комнаты: ${streamer.live_status_label}.` : ""}
+                    </div>
+                  )}
                   <div className="rounded-xl border border-border/40 bg-surface/60 px-4 py-3">Здесь видны username, аватар, баннер и текущее live-состояние.</div>
                   <div className="rounded-xl border border-border/40 bg-surface/60 px-4 py-3">{isRegistered ? "Здесь публикуются анонсы, новости и посты между эфирами." : "Пока здесь нет внутренних постов, подписок и донатов NovaBoost Live."}</div>
                   <div className="rounded-xl border border-border/40 bg-surface/60 px-4 py-3">{isRegistered ? "Короткие видео и отдельный блок для главного видео появляются только если их добавили." : "После регистрации стример сможет настроить полную страницу, бонусы, бусты и отдельный медиаблок."}</div>

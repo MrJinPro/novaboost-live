@@ -829,6 +829,8 @@ export async function loadPublicStreamerPage(idOrUsername: string) {
     peak_viewer_count: resolvedSession?.peak_viewer_count ?? trackingRealtimeState?.viewerCount ?? 0,
     current_session_status: trackingRealtimeState?.isLive ? "live" : (resolvedSession?.status ?? null),
     current_session_started_at: resolvedSession?.started_at ?? trackingRealtimeState?.lastUpdate ?? null,
+    live_status_label: trackingRealtimeState?.liveStatusLabel ?? null,
+    live_mode_label: trackingRealtimeState?.liveModeLabel ?? null,
     accent: settings?.accent_color ?? getStreamerThemeSeed(streamer.tiktok_username, streamer.display_name).accent,
     tags: (() => {
       const layout = (settings?.layout ?? {}) as { tags?: string[] };

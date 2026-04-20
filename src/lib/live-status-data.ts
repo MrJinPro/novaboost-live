@@ -28,6 +28,12 @@ type StreamTrackingResponse = {
       likeCount: number;
       giftCount: number;
       messageCount: number;
+      liveStatusCode: number | null;
+      liveStatusLabel: string | null;
+      isLinkMic: boolean | null;
+      linkMicLayout: number | null;
+      multiLiveEnum: number | null;
+      liveModeLabel: string | null;
       lastUpdate: string;
       source: string;
     } | null;

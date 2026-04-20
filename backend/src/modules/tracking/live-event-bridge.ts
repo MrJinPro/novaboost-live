@@ -46,6 +46,7 @@ type TeamProgress = {
 
 export class TrackingLiveEventBridge {
   private readonly activeConnections = new Map<string, ActiveConnection>();
+  private readonly connectingPromises = new Map<string, Promise<void>>();
   private readonly reconnectTimers = new Map<string, NodeJS.Timeout>();
   private readonly idleTimers = new Map<string, NodeJS.Timeout>();
 
@@ -78,7 +79,12 @@ export class TrackingLiveEventBridge {
       return;
     }
 
+    const inFlight = this.connectingPromises.get(streamer.id);
     if (existing && existing.streamSessionId === streamSessionId && existing.username === username) {
+      return;
+    }
+
+    if (inFlight) {
       return;
     }
 
@@ -104,6 +110,22 @@ export class TrackingLiveEventBridge {
   }
 
   private async connectStreamer(streamer: TrackedStreamer, streamSessionId: string, username: string) {
+    const existingPromise = this.connectingPromises.get(streamer.id);
+    if (existingPromise) {
+      await existingPromise;
+      return;
+    }
+
+    const connectPromise = this.connectStreamerInternal(streamer, streamSessionId, username)
+      .finally(() => {
+        this.connectingPromises.delete(streamer.id);
+      });
+
+    this.connectingPromises.set(streamer.id, connectPromise);
+    await connectPromise;
+  }
+
+  private async connectStreamerInternal(streamer: TrackedStreamer, streamSessionId: string, username: string) {
     const connectionOptions: ConstructorParameters<typeof TikTokLiveConnection>[1] = {
       processInitialData: false,
       fetchRoomInfoOnConnect: true,
@@ -133,6 +155,7 @@ export class TrackingLiveEventBridge {
       const state = await connection.connect();
       this.activeConnections.set(streamer.id, { streamerId: streamer.id, streamer, streamSessionId, username, connection });
       this.touchConnection(streamer.id);
+      await this.applyRoomInfo(streamer.id, streamSessionId, state.roomInfo);
       await this.seedSessionFromRoomInfo(streamer, streamSessionId, state.roomInfo);
       this.options.logger.info("Live event bridge connected", {
         streamerId: streamer.id,
@@ -147,6 +170,38 @@ export class TrackingLiveEventBridge {
       });
       this.scheduleReconnect(streamer, streamSessionId, username, "connect_failed");
     }
+  }
+
+  private async applyRoomInfo(streamerId: string, streamSessionId: string, roomInfo: unknown) {
+    const roomMetrics = extractRoomMetrics(roomInfo);
+    const roomState = extractRoomState(roomInfo);
+
+    if (
+      roomMetrics.viewerCount === null
+      && roomMetrics.likeCount === null
+      && roomState.liveStatusCode === null
+      && roomState.liveStatusLabel === null
+      && roomState.isLinkMic === null
+      && roomState.linkMicLayout === null
+      && roomState.multiLiveEnum === null
+      && roomState.liveModeLabel === null
+    ) {
+      return;
+    }
+
+    await this.options.realtimeStateStore?.applyRoomInfo(streamerId, {
+      streamId: streamSessionId,
+      source: "tiktok-live-connector",
+      occurredAt: new Date().toISOString(),
+      viewerCount: roomMetrics.viewerCount,
+      likeCount: roomMetrics.likeCount,
+      liveStatusCode: roomState.liveStatusCode,
+      liveStatusLabel: roomState.liveStatusLabel,
+      isLinkMic: roomState.isLinkMic,
+      linkMicLayout: roomState.linkMicLayout,
+      multiLiveEnum: roomState.multiLiveEnum,
+      liveModeLabel: roomState.liveModeLabel,
+    });
   }
 
   private registerHandlers(streamer: TrackedStreamer, streamSessionId: string, connection: TikTokLiveConnection) {
@@ -245,7 +300,7 @@ export class TrackingLiveEventBridge {
     }
 
     const { streamer, streamSessionId, username } = active;
-    await this.disconnectStreamer(streamerId, reason);
+    await this.disconnectStreamer(streamerId, reason, { markEnded: false });
     this.scheduleReconnect(streamer, streamSessionId, username, reason);
   }
 
@@ -446,7 +501,7 @@ export class TrackingLiveEventBridge {
     }));
   }
 
-  private async disconnectStreamer(streamerId: string, reason: string) {
+  private async disconnectStreamer(streamerId: string, reason: string, options?: { markEnded?: boolean }) {
     const active = this.activeConnections.get(streamerId);
     if (!active) {
       return;
@@ -476,12 +531,18 @@ export class TrackingLiveEventBridge {
       streamSessionId: active.streamSessionId,
     });
 
-    await this.options.realtimeStateStore?.markStreamEnded(streamerId, {
-      streamId: active.streamSessionId,
-      source: "tiktok-live-connector",
-      occurredAt: new Date().toISOString(),
-    });
+    if (options?.markEnded ?? shouldMarkStreamEnded(reason)) {
+      await this.options.realtimeStateStore?.markStreamEnded(streamerId, {
+        streamId: active.streamSessionId,
+        source: "tiktok-live-connector",
+        occurredAt: new Date().toISOString(),
+      });
+    }
   }
+}
+
+function shouldMarkStreamEnded(reason: string) {
+  return reason === "stream_not_live" || reason === "stream_end";
 }
 
 function normalizeTikTokUsername(input: string) {
@@ -634,5 +695,90 @@ function summarizeRoomMetrics(roomInfo: unknown) {
     live_room_user_info: getValueAtPath(roomInfo, ["liveRoomUserInfo"]),
     metrics: extractRoomMetrics(roomInfo),
   } satisfies Record<string, unknown>;
+}
+
+function readBoolean(value: unknown) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (value === 1 || value === "1" || value === "true") {
+    return true;
+  }
+
+  if (value === 0 || value === "0" || value === "false") {
+    return false;
+  }
+
+  return null;
+}
+
+function extractRoomState(roomInfo: unknown) {
+  const liveStatusCode = extractNumber(roomInfo, [
+    ["status"],
+    ["liveRoom", "status"],
+    ["data", "status"],
+    ["data", "liveRoom", "status"],
+    ["roomStatus"],
+  ]);
+
+  const linkMicLayout = extractNumber(roomInfo, [
+    ["linkmic_layout"],
+    ["liveRoom", "linkmic_layout"],
+    ["streamRoom", "linkmic_layout"],
+    ["data", "liveRoom", "linkmic_layout"],
+  ]);
+
+  const multiLiveEnum = extractNumber(roomInfo, [
+    ["multi_live_enum"],
+    ["liveRoom", "multi_live_enum"],
+    ["streamRoom", "multi_live_enum"],
+    ["data", "liveRoom", "multi_live_enum"],
+  ]);
+
+  const hasMultiLiveObject = Boolean(
+    getValueAtPath(roomInfo, ["social_interaction", "multi_live"])
+    || getValueAtPath(roomInfo, ["liveRoom", "social_interaction", "multi_live"])
+    || getValueAtPath(roomInfo, ["streamRoom", "social_interaction", "multi_live"])
+  );
+
+  const isLinkMic = (
+    readBoolean(getValueAtPath(roomInfo, ["live_type_linkmic"]))
+    ?? readBoolean(getValueAtPath(roomInfo, ["liveRoom", "live_type_linkmic"]))
+    ?? readBoolean(getValueAtPath(roomInfo, ["streamRoom", "live_type_linkmic"]))
+    ?? (linkMicLayout !== null ? linkMicLayout > 0 : null)
+    ?? (hasMultiLiveObject ? true : null)
+  );
+
+  let liveStatusLabel: string | null = null;
+  switch (liveStatusCode) {
+    case 2:
+      liveStatusLabel = "В эфире";
+      break;
+    case 1:
+      liveStatusLabel = "Подготовка";
+      break;
+    case 4:
+      liveStatusLabel = "Пауза";
+      break;
+    default:
+      liveStatusLabel = liveStatusCode === null ? null : `Статус ${liveStatusCode}`;
+  }
+
+  let liveModeLabel: string | null = null;
+  if (isLinkMic) {
+    liveModeLabel = (multiLiveEnum ?? 0) > 0 || (linkMicLayout ?? 0) > 0 || hasMultiLiveObject
+      ? "Мультигость"
+      : "Гостевой эфир";
+  }
+
+  return {
+    liveStatusCode,
+    liveStatusLabel,
+    isLinkMic,
+    linkMicLayout,
+    multiLiveEnum,
+    liveModeLabel,
+  };
 }
 

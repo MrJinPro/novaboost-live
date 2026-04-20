@@ -147,6 +147,8 @@ export interface StreamerPageData extends StreamerCardData {
   peak_viewer_count?: number;
   current_session_status?: "live" | "ended" | "failed" | null;
   current_session_started_at?: string | null;
+  live_status_label?: string | null;
+  live_mode_label?: string | null;
   tags: string[];
   perks: string[];
   donation_link_slug?: string | null;

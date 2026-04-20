@@ -11,6 +11,12 @@ export type RealtimeStreamState = {
   likeCount: number;
   messageCount: number;
   giftCount: number;
+  liveStatusCode: number | null;
+  liveStatusLabel: string | null;
+  isLinkMic: boolean | null;
+  linkMicLayout: number | null;
+  multiLiveEnum: number | null;
+  liveModeLabel: string | null;
   lastUpdate: string;
   source: string;
   lastEventType: string | null;
@@ -37,6 +43,19 @@ export interface TrackingRealtimeStateStore {
     messageDelta?: number;
     giftDelta?: number;
   }): Promise<void>;
+  applyRoomInfo(streamerId: string, input: {
+    streamId: string;
+    source: string;
+    occurredAt: string;
+    viewerCount?: number | null;
+    likeCount?: number | null;
+    liveStatusCode?: number | null;
+    liveStatusLabel?: string | null;
+    isLinkMic?: boolean | null;
+    linkMicLayout?: number | null;
+    multiLiveEnum?: number | null;
+    liveModeLabel?: string | null;
+  }): Promise<void>;
   markStreamEnded(streamerId: string, input: {
     streamId?: string | null;
     source: string;
@@ -52,6 +71,12 @@ type RealtimeStreamStateRecord = {
   like_count: string;
   message_count: string;
   gift_count: string;
+  live_status_code: string;
+  live_status_label: string;
+  is_link_mic: string;
+  link_mic_layout: string;
+  multi_live_enum: string;
+  live_mode_label: string;
   last_update: string;
   source: string;
   last_event_type: string;
@@ -64,6 +89,12 @@ const EMPTY_STATE: Omit<RealtimeStreamState, "lastUpdate" | "source"> = {
   likeCount: 0,
   messageCount: 0,
   giftCount: 0,
+  liveStatusCode: null,
+  liveStatusLabel: null,
+  isLinkMic: null,
+  linkMicLayout: null,
+  multiLiveEnum: null,
+  liveModeLabel: null,
   lastEventType: null,
 };
 
@@ -92,6 +123,12 @@ function mapRecord(record: Record<string, string>): RealtimeStreamState | null {
     likeCount: parseIntSafe(record.like_count),
     messageCount: parseIntSafe(record.message_count),
     giftCount: parseIntSafe(record.gift_count),
+    liveStatusCode: record.live_status_code ? parseIntSafe(record.live_status_code, 0) : null,
+    liveStatusLabel: record.live_status_label || null,
+    isLinkMic: record.is_link_mic ? record.is_link_mic === "true" : null,
+    linkMicLayout: record.link_mic_layout ? parseIntSafe(record.link_mic_layout, 0) : null,
+    multiLiveEnum: record.multi_live_enum ? parseIntSafe(record.multi_live_enum, 0) : null,
+    liveModeLabel: record.live_mode_label || null,
     lastUpdate: record.last_update || new Date(0).toISOString(),
     source: record.source || "unknown",
     lastEventType: record.last_event_type || null,
@@ -106,6 +143,12 @@ function mapStateToRecord(state: RealtimeStreamState): RealtimeStreamStateRecord
     like_count: String(state.likeCount),
     message_count: String(state.messageCount),
     gift_count: String(state.giftCount),
+    live_status_code: state.liveStatusCode === null ? "" : String(state.liveStatusCode),
+    live_status_label: state.liveStatusLabel ?? "",
+    is_link_mic: state.isLinkMic === null ? "" : String(state.isLinkMic),
+    link_mic_layout: state.linkMicLayout === null ? "" : String(state.linkMicLayout),
+    multi_live_enum: state.multiLiveEnum === null ? "" : String(state.multiLiveEnum),
+    live_mode_label: state.liveModeLabel ?? "",
     last_update: state.lastUpdate,
     source: state.source,
     last_event_type: state.lastEventType ?? "",
@@ -136,6 +179,12 @@ class MemoryTrackingRealtimeStateStore implements TrackingRealtimeStateStore {
       likeCount: input.snapshot.likeCount ?? current?.likeCount ?? 0,
       messageCount: current?.messageCount ?? 0,
       giftCount: current?.giftCount ?? 0,
+      liveStatusCode: current?.liveStatusCode ?? null,
+      liveStatusLabel: current?.liveStatusLabel ?? null,
+      isLinkMic: current?.isLinkMic ?? null,
+      linkMicLayout: current?.linkMicLayout ?? null,
+      multiLiveEnum: current?.multiLiveEnum ?? null,
+      liveModeLabel: current?.liveModeLabel ?? null,
       lastUpdate: input.snapshot.checkedAt,
       source: input.snapshot.source,
       lastEventType: "snapshot_updated",
@@ -167,9 +216,54 @@ class MemoryTrackingRealtimeStateStore implements TrackingRealtimeStateStore {
       likeCount: current.likeCount + (input.likeDelta ?? 0),
       messageCount: current.messageCount + (input.messageDelta ?? 0),
       giftCount: current.giftCount + (input.giftDelta ?? 0),
+      liveStatusCode: current.liveStatusCode ?? null,
+      liveStatusLabel: current.liveStatusLabel ?? null,
+      isLinkMic: current.isLinkMic ?? null,
+      linkMicLayout: current.linkMicLayout ?? null,
+      multiLiveEnum: current.multiLiveEnum ?? null,
+      liveModeLabel: current.liveModeLabel ?? null,
       lastUpdate: input.occurredAt,
       source: input.source,
       lastEventType: input.eventType,
+    });
+  }
+
+  async applyRoomInfo(streamerId: string, input: {
+    streamId: string;
+    source: string;
+    occurredAt: string;
+    viewerCount?: number | null;
+    likeCount?: number | null;
+    liveStatusCode?: number | null;
+    liveStatusLabel?: string | null;
+    isLinkMic?: boolean | null;
+    linkMicLayout?: number | null;
+    multiLiveEnum?: number | null;
+    liveModeLabel?: string | null;
+  }) {
+    const current = this.states.get(streamerId) ?? {
+      ...EMPTY_STATE,
+      streamId: input.streamId,
+      isLive: true,
+      lastUpdate: input.occurredAt,
+      source: input.source,
+    };
+
+    this.states.set(streamerId, {
+      ...current,
+      streamId: input.streamId,
+      isLive: true,
+      viewerCount: input.viewerCount ?? current.viewerCount,
+      likeCount: input.likeCount ?? current.likeCount,
+      liveStatusCode: input.liveStatusCode ?? current.liveStatusCode,
+      liveStatusLabel: input.liveStatusLabel ?? current.liveStatusLabel,
+      isLinkMic: input.isLinkMic ?? current.isLinkMic,
+      linkMicLayout: input.linkMicLayout ?? current.linkMicLayout,
+      multiLiveEnum: input.multiLiveEnum ?? current.multiLiveEnum,
+      liveModeLabel: input.liveModeLabel ?? current.liveModeLabel,
+      lastUpdate: input.occurredAt,
+      source: input.source,
+      lastEventType: current.lastEventType,
     });
   }
 
@@ -187,6 +281,12 @@ class MemoryTrackingRealtimeStateStore implements TrackingRealtimeStateStore {
       likeCount: current?.likeCount ?? 0,
       messageCount: current?.messageCount ?? 0,
       giftCount: current?.giftCount ?? 0,
+      liveStatusCode: current?.liveStatusCode ?? null,
+      liveStatusLabel: current?.liveStatusLabel ?? null,
+      isLinkMic: current?.isLinkMic ?? null,
+      linkMicLayout: current?.linkMicLayout ?? null,
+      multiLiveEnum: current?.multiLiveEnum ?? null,
+      liveModeLabel: current?.liveModeLabel ?? null,
       lastUpdate: input.occurredAt,
       source: input.source,
       lastEventType: "live_ended",
@@ -233,6 +333,12 @@ class RedisTrackingRealtimeStateStore implements TrackingRealtimeStateStore {
       likeCount: input.snapshot.likeCount ?? current?.likeCount ?? 0,
       messageCount: current?.messageCount ?? 0,
       giftCount: current?.giftCount ?? 0,
+      liveStatusCode: current?.liveStatusCode ?? null,
+      liveStatusLabel: current?.liveStatusLabel ?? null,
+      isLinkMic: current?.isLinkMic ?? null,
+      linkMicLayout: current?.linkMicLayout ?? null,
+      multiLiveEnum: current?.multiLiveEnum ?? null,
+      liveModeLabel: current?.liveModeLabel ?? null,
       lastUpdate: input.snapshot.checkedAt,
       source: input.snapshot.source,
       lastEventType: "snapshot_updated",
@@ -260,9 +366,53 @@ class RedisTrackingRealtimeStateStore implements TrackingRealtimeStateStore {
       likeCount: (current?.likeCount ?? 0) + (input.likeDelta ?? 0),
       messageCount: (current?.messageCount ?? 0) + (input.messageDelta ?? 0),
       giftCount: (current?.giftCount ?? 0) + (input.giftDelta ?? 0),
+      liveStatusCode: current?.liveStatusCode ?? null,
+      liveStatusLabel: current?.liveStatusLabel ?? null,
+      isLinkMic: current?.isLinkMic ?? null,
+      linkMicLayout: current?.linkMicLayout ?? null,
+      multiLiveEnum: current?.multiLiveEnum ?? null,
+      liveModeLabel: current?.liveModeLabel ?? null,
       lastUpdate: input.occurredAt,
       source: input.source,
       lastEventType: input.eventType,
+    };
+
+    await this.client.hSet(toKey(streamerId), mapStateToRecord(nextState));
+  }
+
+  async applyRoomInfo(streamerId: string, input: {
+    streamId: string;
+    source: string;
+    occurredAt: string;
+    viewerCount?: number | null;
+    likeCount?: number | null;
+    liveStatusCode?: number | null;
+    liveStatusLabel?: string | null;
+    isLinkMic?: boolean | null;
+    linkMicLayout?: number | null;
+    multiLiveEnum?: number | null;
+    liveModeLabel?: string | null;
+  }) {
+    await this.ensureConnected();
+    const current = await this.getStreamerState(streamerId);
+    const nextState: RealtimeStreamState = {
+      ...EMPTY_STATE,
+      ...current,
+      streamId: input.streamId,
+      isLive: true,
+      viewerCount: input.viewerCount ?? current?.viewerCount ?? 0,
+      likeCount: input.likeCount ?? current?.likeCount ?? 0,
+      messageCount: current?.messageCount ?? 0,
+      giftCount: current?.giftCount ?? 0,
+      liveStatusCode: input.liveStatusCode ?? current?.liveStatusCode ?? null,
+      liveStatusLabel: input.liveStatusLabel ?? current?.liveStatusLabel ?? null,
+      isLinkMic: input.isLinkMic ?? current?.isLinkMic ?? null,
+      linkMicLayout: input.linkMicLayout ?? current?.linkMicLayout ?? null,
+      multiLiveEnum: input.multiLiveEnum ?? current?.multiLiveEnum ?? null,
+      liveModeLabel: input.liveModeLabel ?? current?.liveModeLabel ?? null,
+      lastUpdate: input.occurredAt,
+      source: input.source,
+      lastEventType: current?.lastEventType ?? null,
     };
 
     await this.client.hSet(toKey(streamerId), mapStateToRecord(nextState));
@@ -283,6 +433,12 @@ class RedisTrackingRealtimeStateStore implements TrackingRealtimeStateStore {
       likeCount: current?.likeCount ?? 0,
       messageCount: current?.messageCount ?? 0,
       giftCount: current?.giftCount ?? 0,
+      liveStatusCode: current?.liveStatusCode ?? null,
+      liveStatusLabel: current?.liveStatusLabel ?? null,
+      isLinkMic: current?.isLinkMic ?? null,
+      linkMicLayout: current?.linkMicLayout ?? null,
+      multiLiveEnum: current?.multiLiveEnum ?? null,
+      liveModeLabel: current?.liveModeLabel ?? null,
       lastUpdate: input.occurredAt,
       source: input.source,
       lastEventType: "live_ended",
