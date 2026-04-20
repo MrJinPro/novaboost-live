@@ -14,39 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      admin_staff_assignments: {
-        Row: {
-          access_level: string
-          created_at: string
-          created_by: string | null
-          is_active: boolean
-          notes: string | null
-          updated_at: string
-          updated_by: string | null
-          user_id: string
-        }
-        Insert: {
-          access_level: string
-          created_at?: string
-          created_by?: string | null
-          is_active?: boolean
-          notes?: string | null
-          updated_at?: string
-          updated_by?: string | null
-          user_id: string
-        }
-        Update: {
-          access_level?: string
-          created_at?: string
-          created_by?: string | null
-          is_active?: boolean
-          notes?: string | null
-          updated_at?: string
-          updated_by?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       boosts: {
         Row: {
           amount: number
@@ -141,39 +108,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      payment_interest_surveys: {
-        Row: {
-          comment: string | null
-          context: Json
-          created_at: string
-          entry_point: string
-          id: string
-          preferred_methods: string[]
-          trigger_label: string
-          user_id: string | null
-        }
-        Insert: {
-          comment?: string | null
-          context?: Json
-          created_at?: string
-          entry_point: string
-          id?: string
-          preferred_methods?: string[]
-          trigger_label: string
-          user_id?: string | null
-        }
-        Update: {
-          comment?: string | null
-          context?: Json
-          created_at?: string
-          entry_point?: string
-          id?: string
-          preferred_methods?: string[]
-          trigger_label?: string
-          user_id?: string | null
-        }
-        Relationships: []
       }
       notification_deliveries: {
         Row: {
