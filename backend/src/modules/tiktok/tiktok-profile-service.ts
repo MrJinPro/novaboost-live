@@ -8,6 +8,13 @@ type TikTokProfileLookupResult = {
   source: "universal-data" | "next-data" | "meta-tags";
 };
 
+type TikTokProfileLookupOptions = {
+  requestTimeoutMs?: number;
+  sessionId?: string;
+  msToken?: string;
+  cookieHeader?: string;
+};
+
 const TIKTOK_HEADERS = {
   "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
   "accept-language": "en-US,en;q=0.9,ru;q=0.8",
@@ -15,37 +22,83 @@ const TIKTOK_HEADERS = {
   referer: "https://www.tiktok.com/",
 } as const;
 
-export async function lookupTikTokProfile(username: string): Promise<TikTokProfileLookupResult> {
+export async function lookupTikTokProfile(username: string, options: TikTokProfileLookupOptions = {}): Promise<TikTokProfileLookupResult> {
   const normalizedUsername = normalizeTikTokUsername(username);
   if (!normalizedUsername) {
     throw new Error("TikTok username is required.");
   }
 
-  const response = await fetch(`https://www.tiktok.com/@${encodeURIComponent(normalizedUsername)}`, {
-    headers: TIKTOK_HEADERS,
-  });
+  const controller = new AbortController();
+  const timeoutMs = options.requestTimeoutMs ?? 10_000;
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-  if (!response.ok) {
-    throw new Error(`TikTok profile request failed with status ${response.status}.`);
+  try {
+    const response = await fetch(`https://www.tiktok.com/@${encodeURIComponent(normalizedUsername)}`, {
+      headers: buildTikTokHeaders(options),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`TikTok profile request failed with status ${response.status}.`);
+    }
+
+    const html = await response.text();
+    const fromUniversal = tryExtractFromUniversalData(html, normalizedUsername);
+    if (fromUniversal) {
+      return fromUniversal;
+    }
+
+    const fromNextData = tryExtractFromNextData(html, normalizedUsername);
+    if (fromNextData) {
+      return fromNextData;
+    }
+
+    const fromMeta = tryExtractFromMetaTags(html, normalizedUsername);
+    if (fromMeta) {
+      return fromMeta;
+    }
+
+    throw new Error("TikTok profile details were not found in the public page response.");
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function buildTikTokHeaders(options: TikTokProfileLookupOptions) {
+  const cookieHeader = mergeCookieHeader(options);
+
+  return {
+    ...TIKTOK_HEADERS,
+    ...(cookieHeader ? { cookie: cookieHeader } : {}),
+  };
+}
+
+function mergeCookieHeader(options: TikTokProfileLookupOptions) {
+  const cookieParts = new Map<string, string>();
+
+  for (const chunk of (options.cookieHeader ?? "").split(";")) {
+    const trimmed = chunk.trim();
+    if (!trimmed) {
+      continue;
+    }
+
+    const separatorIndex = trimmed.indexOf("=");
+    if (separatorIndex <= 0) {
+      continue;
+    }
+
+    cookieParts.set(trimmed.slice(0, separatorIndex).trim(), trimmed.slice(separatorIndex + 1).trim());
   }
 
-  const html = await response.text();
-  const fromUniversal = tryExtractFromUniversalData(html, normalizedUsername);
-  if (fromUniversal) {
-    return fromUniversal;
+  if (options.sessionId?.trim() && !cookieParts.has("sessionid")) {
+    cookieParts.set("sessionid", options.sessionId.trim());
   }
 
-  const fromNextData = tryExtractFromNextData(html, normalizedUsername);
-  if (fromNextData) {
-    return fromNextData;
+  if (options.msToken?.trim() && !cookieParts.has("msToken")) {
+    cookieParts.set("msToken", options.msToken.trim());
   }
 
-  const fromMeta = tryExtractFromMetaTags(html, normalizedUsername);
-  if (fromMeta) {
-    return fromMeta;
-  }
-
-  throw new Error("TikTok profile details were not found in the public page response.");
+  return Array.from(cookieParts.entries()).map(([key, value]) => `${key}=${value}`).join("; ");
 }
 
 function tryExtractFromUniversalData(html: string, username: string) {

@@ -114,7 +114,12 @@ export class TikTokProfileSyncService {
         }
 
         try {
-          const profile = await lookupTikTokProfile(normalizedUsername);
+          const profile = await lookupTikTokProfile(normalizedUsername, {
+            requestTimeoutMs: this.env.TIKTOK_REQUEST_TIMEOUT_MS,
+            sessionId: this.env.TIKTOK_SESSION_ID,
+            msToken: this.env.TIKTOK_MS_TOKEN,
+            cookieHeader: this.env.TIKTOK_COOKIE_HEADER,
+          });
           const nextDisplayName = profile.displayName?.trim() || streamer.display_name;
           const nextAvatarUrl = profile.avatarUrl?.trim() || streamer.avatar_url || streamer.logo_url || null;
           const nextBio = profile.bio?.trim() || streamer.bio || null;
@@ -203,7 +208,12 @@ export class TikTokProfileSyncService {
         }
 
         try {
-          const profile = await lookupTikTokProfile(normalizedUsername);
+          const profile = await lookupTikTokProfile(normalizedUsername, {
+            requestTimeoutMs: this.env.TIKTOK_REQUEST_TIMEOUT_MS,
+            sessionId: this.env.TIKTOK_SESSION_ID,
+            msToken: this.env.TIKTOK_MS_TOKEN,
+            cookieHeader: this.env.TIKTOK_COOKIE_HEADER,
+          });
           const nextDisplayName = profile.displayName?.trim() || profileRow.display_name || profileRow.username;
           const nextAvatarUrl = profile.avatarUrl?.trim() || profileRow.avatar_url || null;
           const nextBio = profile.bio?.trim() || profileRow.bio || null;

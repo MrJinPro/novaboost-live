@@ -132,7 +132,12 @@ export function startHttpServer(env: BackendEnv, logger: Logger, services: Servi
           return;
         }
 
-        void lookupTikTokProfile(username).then((profile) => {
+        void lookupTikTokProfile(username, {
+          requestTimeoutMs: env.TIKTOK_REQUEST_TIMEOUT_MS,
+          sessionId: env.TIKTOK_SESSION_ID,
+          msToken: env.TIKTOK_MS_TOKEN,
+          cookieHeader: env.TIKTOK_COOKIE_HEADER,
+        }).then((profile) => {
           writeJson(response, 200, { profile });
         }).catch((error: unknown) => {
           logger.error("Failed to resolve TikTok profile", {
