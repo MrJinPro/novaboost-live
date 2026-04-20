@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { requireAdmin } from "@/lib/server-admin-auth";
 import type { AdminApplicationStatus, AdminManagedPlatformRole, AdminPanelAccessLevel, AdminStaffAccessLevel } from "@/lib/admin-moderation-data";
 import { lookupTikTokProfile } from "@/lib/tiktok-profile-data";
 
@@ -42,68 +43,8 @@ function jsonResponse(body: unknown, status = 200) {
   });
 }
 
-function extractBearerToken(request: Request) {
-  const authorization = request.headers.get("authorization") ?? "";
-  const [scheme, token] = authorization.split(" ");
-  return scheme?.toLowerCase() === "bearer" && token ? token : null;
-}
-
-function normalizeAccessLevel(value: string | null | undefined): AdminStaffAccessLevel | null {
-  if (value === "support" || value === "moderator" || value === "admin") {
-    return value;
-  }
-
-  return null;
-}
-
 function isMissingRelationError(error: { code?: string; message?: string } | null | undefined) {
   return error?.code === "42P01" || Boolean(error?.message?.includes("admin_staff_assignments"));
-}
-
-async function requireAdmin(request: Request) {
-  try {
-    const token = extractBearerToken(request);
-    if (!token) {
-      return { error: jsonResponse({ error: "Нужен access token администратора." }, 401) };
-    }
-
-    const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
-    if (authError || !authData.user) {
-      return { error: jsonResponse({ error: "Не удалось подтвердить пользователя." }, 401) };
-    }
-
-    const { data: adminRole, error: roleError } = await supabaseAdmin
-      .from("user_roles")
-      .select("id")
-      .eq("user_id", authData.user.id)
-      .eq("role", "admin")
-      .maybeSingle();
-
-    if (roleError) {
-      return { error: jsonResponse({ error: roleError.message }, 500) };
-    }
-
-    if (!adminRole) {
-      return { error: jsonResponse({ error: "Доступ к админке запрещён." }, 403) };
-    }
-
-    const { data: assignment, error: assignmentError } = await supabaseAdmin
-      .from("admin_staff_assignments")
-      .select("access_level, is_active")
-      .eq("user_id", authData.user.id)
-      .maybeSingle();
-
-    if (assignmentError && !isMissingRelationError(assignmentError)) {
-      return { error: jsonResponse({ error: assignmentError.message }, 500) };
-    }
-
-    return {
-      userId: authData.user.id,
-      accessLevel: assignment?.is_active ? (normalizeAccessLevel(assignment.access_level) ?? "admin") : "admin",
-    };
-  } catch (error) {
-    return { error: jsonResponse({ error: error instanceof Error ? error.message : "Не удалось проверить права доступа." }, 500) };
-  }
 }
 
 async function loadUsers() {
