@@ -53,7 +53,7 @@ function BoostPage() {
   useEffect(() => {
     let active = true;
 
-    if (!user || user.role !== "viewer") {
+    if (!user) {
       setAvailablePoints(0);
       return;
     }
@@ -114,8 +114,8 @@ function BoostPage() {
       return;
     }
 
-    if (user.role !== "viewer") {
-      toast.error("Буст за очки доступен только зрителям");
+    if (user.role !== "viewer" && user.role !== "streamer") {
+      toast.error("Буст за очки доступен только авторизованным пользователям платформы");
       return;
     }
 
