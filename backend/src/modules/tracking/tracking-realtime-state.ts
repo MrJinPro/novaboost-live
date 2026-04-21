@@ -172,10 +172,16 @@ class MemoryTrackingRealtimeStateStore implements TrackingRealtimeStateStore {
 
   async applySnapshot(streamerId: string, input: { streamId?: string | null; snapshot: TrackingSnapshot; }) {
     const current = this.states.get(streamerId) ?? null;
+    // Prefer snapshot viewerCount only if it's a real value (>0).
+    // If the polling adapter failed to extract the count (returns 0),
+    // preserve the live-bridge value set by applyEngagement/applyRoomInfo.
+    const resolvedViewerCount = input.snapshot.viewerCount > 0
+      ? input.snapshot.viewerCount
+      : (current?.viewerCount ?? 0);
     this.states.set(streamerId, {
       streamId: input.streamId ?? current?.streamId ?? null,
       isLive: input.snapshot.isLive,
-      viewerCount: input.snapshot.viewerCount,
+      viewerCount: resolvedViewerCount,
       likeCount: input.snapshot.likeCount ?? current?.likeCount ?? 0,
       messageCount: current?.messageCount ?? 0,
       giftCount: current?.giftCount ?? 0,
@@ -326,10 +332,16 @@ class RedisTrackingRealtimeStateStore implements TrackingRealtimeStateStore {
   async applySnapshot(streamerId: string, input: { streamId?: string | null; snapshot: TrackingSnapshot; }) {
     await this.ensureConnected();
     const current = await this.getStreamerState(streamerId);
+    // Prefer snapshot viewerCount only if it's a real value (>0).
+    // If the polling adapter failed to extract the count (returns 0),
+    // preserve the live-bridge value set by applyEngagement/applyRoomInfo.
+    const resolvedViewerCount = input.snapshot.viewerCount > 0
+      ? input.snapshot.viewerCount
+      : (current?.viewerCount ?? 0);
     const nextState: RealtimeStreamState = {
       streamId: input.streamId ?? current?.streamId ?? null,
       isLive: input.snapshot.isLive,
-      viewerCount: input.snapshot.viewerCount,
+      viewerCount: resolvedViewerCount,
       likeCount: input.snapshot.likeCount ?? current?.likeCount ?? 0,
       messageCount: current?.messageCount ?? 0,
       giftCount: current?.giftCount ?? 0,
