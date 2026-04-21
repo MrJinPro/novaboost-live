@@ -189,7 +189,7 @@ export class TelegramService {
           inline_keyboard: [
             [
               { text: "📺 Смотреть на TikTok", url: tiktokUrl },
-              { text: "⚡ Задания NovaBoost", url: `https://novaboost.cloud/boost?streamer=${streamer.tiktokUsername}` },
+              { text: "⚡ Задания NovaBoost", url: `https://live.novaboost.cloud/boost?streamer=${streamer.tiktokUsername}` },
             ],
           ],
         },
@@ -202,7 +202,7 @@ export class TelegramService {
           `⚡ <b>${streamer.displayName}</b> ищет поддержку!\n\n` +
           `Выполняй задания в NovaBoost Live и помогай стримеру расти!`,
         keyboard: {
-          inline_keyboard: [[{ text: "⚡ Поддержать", url: `https://novaboost.cloud/boost?streamer=${streamer.tiktokUsername}` }]],
+          inline_keyboard: [[{ text: "⚡ Поддержать", url: `https://live.novaboost.cloud/boost?streamer=${streamer.tiktokUsername}` }]],
         },
       };
     }

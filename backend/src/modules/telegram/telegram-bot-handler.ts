@@ -144,7 +144,7 @@ export class TelegramBotHandler {
       `<b>Для стримеров:</b>\n` +
       `Чтобы подключить свой Telegram-канал к NovaBoost:\n` +
       `1. Добавь меня как администратора канала с правом публикации\n` +
-      `2. Зайди на novaboost.cloud → Studio → Telegram\n` +
+      `2. Зайди на <a href="https://live.novaboost.cloud/studio">live.novaboost.cloud/studio</a> → Telegram\n` +
       `3. Нажми «Создать токен» и отправь команду /link в своём канале`);
   }
 
@@ -191,7 +191,7 @@ export class TelegramBotHandler {
 
     if (!link) {
       await this.sender.sendMessage(chatId,
-        `Чтобы подписаться, сначала свяжи свой аккаунт NovaBoost.\n\nОткрой: <a href="https://novaboost.cloud/profile">novaboost.cloud/profile</a> → Настройки → Telegram`);
+        `Чтобы подписаться, сначала свяжи свой аккаунт NovaBoost.\n\nОткрой: <a href="https://live.novaboost.cloud/profile">live.novaboost.cloud/profile</a> → Настройки → Telegram`);
       return;
     }
 
@@ -269,7 +269,7 @@ export class TelegramBotHandler {
       .maybeSingle();
 
     if (!link) {
-      await this.sender.sendMessage(chatId, "Нет связанного аккаунта NovaBoost. Сначала свяжи аккаунт на novaboost.cloud/profile");
+      await this.sender.sendMessage(chatId, "Нет связанного аккаунта NovaBoost. Сначала свяжи аккаунт на live.novaboost.cloud/profile");
       return;
     }
 
@@ -322,18 +322,45 @@ export class TelegramBotHandler {
       return;
     }
 
-    // Ensure notification route exists
-    await this.supabase
+    // Ensure notification route exists — explicit insert/update to avoid partial-index upsert issues
+    const { data: existingRoute } = await this.supabase
       .from("telegram_notification_routes")
-      .upsert({
-        streamer_id: tokenRow.streamer_id,
-        telegram_chat_id: chat.id,
-        route_type: "streamer_chat",
-        enabled: true,
-        notify_on_live_start: true,
-        notify_on_boost: true,
-        notify_on_post: false,
-      }, { onConflict: "route_type,telegram_chat_id" });
+      .select("id")
+      .eq("telegram_chat_id", chat.id)
+      .eq("route_type", "streamer_chat")
+      .maybeSingle();
+
+    if (existingRoute) {
+      const { error: routeUpdateErr } = await this.supabase
+        .from("telegram_notification_routes")
+        .update({
+          streamer_id: tokenRow.streamer_id,
+          enabled: true,
+          notify_on_live_start: true,
+          notify_on_boost: true,
+        })
+        .eq("id", existingRoute.id);
+      if (routeUpdateErr) {
+        this.logger.error("[TelegramBot] Failed to update notification route", { error: routeUpdateErr.message });
+      }
+    } else {
+      const { error: routeInsertErr } = await this.supabase
+        .from("telegram_notification_routes")
+        .insert({
+          streamer_id: tokenRow.streamer_id,
+          telegram_chat_id: chat.id,
+          route_type: "streamer_chat",
+          enabled: true,
+          notify_on_live_start: true,
+          notify_on_boost: true,
+          notify_on_post: false,
+        });
+      if (routeInsertErr) {
+        this.logger.error("[TelegramBot] Failed to insert notification route", { error: routeInsertErr.message });
+        await this.sender.sendMessage(chatId, "❌ Не удалось создать маршрут уведомлений. Попробуй позже.");
+        return;
+      }
+    }
 
     // Mark token as used
     await this.supabase
@@ -349,12 +376,24 @@ export class TelegramBotHandler {
         .eq("user_id", tokenRow.streamer_id);
     }
 
+    // Check if streamer is currently live — send immediate notification if yes
+    const liveMessage = await this.buildCurrentLiveMessage(tokenRow.streamer_id);
+
     await this.sender.sendMessage(chatId,
       `✅ <b>Канал успешно подключён к NovaBoost Live!</b>\n\n` +
       `Теперь бот будет автоматически публиковать уведомления о начале эфира в этот чат.\n\n` +
-      `Управляй настройками в Studio → Telegram на novaboost.cloud`);
+      `Управляй настройками в <a href="https://live.novaboost.cloud/studio">Studio → Telegram</a>`);
 
-    this.logger.info("[TelegramBot] Channel linked", { chatId, streamerId: tokenRow.streamer_id });
+    if (liveMessage) {
+      // Streamer is live right now — send notification immediately
+      await this.sender.sendMessage(chatId, liveMessage.text, {
+        parseMode: "HTML",
+        replyMarkup: liveMessage.keyboard,
+        disableWebPagePreview: false,
+      });
+    }
+
+    this.logger.info("[TelegramBot] Channel linked", { chatId, streamerId: tokenRow.streamer_id, sentLiveNow: !!liveMessage });
   }
 
   // ── Group commands ────────────────────────────────────────────────────────
@@ -468,7 +507,7 @@ export class TelegramBotHandler {
         await this.sender.sendMessage(chat.id,
           `👋 Привет! Я <b>@novaboost_live_bot</b> — бот платформы NovaBoost Live.\n\n` +
           `Чтобы подключить этот канал к аккаунту стримера и получить автоматические уведомления о эфирах:\n\n` +
-          `1. Зайди на <b>novaboost.cloud → Studio → Telegram</b>\n` +
+          `1. Зайди на <b><a href="https://live.novaboost.cloud/studio">live.novaboost.cloud/studio</a></b>\n` +
           `2. Нажми «Создать токен для канала»\n` +
           `3. Скопируй команду и отправь её сюда:\n` +
           `<code>/link ВАШ_ТОКЕН</code>`);
@@ -565,6 +604,42 @@ export class TelegramBotHandler {
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
+
+  /** Returns a live notification message if the streamer is currently live, null otherwise */
+  private async buildCurrentLiveMessage(streamerId: string) {
+    const { data: streamer } = await this.supabase
+      .from("streamers")
+      .select("id, display_name, tiktok_username")
+      .eq("id", streamerId)
+      .maybeSingle();
+
+    if (!streamer) return null;
+
+    // Check for active (non-ended) live session
+    const { data: session } = await this.supabase
+      .from("stream_sessions")
+      .select("id, started_at")
+      .eq("streamer_id", streamerId)
+      .is("ended_at", null)
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!session) return null;
+
+    const tiktokUrl = `https://www.tiktok.com/@${streamer.tiktok_username}/live`;
+    return {
+      text:
+        `🔴 <b>${streamer.display_name}</b> сейчас в эфире!\n\n` +
+        `Подключился? Лови уведомление — стример уже ведёт трансляцию прямо сейчас!`,
+      keyboard: {
+        inline_keyboard: [[
+          { text: "📺 Смотреть на TikTok", url: tiktokUrl },
+          { text: "⚡ Задания NovaBoost", url: `https://live.novaboost.cloud/boost?streamer=${streamer.tiktok_username}` },
+        ]],
+      },
+    };
+  }
 
   private async getOrCreateTelegramChat(chatId: number, streamerId: string, chatKind: string) {
     // Try to get existing
