@@ -44,7 +44,7 @@ async function getProfile(userId: string) {
   return getAuthProfileCompat(userId);
 }
 
-async function resolveAccountCapabilities(userId: string, declaredRole: Exclude<AppRole, "admin"> | null, hasVerifiedStreamerProfile: boolean) {
+async function resolveAccountCapabilities(userId: string, declaredRole: Exclude<AppRole, "admin"> | null, hasLinkedStreamerProfile: boolean) {
   const { data, error } = await supabase
     .from("user_roles")
     .select("role")
@@ -53,7 +53,7 @@ async function resolveAccountCapabilities(userId: string, declaredRole: Exclude<
     .maybeSingle();
 
   const isAdmin = !error && data?.role === "admin";
-  const isStreamer = declaredRole === "streamer" || hasVerifiedStreamerProfile;
+  const isStreamer = declaredRole === "streamer" || hasLinkedStreamerProfile;
 
   return {
     isAdmin,
@@ -155,8 +155,8 @@ async function buildAppUser(session: Session): Promise<AppUser> {
         userId: session.user.id,
         tiktokUsername: normalizedTikTokUsername,
       });
-  const hasVerifiedStreamerProfile = streamer?.verification_status === "verified";
-  const capabilities = await resolveAccountCapabilities(session.user.id, declaredRole, hasVerifiedStreamerProfile);
+  const hasLinkedStreamerProfile = Boolean(streamer?.id);
+  const capabilities = await resolveAccountCapabilities(session.user.id, declaredRole, hasLinkedStreamerProfile);
 
   const enrichedTikTokProfile = await enrichTikTokProfileIfNeeded({
     session,

@@ -8,7 +8,7 @@ import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Award, BadgeCheck, Camera, Crown, ExternalLink, ImagePlus, LogOut, Save, Send, Sparkles, Trophy, UserRound, Wallpaper, Zap } from "lucide-react";
+import { Award, BadgeCheck, Camera, Copy, Crown, ExternalLink, Gift, ImagePlus, Link2, LogOut, Save, Send, Sparkles, Trophy, UserPlus, UserRound, Wallpaper, Zap } from "lucide-react";
 import { Facebook, Instagram, Twitter } from "lucide-react";
 import { formatNumber } from "@/lib/format";
 import { SUBSCRIPTION_PLANS, getPaidSubscriptionPlans, getSubscriptionPlanLabel } from "@/lib/monetization-data";
@@ -16,6 +16,7 @@ import { loadViewerProfileData, type ViewerProfileData } from "@/lib/user-profil
 import { getOwnedStreamerPublicPage } from "@/lib/streamer-studio-data";
 import { loadProfileSettings, loadStreamerApplicationState, saveProfileSettings, submitStreamerApplication, uploadProfileMedia, type ProfileSettingsDraft, type StreamerApplicationState } from "@/lib/profile-settings-data";
 import { getViewerProgression } from "@/lib/viewer-levels";
+import { loadStreamerReferralSummary, type StreamerReferralSummary } from "@/lib/referral-program-data";
 import { toast } from "sonner";
 import { getStreamerPublicRouteParam } from "@/lib/streamer-public-route";
 
@@ -43,6 +44,8 @@ function ProfilePage() {
   const [publicPageId, setPublicPageId] = useState<string | null>(null);
   const [settings, setSettings] = useState<ProfileSettingsDraft | null>(null);
   const [streamerApplication, setStreamerApplication] = useState<StreamerApplicationState | null>(null);
+  const [referralSummary, setReferralSummary] = useState<StreamerReferralSummary | null>(null);
+  const [referralLoading, setReferralLoading] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -147,6 +150,7 @@ function ProfilePage() {
     let active = true;
 
     if (!user || !user.isStreamer) {
+      setReferralSummary(null);
       return;
     }
 
@@ -169,6 +173,44 @@ function ProfilePage() {
       active = false;
     };
   }, [user]);
+
+  useEffect(() => {
+    let active = true;
+
+    if (!user?.isStreamer || !publicPageId) {
+      setReferralSummary(null);
+      return;
+    }
+
+    const syncReferralSummary = async () => {
+      setReferralLoading(true);
+      try {
+        const summary = await loadStreamerReferralSummary({
+          streamerId: publicPageId,
+          displayName: settings?.displayName?.trim() || user.displayName,
+          tiktokUsername: settings?.tiktokUsername?.trim() || user.tiktokUsername,
+        });
+        if (active) {
+          setReferralSummary(summary);
+        }
+      } catch (error) {
+        if (active) {
+          setReferralSummary(null);
+          toast.error(error instanceof Error ? error.message : "Не удалось загрузить реферальную ссылку");
+        }
+      } finally {
+        if (active) {
+          setReferralLoading(false);
+        }
+      }
+    };
+
+    void syncReferralSummary();
+
+    return () => {
+      active = false;
+    };
+  }, [publicPageId, settings?.displayName, settings?.tiktokUsername, user]);
 
   if (loading) {
     return <div className="min-h-screen"><Header /><div className="container mx-auto px-4 py-16 text-center text-muted-foreground">Загрузка…</div></div>;
@@ -313,6 +355,19 @@ function ProfilePage() {
       toast.error(error instanceof Error ? error.message : "Не удалось отправить заявку на стримера");
     } finally {
       setApplicationSubmitting(false);
+    }
+  };
+
+  const handleCopyReferralLink = async () => {
+    if (!referralSummary?.inviteLink) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(referralSummary.inviteLink);
+      toast.success("Реферальная ссылка скопирована. Пригласивший стример уже зафиксирован и не меняется при регистрации.");
+    } catch {
+      toast.error("Не удалось скопировать реферальную ссылку.");
     }
   };
 
@@ -634,6 +689,64 @@ function ProfilePage() {
                   </Link>
                 )}
               </div>
+            </section>
+
+            <section className="rounded-3xl border border-border/50 bg-surface/60 p-6">
+              <div className="flex items-center gap-2">
+                <UserPlus className="h-5 w-5 text-cosmic" />
+                <h2 className="font-display text-xl font-bold">Реферальная программа</h2>
+              </div>
+
+              {isStreamer ? (
+                <>
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                    Это твоя locked referral link. Она фиксирует тебя как пригласившего стримера и не даёт убрать ref на регистрации. В отличие от ссылки с заранее подставленным TikTok username, этот формат подходит для общего набора зрителей и рекламного трафика.
+                  </p>
+
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-border/50 bg-background/30 p-4">
+                      <div className="flex items-center gap-2 text-cosmic">
+                        <Link2 className="h-4 w-4" />
+                        <div className="text-sm font-medium">Зафиксировано приглашений</div>
+                      </div>
+                      <div className="mt-3 font-display text-3xl font-bold text-cosmic">
+                        {referralLoading ? "…" : formatNumber(referralSummary?.referralsCount ?? 0)}
+                      </div>
+                      <div className="mt-2 text-xs leading-5 text-muted-foreground">
+                        Считаются регистрации пользователей, которые пришли по твоему locked ref.
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-crown/30 bg-crown/5 p-4">
+                      <div className="flex items-center gap-2 text-crown">
+                        <Gift className="h-4 w-4" />
+                        <div className="text-sm font-medium">Что получает стример</div>
+                      </div>
+                      <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+                        <div>Качественные приглашения можно использовать как сигнал для бонусов профиля, приоритета в boost-активностях и персональных условий в платформах кампаниях.</div>
+                        <div>Этот блок приватный: зрители не видят, какие именно преимущества получает стример за свой поток приглашений.</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-2xl border border-border/50 bg-background/30 p-4">
+                    <div className="text-[11px] uppercase tracking-[0.24em] text-muted-foreground">Ссылка для кабинета и рекламы</div>
+                    <div className="mt-2 break-all text-sm text-foreground/90">{referralSummary?.inviteLink ?? "Готовлю ссылку…"}</div>
+                    <Button onClick={handleCopyReferralLink} disabled={!referralSummary?.inviteLink} className="mt-4 w-full gap-2 bg-gradient-cosmic text-foreground">
+                      <Copy className="h-4 w-4" /> Скопировать реферальную ссылку
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                    Если ты пришёл по ссылке стримера, система закрепляет приглашение автоматически. Для зрителя это отдельный трек бонусов: ускоренный старт, специальные активности и ранний доступ к referral-механикам без раскрытия внутренних стримерских условий.
+                  </p>
+                  <div className="mt-4 rounded-2xl border border-border/50 bg-background/30 p-4 text-sm leading-6 text-muted-foreground">
+                    Отдельная механика «зритель привёл стримера» будет выделена в следующий этап. Для неё нужен другой тип атрибуции, чтобы не смешивать набор аудитории и привлечение новых авторов.
+                  </div>
+                </>
+              )}
             </section>
 
             {favoriteStreamers.length > 0 && (
