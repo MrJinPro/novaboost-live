@@ -34,7 +34,11 @@ export function bootstrapBackend() {
 
   const tracking = new TrackingService(logger, env, trackingAdapter, trackingStore, realtimeStateStore);
   const scoring = new ScoringService();
-  const telegram = new TelegramService(logger);
+  const telegram = new TelegramService(
+    logger,
+    supabaseAdmin,
+    env.TELEGRAM_BOT_TOKEN ?? null,
+  );
   const notifications = new NotificationService(logger, telegram, notificationRoutingRepository);
   const prmotion = new PRMotionService(env, logger, promotionOrderRepository, trackingStore);
   const tiktokProfileSync = supabaseAdmin ? new TikTokProfileSyncService(supabaseAdmin, logger, env) : null;
@@ -80,11 +84,13 @@ export function bootstrapBackend() {
   }, supabaseAdmin);
 
   tracking.attachSocketHub(trackingSocketHub);
+  tracking.attachNotificationService(notifications);
 
   tracking.scheduleRegisteredStreamers();
   trackingEventProcessor?.schedule();
   tiktokProfileSync?.scheduleProfileSync();
   prmotion.scheduleOrderQueue();
+  telegram.startPolling();
 
   return { env, logger, server, tracking, scoring, notifications, telegram, prmotion, tiktokProfileSync, trackingEventProcessor };
 }

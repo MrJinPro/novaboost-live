@@ -99,7 +99,12 @@ export class NotificationService {
       trigger: intent.trigger,
     });
 
-    this.telegramService.routeStreamNotification(intent);
+    // Resolve the plan then route — don't block the caller
+    this.previewStreamPlan(intent)
+      .then((plan) => this.telegramService.routeStreamNotification(intent, plan))
+      .catch((err) =>
+        this.logger.error("Notification fan-out failed", { streamerId: intent.streamerId, error: String(err) })
+      );
   }
 
   private matchesTrigger(

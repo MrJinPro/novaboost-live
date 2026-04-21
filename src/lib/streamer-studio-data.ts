@@ -1097,3 +1097,103 @@ export async function toggleStreamerSubscription(streamerId: string, userId: str
 
   return true;
 }
+
+// ── Telegram integration helpers ──────────────────────────────────────────────
+
+export type TelegramConnectToken = {
+  id: string;
+  token: string;
+  expires_at: string;
+  chat_kind: string;
+};
+
+export type TelegramChatInfo = {
+  id: string;
+  chat_id: string;
+  chat_kind: string;
+  title: string | null;
+  username: string | null;
+  notifications_enabled: boolean;
+  moderation_enabled: boolean;
+  is_primary: boolean;
+};
+
+export type TelegramNotificationSettings = {
+  live_notification_enabled: boolean;
+  boost_notification_enabled: boolean;
+  post_sync_enabled: boolean;
+  live_message_template: string | null;
+};
+
+export type StreamerTelegramData = {
+  chats: TelegramChatInfo[];
+  settings: TelegramNotificationSettings | null;
+  activeToken: TelegramConnectToken | null;
+};
+
+async function getSessionToken(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
+}
+
+export async function loadStreamerTelegramSettings(): Promise<StreamerTelegramData> {
+  const token = await getSessionToken();
+  if (!token) throw new Error("Не авторизован.");
+
+  const res = await fetch("/api/studio/telegram", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Ошибка сервера" }));
+    throw new Error((err as { error?: string }).error ?? "Ошибка загрузки настроек Telegram");
+  }
+  const data = await res.json() as { chats: TelegramChatInfo[]; settings: TelegramNotificationSettings | null; activeToken: TelegramConnectToken | null };
+  return { chats: data.chats, settings: data.settings, activeToken: data.activeToken };
+}
+
+export async function generateTelegramConnectToken(chatKind: "streamer_channel" | "streamer_group"): Promise<TelegramConnectToken> {
+  const token = await getSessionToken();
+  if (!token) throw new Error("Не авторизован.");
+
+  const res = await fetch("/api/studio/telegram", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ action: "generate_token", chatKind }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Ошибка сервера" }));
+    throw new Error((err as { error?: string }).error ?? "Ошибка генерации токена");
+  }
+  const data = await res.json() as { token: TelegramConnectToken };
+  return data.token;
+}
+
+export async function disconnectTelegramChat(chatId: string): Promise<void> {
+  const token = await getSessionToken();
+  if (!token) throw new Error("Не авторизован.");
+
+  const res = await fetch("/api/studio/telegram", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ action: "disconnect_chat", chatId }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Ошибка сервера" }));
+    throw new Error((err as { error?: string }).error ?? "Ошибка отключения чата");
+  }
+}
+
+export async function updateTelegramNotificationSettings(update: Partial<TelegramNotificationSettings>): Promise<void> {
+  const token = await getSessionToken();
+  if (!token) throw new Error("Не авторизован.");
+
+  const res = await fetch("/api/studio/telegram", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ action: "update_settings", settingsUpdate: update }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Ошибка сервера" }));
+    throw new Error((err as { error?: string }).error ?? "Ошибка сохранения настроек");
+  }
+}

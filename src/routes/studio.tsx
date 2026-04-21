@@ -14,11 +14,12 @@ import { useAuth } from "@/lib/auth-context";
 import type { DonationOverlayDisplayMode, DonationOverlayVariant } from "@/lib/mock-platform";
 import type { StreamerPost } from "@/lib/mock-platform";
 import { createDonationLinkDraft, getSubscriptionPlanLabel, loadManagedDonationLink, saveManagedDonationLink, SUBSCRIPTION_PLANS } from "@/lib/monetization-data";
-import { loadStreamerStudioData, publishStreamerPost, saveStreamerDonationOverlaySettings, saveStreamerStudioPage } from "@/lib/streamer-studio-data";
+import { loadStreamerStudioData, publishStreamerPost, saveStreamerDonationOverlaySettings, saveStreamerStudioPage, loadStreamerTelegramSettings, generateTelegramConnectToken, disconnectTelegramChat, updateTelegramNotificationSettings } from "@/lib/streamer-studio-data";
+import type { StreamerTelegramData, TelegramConnectToken } from "@/lib/streamer-studio-data";
 import { deactivateStreamerCodeWordTask, loadStreamerCodeWordTasks, publishStreamerCodeWordTask, type StreamerCodeWordTask } from "@/lib/tasks-data";
 import { calculateCodeWordReward, validateCodeWord } from "@/lib/viewer-levels";
 import { toast } from "sonner";
-import { Bell, Copy, ExternalLink, ImagePlus, LayoutPanelTop, PencilLine, Send, Sparkles, ShieldCheck, Wallet } from "lucide-react";
+import { Bell, Copy, ExternalLink, ImagePlus, LayoutPanelTop, PencilLine, Send, Sparkles, ShieldCheck, Wallet, MessageCircle } from "lucide-react";
 import { getStreamerPublicRouteParam } from "@/lib/streamer-public-route";
 
 export const Route = createFileRoute("/studio")({
@@ -117,6 +118,11 @@ function StreamerStudioPage() {
   const [savingDonationLink, setSavingDonationLink] = useState(false);
   const [appOrigin, setAppOrigin] = useState("");
   const [overlayPreviewTab, setOverlayPreviewTab] = useState<OverlayPreviewTab>("alert");
+  const [tgData, setTgData] = useState<StreamerTelegramData | null>(null);
+  const [tgLoading, setTgLoading] = useState(false);
+  const [tgTokenLoading, setTgTokenLoading] = useState(false);
+  const [tgSavingSettings, setTgSavingSettings] = useState(false);
+  const [tgActiveToken, setTgActiveToken] = useState<TelegramConnectToken | null>(null);
 
   if (loading) {
     return <div className="min-h-screen"><Header /><div className="container mx-auto px-4 py-16 text-center text-muted-foreground">Загрузка…</div></div>;
@@ -182,6 +188,17 @@ function StreamerStudioPage() {
         if (active) {
           setStudioLoading(false);
         }
+      }
+
+      // Load Telegram settings separately (non-blocking)
+      try {
+        const tg = await loadStreamerTelegramSettings();
+        if (active) {
+          setTgData(tg);
+          setTgActiveToken(tg.activeToken);
+        }
+      } catch {
+        // Non-critical — Telegram settings load silently
       }
     };
 
@@ -444,6 +461,169 @@ function StreamerStudioPage() {
       toast.error("Не удалось отправить тест в overlay. Проверь, что страница OBS уже открыта.");
     }
   };
+
+  // ── Telegram handlers ────────────────────────────────────────────────────
+  const generateTgToken = async (chatKind: "streamer_channel" | "streamer_group") => {
+    setTgTokenLoading(true);
+    try {
+      const token = await generateTelegramConnectToken(chatKind);
+      setTgActiveToken(token);
+      setTgData((prev) => prev ? { ...prev, activeToken: token } : prev);
+      toast.success("Токен создан. Отправь команду боту в своём канале.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось сгенерировать токен");
+    } finally {
+      setTgTokenLoading(false);
+    }
+  };
+
+  const disconnectTgChat = async (chatId: string) => {
+    try {
+      await disconnectTelegramChat(chatId);
+      setTgData((prev) => prev
+        ? { ...prev, chats: prev.chats.map((c) => c.id === chatId ? { ...c, notifications_enabled: false } : c) }
+        : prev);
+      toast.success("Канал отключён от уведомлений.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Ошибка отключения канала");
+    }
+  };
+
+  const saveTgSettings = async (update: Record<string, unknown>) => {
+    setTgSavingSettings(true);
+    try {
+      await updateTelegramNotificationSettings(update as Parameters<typeof updateTelegramNotificationSettings>[0]);
+      setTgData((prev) => prev
+        ? { ...prev, settings: prev.settings ? { ...prev.settings, ...update } : (update as typeof prev.settings) }
+        : prev);
+      toast.success("Настройки уведомлений сохранены.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось сохранить настройки");
+    } finally {
+      setTgSavingSettings(false);
+    }
+  };
+
+  const telegramSection = (
+    <section className="rounded-3xl border border-border/50 bg-surface/60 p-5 sm:p-6">
+      <div className="flex items-center gap-2">
+        <MessageCircle className="h-5 w-5 text-blue-400" />
+        <h2 className="font-display text-xl font-bold sm:text-2xl">Telegram-интеграция</h2>
+      </div>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Подключи свой Telegram-канал или группу — бот будет автоматически сообщать зрителям о начале эфира.
+      </p>
+
+      {tgLoading && <p className="mt-4 text-sm text-muted-foreground">Загружаю настройки…</p>}
+
+      {/* Connected chats */}
+      {(tgData?.chats ?? []).length > 0 && (
+        <div className="mt-5 space-y-2">
+          <p className="text-sm font-medium text-foreground">Подключённые каналы и группы</p>
+          {(tgData?.chats ?? []).map((chat) => (
+            <div key={chat.id} className="flex items-center justify-between gap-3 rounded-2xl border border-border/40 bg-background/40 px-4 py-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{chat.title ?? (chat.username ? `@${chat.username}` : `Chat ${chat.chat_id}`)}</p>
+                <p className="text-xs text-muted-foreground">{chat.chat_kind === "streamer_channel" ? "Канал" : "Группа"} · {chat.notifications_enabled ? "Уведомления включены" : "Уведомления выключены"}</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void disconnectTgChat(chat.id)}
+                className="shrink-0 border-destructive/40 text-destructive hover:bg-destructive/10"
+              >
+                Отключить
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Connect token generator */}
+      <div className="mt-5 space-y-3">
+        <p className="text-sm font-medium text-foreground">Подключить новый канал или группу</p>
+        <div className="grid gap-2 sm:flex sm:flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={tgTokenLoading}
+            onClick={() => void generateTgToken("streamer_channel")}
+            className="w-full sm:w-auto"
+          >
+            {tgTokenLoading ? "Создаю…" : "Создать токен для канала"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={tgTokenLoading}
+            onClick={() => void generateTgToken("streamer_group")}
+            className="w-full sm:w-auto"
+          >
+            {tgTokenLoading ? "Создаю…" : "Создать токен для группы"}
+          </Button>
+        </div>
+
+        {tgActiveToken && (
+          <div className="rounded-2xl border border-blue-400/30 bg-blue-500/5 p-4 space-y-2">
+            <p className="text-sm font-medium text-foreground">Токен готов. Выполни в Telegram:</p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 select-all rounded-lg bg-background/60 px-3 py-2 text-sm font-mono text-blue-300 border border-border/40">
+                /link {tgActiveToken.token}
+              </code>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void navigator.clipboard.writeText(`/link ${tgActiveToken.token}`).then(() => toast.success("Скопировано"))}
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Отправь эту команду от имени администратора в своём Telegram-канале или группе.
+              Токен истекает в {new Date(tgActiveToken.expires_at).toLocaleString("ru-RU")}.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Notification settings */}
+      <div className="mt-6 space-y-3">
+        <p className="text-sm font-medium text-foreground">Настройки уведомлений</p>
+        {[
+          { key: "live_notification_enabled", label: "Уведомление о начале эфира", default: true },
+          { key: "boost_notification_enabled", label: "Уведомление о буст-кампании" },
+          { key: "post_sync_enabled", label: "Синхронизировать посты канала с публичной страницей" },
+        ].map((item) => {
+          const enabled = tgData?.settings
+            ? (tgData.settings[item.key as keyof typeof tgData.settings] as boolean)
+            : (item.default ?? false);
+          return (
+            <button
+              key={item.key}
+              type="button"
+              disabled={tgSavingSettings}
+              onClick={() => void saveTgSettings({ [item.key]: !enabled })}
+              className={`w-full rounded-2xl border px-4 py-3 text-left text-sm transition-colors ${enabled ? "border-blue-400/40 bg-blue-500/8 text-foreground" : "border-border/50 bg-background/30 text-muted-foreground"}`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span>{item.label}</span>
+                <span className={`shrink-0 text-xs font-medium ${enabled ? "text-blue-400" : "text-muted-foreground"}`}>
+                  {enabled ? "Включено" : "Выключено"}
+                </span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-5">
+        <p className="text-xs text-muted-foreground">
+          Бот NovaBoost Live: <a href="https://t.me/novaboostlive_bot" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">@novaboostlive_bot</a>
+          {" "}· Добавь бота в канал как администратора с правом публикации.
+        </p>
+      </div>
+    </section>
+  );
 
   const pageSettingsSection = (
     <section className="rounded-3xl border border-border/50 bg-surface/60 p-5 sm:p-6">
@@ -973,6 +1153,7 @@ function StreamerStudioPage() {
             <TabsTrigger value="content">Контент</TabsTrigger>
             <TabsTrigger value="engagement">Активности</TabsTrigger>
             <TabsTrigger value="donations">Донаты и OBS</TabsTrigger>
+            <TabsTrigger value="telegram">Telegram</TabsTrigger>
           </TabsList>
 
           <div className="mt-6 flex justify-center">
@@ -1002,6 +1183,10 @@ function StreamerStudioPage() {
 
           <TabsContent value="donations" className="mt-6">
             {donationSection}
+          </TabsContent>
+
+          <TabsContent value="telegram" className="mt-6">
+            {telegramSection}
           </TabsContent>
         </Tabs>
 

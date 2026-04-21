@@ -3,6 +3,7 @@ import type { Logger } from "../../lib/logger.js";
 import type { TrackingSnapshot } from "../../repositories/tracking-repository.js";
 import type { StreamEventRecord } from "../../repositories/tracking-repository.js";
 import type { TrackingStore } from "../../storage/live-storage.js";
+import type { NotificationService } from "../notifications/notification-service.js";
 import type { TrackingAdapter } from "./tracking-adapter.js";
 import type { TrackingLiveEventBridge } from "./live-event-bridge.js";
 import type { TrackingSocketHub } from "./tracking-socket-hub.js";
@@ -99,6 +100,8 @@ export class TrackingService {
     occurredAt: string;
   }> = [];
 
+  private notificationService: NotificationService | null = null;
+
   constructor(
     private readonly logger: Logger,
     private readonly env: BackendEnv,
@@ -106,6 +109,10 @@ export class TrackingService {
     private readonly trackingRepository?: TrackingStore,
     private readonly realtimeStateStore?: TrackingRealtimeStateStore,
   ) {}
+
+  attachNotificationService(notifications: NotificationService) {
+    this.notificationService = notifications;
+  }
 
   attachSocketHub(socketHub: TrackingSocketHub) {
     this.socketHub = socketHub;
@@ -382,6 +389,13 @@ export class TrackingService {
                 followers_count: snapshot.followersCount,
               },
               rawPayload: snapshot.rawSnapshot,
+            });
+
+            // Fan out Telegram (and future) live notifications
+            this.notificationService?.fanOutStreamIntent({
+              streamerId: streamer.id,
+              trigger: "live_started",
+              liveTitle: (snapshot.rawSnapshot as Record<string, unknown> | undefined)?.title as string | undefined,
             });
           } else if (!snapshot.isLive && liveSession) {
             await this.trackingRepository.endLiveSession(liveSession.id, snapshot, liveSession.peak_viewer_count);
