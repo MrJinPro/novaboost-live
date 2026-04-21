@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth-context";
 import {
   AdminApiError,
+  adminAwardPoints,
+  adminLookupUserPoints,
   createAdminTask,
   createAdminTrackedStreamer,
   deleteAdminTrackedStreamer,
@@ -24,7 +26,7 @@ import {
   type AdminStreamerApplication,
   type AdminTrackedStreamer,
 } from "@/lib/admin-moderation-data";
-import { ArrowUpDown, History, Search, ShieldAlert, ShieldCheck, UserCog, UserRound, Users, Activity } from "lucide-react";
+import { ArrowUpDown, History, Minus, Plus, Search, ShieldAlert, ShieldCheck, UserCog, UserRound, Users, Activity } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin")({
@@ -131,6 +133,14 @@ function AdminPage() {
   const [taskType, setTaskType] = useState<AdminTaskFormType>("visit");
   const [taskStreamerId, setTaskStreamerId] = useState<string>("");
   const [actionKey, setActionKey] = useState<string | null>(null);
+
+  // Points award form (admin-only)
+  const [pointsUserId, setPointsUserId] = useState("");
+  const [pointsDelta, setPointsDelta] = useState("50");
+  const [pointsReason, setPointsReason] = useState("");
+  const [pointsLookupResult, setPointsLookupResult] = useState<{ id: string; username: string; display_name: string | null; points: number | null; level: number | null } | null>(null);
+  const [pointsLookupLoading, setPointsLookupLoading] = useState(false);
+  const [pointsActionLoading, setPointsActionLoading] = useState(false);
 
   const syncApplications = async () => {
     if (!session) {
@@ -1178,6 +1188,162 @@ function AdminPage() {
             )}
           </div>
         </section>
+
+        {/* ─── Manual Points Award — visible only to full admins ─────────────── */}
+        {currentAccessLevel === "admin" && (
+          <section className="mt-8 rounded-3xl border border-blast/30 bg-surface/60 p-6">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-blast/40 bg-blast/10 px-3 py-1 text-xs font-semibold text-blast-foreground">
+                  <ShieldCheck className="h-3.5 w-3.5" /> Только для Admin
+                </div>
+                <h2 className="mt-4 font-display text-3xl font-bold">Ручное начисление очков</h2>
+                <p className="mt-3 max-w-2xl text-muted-foreground text-sm">
+                  Введи User ID пользователя, количество очков (положительное или отрицательное) и причину. Операция записывается в ledger и не может быть отменена без новой записи.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_auto]">
+              <div className="space-y-4">
+                {/* User lookup */}
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="User ID (UUID)"
+                      value={pointsUserId}
+                      onChange={(e) => {
+                        setPointsUserId(e.target.value);
+                        setPointsLookupResult(null);
+                      }}
+                      className="pl-10 font-mono text-sm"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={!pointsUserId.trim() || pointsLookupLoading}
+                    onClick={async () => {
+                      if (!session) return;
+                      setPointsLookupLoading(true);
+                      try {
+                        const profile = await adminLookupUserPoints(session, pointsUserId.trim());
+                        setPointsLookupResult(profile);
+                      } catch (error) {
+                        toast.error(error instanceof Error ? error.message : "Пользователь не найден.");
+                        setPointsLookupResult(null);
+                      } finally {
+                        setPointsLookupLoading(false);
+                      }
+                    }}
+                  >
+                    {pointsLookupLoading ? "Ищем…" : "Найти"}
+                  </Button>
+                </div>
+
+                {/* User preview */}
+                {pointsLookupResult && (
+                  <div className="rounded-2xl border border-border/50 bg-background/30 px-4 py-3 text-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <span className="font-semibold text-foreground">{pointsLookupResult.display_name ?? pointsLookupResult.username}</span>
+                        <span className="ml-2 text-muted-foreground">@{pointsLookupResult.username}</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span>Очков: <span className="font-bold text-foreground">{pointsLookupResult.points ?? 0}</span></span>
+                        <span>Уровень: <span className="font-bold text-foreground">{pointsLookupResult.level ?? 1}</span></span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Delta */}
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0"
+                    onClick={() => {
+                      const v = Number(pointsDelta);
+                      if (Number.isFinite(v)) setPointsDelta(String(Math.abs(v) * -1 || -50));
+                    }}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  <Input
+                    type="number"
+                    placeholder="Кол-во очков (напр. 100 или -50)"
+                    value={pointsDelta}
+                    onChange={(e) => setPointsDelta(e.target.value)}
+                    className="flex-1 text-center font-semibold"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0"
+                    onClick={() => {
+                      const v = Number(pointsDelta);
+                      if (Number.isFinite(v)) setPointsDelta(String(Math.abs(v) || 50));
+                    }}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {/* Reason */}
+                <Input
+                  placeholder="Причина начисления (обязательно)"
+                  value={pointsReason}
+                  onChange={(e) => setPointsReason(e.target.value)}
+                />
+
+                {/* Submit */}
+                <Button
+                  className="w-full bg-gradient-blast font-bold text-blast-foreground shadow-glow"
+                  disabled={
+                    pointsActionLoading
+                    || !pointsLookupResult
+                    || !pointsReason.trim()
+                    || !Number.isFinite(Number(pointsDelta))
+                    || Number(pointsDelta) === 0
+                  }
+                  onClick={async () => {
+                    if (!session || !pointsLookupResult) return;
+                    const delta = Number(pointsDelta);
+                    if (!Number.isFinite(delta) || delta === 0) {
+                      toast.error("Укажи корректное количество очков.");
+                      return;
+                    }
+                    setPointsActionLoading(true);
+                    try {
+                      const result = await adminAwardPoints(session, {
+                        userId: pointsLookupResult.id,
+                        delta,
+                        reason: pointsReason.trim(),
+                      });
+                      toast.success(
+                        `${delta > 0 ? "Начислено" : "Снято"} ${Math.abs(delta)} очков. Новый баланс: ${result.newPoints} (ур. ${result.newLevel})`,
+                      );
+                      // Update preview
+                      setPointsLookupResult((prev) => prev ? { ...prev, points: result.newPoints, level: result.newLevel } : null);
+                      setPointsDelta("50");
+                      setPointsReason("");
+                    } catch (error) {
+                      toast.error(error instanceof Error ? error.message : "Не удалось начислить очки.");
+                    } finally {
+                      setPointsActionLoading(false);
+                    }
+                  }}
+                >
+                  {pointsActionLoading ? "Обрабатываем…" : `${Number(pointsDelta) >= 0 ? "Начислить" : "Снять"} очки`}
+                </Button>
+              </div>
+            </div>
+          </section>
+        )}
       </div>
     </div>
   );

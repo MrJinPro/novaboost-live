@@ -282,6 +282,36 @@ export async function createAdminTask(session: Session, payload: {
   });
 }
 
+export type AdminPointsAwardResult = {
+  ok: true;
+  userId: string;
+  previousPoints: number;
+  delta: number;
+  newPoints: number;
+  newLevel: number;
+};
+
+export async function adminLookupUserPoints(session: Session, userId: string) {
+  const data = await requestAdminPath<{ profile: { id: string; username: string; display_name: string | null; points: number | null; level: number | null } }>(
+    session,
+    `/api/admin/points?userId=${encodeURIComponent(userId)}`,
+    { method: "GET" },
+  );
+  return data.profile;
+}
+
+export async function adminAwardPoints(session: Session, payload: {
+  userId: string;
+  delta: number;
+  reason: string;
+}) {
+  return requestAdminPath<AdminPointsAwardResult>(session, "/api/admin/points", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function loadAdminTrackingDiagnostics(session: Session) {
   const response = await fetch(`${getBackendBaseUrl()}/tracking/diagnostics`, {
     method: "GET",
