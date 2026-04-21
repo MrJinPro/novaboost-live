@@ -135,13 +135,17 @@ export class TelegramBotHandler {
   private async sendDmWelcome(chatId: number, firstName: string) {
     await this.sender.sendMessage(chatId,
       `👋 Привет, <b>${firstName}</b>!\n\n` +
-      `Я бот <b>NovaBoost Live</b> — уведомляю о стримах и помогаю стримерам управлять их Telegram-каналами.\n\n` +
-      `<b>Команды:</b>\n` +
-      `/subscribe — подписаться на стримера\n` +
+      `Я <b>@novaboost_live_bot</b> — официальный бот платформы NovaBoost Live.\n` +
+      `Уведомляю зрителей о начале эфиров и помогаю стримерам управлять их Telegram-каналами.\n\n` +
+      `<b>Команды для зрителей:</b>\n` +
+      `/subscribe — подписаться на стримера (получать уведомления о эфирах)\n` +
       `/unsubscribe — отписаться\n` +
       `/mysubs — мои подписки\n\n` +
       `<b>Для стримеров:</b>\n` +
-      `Подключи свой Telegram-канал через <b>Studio → Telegram</b> на novaboost.cloud`);
+      `Чтобы подключить свой Telegram-канал к NovaBoost:\n` +
+      `1. Добавь меня как администратора канала с правом публикации\n` +
+      `2. Зайди на novaboost.cloud → Studio → Telegram\n` +
+      `3. Нажми «Создать токен» и отправь команду /link в своём канале`);
   }
 
   // ── Subscribe / unsubscribe ───────────────────────────────────────────────
@@ -462,10 +466,12 @@ export class TelegramBotHandler {
       // Bot was added — send welcome instructions
       if (chat.type !== "private") {
         await this.sender.sendMessage(chat.id,
-          `👋 Привет! Я бот <b>NovaBoost Live</b>.\n\n` +
-          `Чтобы связать этот канал с аккаунтом стримера, отправь:\n` +
-          `<code>/link ТОКЕН</code>\n\n` +
-          `Токен генерируется в <b>Studio → Telegram</b> на novaboost.cloud`);
+          `👋 Привет! Я <b>@novaboost_live_bot</b> — бот платформы NovaBoost Live.\n\n` +
+          `Чтобы подключить этот канал к аккаунту стримера и получить автоматические уведомления о эфирах:\n\n` +
+          `1. Зайди на <b>novaboost.cloud → Studio → Telegram</b>\n` +
+          `2. Нажми «Создать токен для канала»\n` +
+          `3. Скопируй команду и отправь её сюда:\n` +
+          `<code>/link ВАШ_ТОКЕН</code>`);
       }
     }
 

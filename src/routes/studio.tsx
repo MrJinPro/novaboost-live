@@ -511,8 +511,31 @@ function StreamerStudioPage() {
         <h2 className="font-display text-xl font-bold sm:text-2xl">Telegram-интеграция</h2>
       </div>
       <p className="mt-2 text-sm text-muted-foreground">
-        Подключи свой Telegram-канал или группу — бот будет автоматически сообщать зрителям о начале эфира.
+        Подключи свой Telegram-канал или группу — бот будет автоматически отправлять уведомления о начале эфира твоим зрителям.
       </p>
+
+      {/* Инструкция */}
+      <div className="mt-4 rounded-2xl border border-blue-400/20 bg-blue-500/5 p-4 space-y-2">
+        <p className="text-sm font-semibold text-foreground">Как подключить канал — 3 шага:</p>
+        <ol className="space-y-2 text-sm text-muted-foreground list-none">
+          <li className="flex gap-2">
+            <span className="shrink-0 flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/20 text-blue-400 text-xs font-bold">1</span>
+            <span>
+              Открой свой Telegram-канал (или группу) → <b>Управление каналом → Администраторы → Добавить администратора</b> → найди{" "}
+              <a href="https://t.me/novaboost_live_bot" target="_blank" rel="noopener noreferrer" className="font-mono text-blue-400 hover:underline">@novaboost_live_bot</a>{" "}
+              и выдай ему право <b>«Публикация сообщений»</b>.
+            </span>
+          </li>
+          <li className="flex gap-2">
+            <span className="shrink-0 flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/20 text-blue-400 text-xs font-bold">2</span>
+            <span>Нажми кнопку <b>«Создать токен для канала»</b> ниже — получишь команду вида <code className="text-blue-300">/link …</code></span>
+          </li>
+          <li className="flex gap-2">
+            <span className="shrink-0 flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/20 text-blue-400 text-xs font-bold">3</span>
+            <span>Скопируй команду и отправь её <b>в своём Telegram-канале</b> (не в личке боту, а именно в канале). Бот подтвердит подключение.</span>
+          </li>
+        </ol>
+      </div>
 
       {tgLoading && <p className="mt-4 text-sm text-muted-foreground">Загружаю настройки…</p>}
 
@@ -541,7 +564,9 @@ function StreamerStudioPage() {
 
       {/* Connect token generator */}
       <div className="mt-5 space-y-3">
-        <p className="text-sm font-medium text-foreground">Подключить новый канал или группу</p>
+        <p className="text-sm font-medium text-foreground">
+          {(tgData?.chats ?? []).length > 0 ? "Подключить ещё один канал или группу" : "Подключить канал или группу"}
+        </p>
         <div className="grid gap-2 sm:flex sm:flex-wrap">
           <Button
             variant="outline"
@@ -564,23 +589,27 @@ function StreamerStudioPage() {
         </div>
 
         {tgActiveToken && (
-          <div className="rounded-2xl border border-blue-400/30 bg-blue-500/5 p-4 space-y-2">
-            <p className="text-sm font-medium text-foreground">Токен готов. Выполни в Telegram:</p>
+          <div className="rounded-2xl border border-blue-400/40 bg-blue-500/8 p-4 space-y-3">
+            <p className="text-sm font-semibold text-foreground">✅ Токен готов — выполни шаг 3:</p>
+            <p className="text-xs text-muted-foreground">Скопируй команду ниже и отправь её <b>в своём Telegram-канале</b> (именно в канале, не в личку боту):</p>
             <div className="flex items-center gap-2">
-              <code className="flex-1 select-all rounded-lg bg-background/60 px-3 py-2 text-sm font-mono text-blue-300 border border-border/40">
+              <code className="flex-1 select-all rounded-lg bg-background/70 px-3 py-2.5 text-sm font-mono text-blue-300 border border-blue-400/30 break-all">
                 /link {tgActiveToken.token}
               </code>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => void navigator.clipboard.writeText(`/link ${tgActiveToken.token}`).then(() => toast.success("Скопировано"))}
+                className="shrink-0"
+                onClick={() => void navigator.clipboard.writeText(`/link ${tgActiveToken.token}`).then(() => toast.success("Команда скопирована"))}
               >
                 <Copy className="h-4 w-4" />
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Отправь эту команду от имени администратора в своём Telegram-канале или группе.
-              Токен истекает в {new Date(tgActiveToken.expires_at).toLocaleString("ru-RU")}.
+              ⚠️ Убедись, что{" "}
+              <a href="https://t.me/novaboost_live_bot" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline font-mono">@novaboost_live_bot</a>
+              {" "}уже добавлен как администратор канала с правом публикации. Токен действителен до{" "}
+              {new Date(tgActiveToken.expires_at).toLocaleString("ru-RU")}.
             </p>
           </div>
         )}
@@ -616,10 +645,11 @@ function StreamerStudioPage() {
         })}
       </div>
 
-      <div className="mt-5">
+      <div className="mt-5 rounded-2xl border border-border/30 bg-background/30 px-4 py-3">
         <p className="text-xs text-muted-foreground">
-          Бот NovaBoost Live: <a href="https://t.me/novaboostlive_bot" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">@novaboostlive_bot</a>
-          {" "}· Добавь бота в канал как администратора с правом публикации.
+          <span className="font-medium text-foreground">Бот:</span>{" "}
+          <a href="https://t.me/novaboost_live_bot" target="_blank" rel="noopener noreferrer" className="font-mono text-blue-400 hover:underline">@novaboost_live_bot</a>
+          {" "}· Для работы уведомлений бот должен быть администратором канала/группы с правом <b>публикации сообщений</b>.
         </p>
       </div>
     </section>
