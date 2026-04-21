@@ -19,7 +19,7 @@ import { getPaidSubscriptionPlans, getSubscriptionPlanLabel, loadPostReactionSum
 import { calculateCustomerAmount, groupTikTokPromotionServices, loadTikTokPromotionServices, type TikTokPromotionService } from "@/lib/prmotion-data";
 import { resolveSocialLinkHref } from "@/lib/streamer-page-config";
 import { getOwnedStreamerPublicPage, getStreamerSubscriptionState, loadPublicStreamerPage, toggleStreamerSubscription } from "@/lib/streamer-studio-data";
-import { loadStreamerTrackingDetails, type StreamTrackingDetails } from "@/lib/live-status-data";
+import { loadStreamerTrackingDetails, resolveLiveStatus, type ResolvedLiveStatus, type StreamTrackingDetails } from "@/lib/live-status-data";
 import { toast } from "sonner";
 
 const STREAMER_PAGE_REFRESH_MS = 5_000;
@@ -99,6 +99,7 @@ function StreamerProfile() {
   const [subscribed, setSubscribed] = useState(false);
   const [streamer, setStreamer] = useState<StreamerPageData | null>(null);
   const [trackingDetails, setTrackingDetails] = useState<StreamTrackingDetails | null>(null);
+  const [liveStatus, setLiveStatus] = useState<ResolvedLiveStatus | null>(null);
   const [pageLoading, setPageLoading] = useState(true);
   const [pageRefreshing, setPageRefreshing] = useState(false);
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
@@ -161,17 +162,23 @@ function StreamerProfile() {
         }
 
         if (page) {
-          const details = await loadStreamerTrackingDetails(page.id).catch(() => null);
+          const [details, nextLiveStatus] = await Promise.all([
+            loadStreamerTrackingDetails(page.id).catch(() => null),
+            resolveLiveStatus(page.tiktok_username).catch(() => null),
+          ]);
           if (active) {
             setTrackingDetails(details);
+            setLiveStatus(nextLiveStatus);
           }
         } else if (active) {
           setTrackingDetails(null);
+          setLiveStatus(null);
         }
       } catch (error) {
         if (active) {
           setStreamer(null);
           setTrackingDetails(null);
+          setLiveStatus(null);
           if (!background) {
             toast.error(error instanceof Error ? error.message : "Не удалось загрузить публичную страницу стримера");
           }
@@ -355,10 +362,16 @@ function StreamerProfile() {
   const boosted = streamer.total_boost_amount > 0;
   const isRegistered = streamer.is_registered ?? Boolean(streamer.owner_user_id);
   const trackingCounters = deriveTrackingCounters(trackingDetails);
+  const resolvedIsLive = trackingDetails?.realtimeState?.isLive
+    ?? trackingDetails?.state?.is_live
+    ?? liveStatus?.isLive
+    ?? streamer.is_live;
   const liveViewerCount = trackingDetails?.realtimeState?.viewerCount
     ?? trackingDetails?.state?.viewer_count
     ?? trackingDetails?.latestSession?.current_viewer_count
+    ?? liveStatus?.viewerCount
     ?? streamer.viewer_count;
+  const resolvedFollowersCount = Math.max(streamer.followers_count ?? 0, liveStatus?.followersCount ?? 0);
   const liveLikes = Math.max(
     streamer.total_likes,
     trackingDetails?.realtimeState?.likeCount ?? 0,
@@ -663,8 +676,8 @@ function StreamerProfile() {
         </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard icon={<Eye className="h-5 w-5" />} label="Зрителей сейчас" value={streamer.is_live ? formatNumber(liveViewerCount) : "—"} accent="live" />
-          <StatCard icon={<Users className="h-5 w-5" />} label="TikTok подписчиков" value={formatNumber(streamer.followers_count)} />
+          <StatCard icon={<Eye className="h-5 w-5" />} label="Зрителей сейчас" value={resolvedIsLive ? formatNumber(liveViewerCount) : "—"} accent="live" />
+          <StatCard icon={<Users className="h-5 w-5" />} label="TikTok подписчиков" value={formatNumber(resolvedFollowersCount)} />
           <StatCard icon={<Zap className="h-5 w-5" />} label="Поддержка сообщества" value={formatNumber(streamer.total_boost_amount)} accent="blast" />
           <StatCard icon={<TrendingUp className="h-5 w-5" />} label="Подписки в платформе" value={formatNumber(streamer.subscription_count)} />
           <StatCard icon={<Sparkles className="h-5 w-5" />} label="Лайков в эфире" value={formatNumber(liveLikes)} accent="blast" />

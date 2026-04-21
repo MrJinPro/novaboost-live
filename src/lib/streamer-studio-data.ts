@@ -550,8 +550,7 @@ function compactRepeatedLiveEvents<T extends { type: string; title: string; desc
 
     if (
       previousEvent
-      && event.type === "snapshot_updated"
-      && previousEvent.type === "snapshot_updated"
+      && previousEvent.type === event.type
       && previousEvent.title === event.title
       && previousEvent.description === event.description
     ) {
