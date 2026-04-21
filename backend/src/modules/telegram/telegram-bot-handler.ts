@@ -620,6 +620,7 @@ export class TelegramBotHandler {
       .from("stream_sessions")
       .select("id, started_at")
       .eq("streamer_id", streamerId)
+      .eq("status", "live")
       .is("ended_at", null)
       .order("started_at", { ascending: false })
       .limit(1)
