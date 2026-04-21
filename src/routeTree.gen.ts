@@ -37,6 +37,7 @@ import { Route as OverlayDonationSlugRouteImport } from './routes/overlay.donati
 import { Route as ApiAdminUsersRouteImport } from './routes/api/admin/users'
 import { Route as ApiAdminTasksRouteImport } from './routes/api/admin/tasks'
 import { Route as ApiAdminStreamerApplicationsRouteImport } from './routes/api/admin/streamer-applications'
+import { Route as ApiAdminPointsRouteImport } from './routes/api/admin/points'
 import { Route as OverlayWidgetSlugWidgetRouteImport } from './routes/overlay.widget.$slug.$widget'
 
 const TasksRoute = TasksRouteImport.update({
@@ -180,6 +181,11 @@ const ApiAdminStreamerApplicationsRoute =
     path: '/api/admin/streamer-applications',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiAdminPointsRoute = ApiAdminPointsRouteImport.update({
+  id: '/api/admin/points',
+  path: '/api/admin/points',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OverlayWidgetSlugWidgetRoute = OverlayWidgetSlugWidgetRouteImport.update({
   id: '/overlay/widget/$slug/$widget',
   path: '/overlay/widget/$slug/$widget',
@@ -211,6 +217,7 @@ export interface FileRoutesByFullPath {
   '/legal/terms': typeof LegalTermsRoute
   '/streamer/$id': typeof StreamerIdRoute
   '/support/$slug': typeof SupportSlugRoute
+  '/api/admin/points': typeof ApiAdminPointsRoute
   '/api/admin/streamer-applications': typeof ApiAdminStreamerApplicationsRoute
   '/api/admin/tasks': typeof ApiAdminTasksRoute
   '/api/admin/users': typeof ApiAdminUsersRoute
@@ -242,6 +249,7 @@ export interface FileRoutesByTo {
   '/legal/terms': typeof LegalTermsRoute
   '/streamer/$id': typeof StreamerIdRoute
   '/support/$slug': typeof SupportSlugRoute
+  '/api/admin/points': typeof ApiAdminPointsRoute
   '/api/admin/streamer-applications': typeof ApiAdminStreamerApplicationsRoute
   '/api/admin/tasks': typeof ApiAdminTasksRoute
   '/api/admin/users': typeof ApiAdminUsersRoute
@@ -274,6 +282,7 @@ export interface FileRoutesById {
   '/legal/terms': typeof LegalTermsRoute
   '/streamer/$id': typeof StreamerIdRoute
   '/support/$slug': typeof SupportSlugRoute
+  '/api/admin/points': typeof ApiAdminPointsRoute
   '/api/admin/streamer-applications': typeof ApiAdminStreamerApplicationsRoute
   '/api/admin/tasks': typeof ApiAdminTasksRoute
   '/api/admin/users': typeof ApiAdminUsersRoute
@@ -307,6 +316,7 @@ export interface FileRouteTypes {
     | '/legal/terms'
     | '/streamer/$id'
     | '/support/$slug'
+    | '/api/admin/points'
     | '/api/admin/streamer-applications'
     | '/api/admin/tasks'
     | '/api/admin/users'
@@ -338,6 +348,7 @@ export interface FileRouteTypes {
     | '/legal/terms'
     | '/streamer/$id'
     | '/support/$slug'
+    | '/api/admin/points'
     | '/api/admin/streamer-applications'
     | '/api/admin/tasks'
     | '/api/admin/users'
@@ -369,6 +380,7 @@ export interface FileRouteTypes {
     | '/legal/terms'
     | '/streamer/$id'
     | '/support/$slug'
+    | '/api/admin/points'
     | '/api/admin/streamer-applications'
     | '/api/admin/tasks'
     | '/api/admin/users'
@@ -401,6 +413,7 @@ export interface RootRouteChildren {
   LegalTermsRoute: typeof LegalTermsRoute
   StreamerIdRoute: typeof StreamerIdRoute
   SupportSlugRoute: typeof SupportSlugRoute
+  ApiAdminPointsRoute: typeof ApiAdminPointsRoute
   ApiAdminStreamerApplicationsRoute: typeof ApiAdminStreamerApplicationsRoute
   ApiAdminTasksRoute: typeof ApiAdminTasksRoute
   ApiAdminUsersRoute: typeof ApiAdminUsersRoute
@@ -606,6 +619,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminStreamerApplicationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/points': {
+      id: '/api/admin/points'
+      path: '/api/admin/points'
+      fullPath: '/api/admin/points'
+      preLoaderRoute: typeof ApiAdminPointsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/overlay/widget/$slug/$widget': {
       id: '/overlay/widget/$slug/$widget'
       path: '/overlay/widget/$slug/$widget'
@@ -641,6 +661,7 @@ const rootRouteChildren: RootRouteChildren = {
   LegalTermsRoute: LegalTermsRoute,
   StreamerIdRoute: StreamerIdRoute,
   SupportSlugRoute: SupportSlugRoute,
+  ApiAdminPointsRoute: ApiAdminPointsRoute,
   ApiAdminStreamerApplicationsRoute: ApiAdminStreamerApplicationsRoute,
   ApiAdminTasksRoute: ApiAdminTasksRoute,
   ApiAdminUsersRoute: ApiAdminUsersRoute,
