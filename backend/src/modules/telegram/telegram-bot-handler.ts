@@ -119,6 +119,11 @@ export class TelegramBotHandler {
       return;
     }
 
+    if (text === "/help") {
+      await this.sendDmWelcome(chatId, msg.from!.first_name);
+      return;
+    }
+
     if (text === "/connect") {
       await this.sender.sendMessage(chatId,
         "🔗 Чтобы подключить канал, сгенерируй токен в <b>Studio → Telegram</b> и отправь команду\n\n<code>/link ТОКЕН</code>\n\nот имени администратора в своём канале.");
@@ -140,12 +145,18 @@ export class TelegramBotHandler {
       `<b>Команды для зрителей:</b>\n` +
       `/subscribe — подписаться на стримера (получать уведомления о эфирах)\n` +
       `/unsubscribe — отписаться\n` +
-      `/mysubs — мои подписки\n\n` +
+      `/mysubs — мои подписки\n` +
+      `/help — список команд\n\n` +
       `<b>Для стримеров:</b>\n` +
       `Чтобы подключить свой Telegram-канал к NovaBoost:\n` +
       `1. Добавь меня как администратора канала с правом публикации\n` +
       `2. Зайди на <a href="https://live.novaboost.cloud/studio">live.novaboost.cloud/studio</a> → Telegram\n` +
-      `3. Нажми «Создать токен» и отправь команду /link в своём канале`);
+      `3. Нажми «Создать токен» и отправь команду /link в своём канале\n\n` +
+      `<b>Команды администратора чата:</b>\n` +
+      `/link TOKEN — подключить текущий чат\n` +
+      `/status — статус подключения\n` +
+      `/bans — последние баны и муты этого чата\n` +
+      `/modstats — статистика модерации по этому чату`);
   }
 
   // ── Subscribe / unsubscribe ───────────────────────────────────────────────
@@ -400,11 +411,159 @@ export class TelegramBotHandler {
 
   private async handleGroupCommand(msg: TgMessage, text: string) {
     const chatId = msg.chat.id;
+    const from = msg.from;
+    if (!from) return;
 
     if (text.startsWith("/link ")) {
       const token = text.split(" ")[1]?.trim();
-      if (token && msg.from) await this.handleLinkToken(chatId, msg.from.id, msg.from, token);
+      if (token) await this.handleLinkToken(chatId, from.id, from, token);
+      return;
     }
+
+    if (text === "/status") {
+      await this.handleGroupStatusCommand(chatId, from.id);
+      return;
+    }
+
+    if (text === "/bans") {
+      await this.handleGroupBansCommand(chatId, from.id);
+      return;
+    }
+
+    if (text === "/modstats") {
+      await this.handleGroupModStatsCommand(chatId, from.id);
+      return;
+    }
+
+    if (text === "/help") {
+      await this.handleGroupHelpCommand(chatId, from.id);
+    }
+  }
+
+  private async handleGroupHelpCommand(chatId: number, requesterId: number) {
+    const isAdmin = await this.isChatAdmin(chatId, requesterId);
+    if (!isAdmin) return;
+
+    await this.sender.sendMessage(chatId,
+      `<b>Команды администратора этого чата:</b>\n\n` +
+      `/link TOKEN — подключить этот чат к стримеру\n` +
+      `/status — показать статус подключения и уведомлений\n` +
+      `/bans — последние баны и муты только по этому чату\n` +
+      `/modstats — статистика модерации только по этому чату\n\n` +
+      `Команды видят смысл только для админов текущей группы/канала.`);
+  }
+
+  private async handleGroupStatusCommand(chatId: number, requesterId: number) {
+    const isAdmin = await this.isChatAdmin(chatId, requesterId);
+    if (!isAdmin) return;
+
+    const { data: chatRow } = await this.supabase
+      .from("telegram_chats")
+      .select("id, streamer_id, chat_kind, notifications_enabled, moderation_enabled")
+      .eq("chat_id", chatId)
+      .maybeSingle();
+
+    if (!chatRow) {
+      await this.sender.sendMessage(chatId, "Этот чат ещё не подключён. Сначала выполни /link TOKEN.");
+      return;
+    }
+
+    const { data: streamer } = await this.supabase
+      .from("streamers")
+      .select("display_name, tiktok_username")
+      .eq("id", chatRow.streamer_id)
+      .maybeSingle();
+
+    await this.sender.sendMessage(chatId,
+      `<b>Статус чата</b>\n\n` +
+      `Стример: <b>${streamer?.display_name ?? "не найден"}</b> ${streamer?.tiktok_username ? `(@${streamer.tiktok_username})` : ""}\n` +
+      `Тип: ${chatRow.chat_kind === "streamer_group" ? "Группа" : "Канал"}\n` +
+      `Уведомления: ${chatRow.notifications_enabled ? "включены" : "выключены"}\n` +
+      `Модерация: ${chatRow.moderation_enabled ? "включена" : "выключена"}`);
+  }
+
+  private async handleGroupBansCommand(chatId: number, requesterId: number) {
+    const isAdmin = await this.isChatAdmin(chatId, requesterId);
+    if (!isAdmin) return;
+
+    const { data: chatRow } = await this.supabase
+      .from("telegram_chats")
+      .select("id")
+      .eq("chat_id", chatId)
+      .maybeSingle();
+
+    if (!chatRow) {
+      await this.sender.sendMessage(chatId, "Этот чат ещё не подключён. Сначала выполни /link TOKEN.");
+      return;
+    }
+
+    const { data: actions, error } = await this.supabase
+      .from("telegram_moderation_actions")
+      .select("telegram_user_id, action_type, reason, executed_at, created_at, status")
+      .eq("telegram_chat_id", chatRow.id)
+      .in("action_type", ["ban", "mute", "unban"])
+      .order("created_at", { ascending: false })
+      .limit(15);
+
+    if (error) {
+      this.logger.error("[TelegramBot] Failed to load moderation actions", { error: error.message, chatId });
+      await this.sender.sendMessage(chatId, "Не удалось загрузить список банов. Попробуй позже.");
+      return;
+    }
+
+    if (!actions?.length) {
+      await this.sender.sendMessage(chatId, "В этом чате ещё нет сохранённых банов или мутов.");
+      return;
+    }
+
+    const lines = actions.map((action, index) => {
+      const happenedAt = new Date(action.executed_at ?? action.created_at).toLocaleString("ru-RU");
+      const reason = action.reason ? ` — ${action.reason}` : "";
+      return `${index + 1}. <b>${action.action_type}</b> user ${action.telegram_user_id} · ${action.status} · ${happenedAt}${reason}`;
+    }).join("\n");
+
+    await this.sender.sendMessage(chatId, `<b>Последние действия модерации в этом чате:</b>\n\n${lines}`);
+  }
+
+  private async handleGroupModStatsCommand(chatId: number, requesterId: number) {
+    const isAdmin = await this.isChatAdmin(chatId, requesterId);
+    if (!isAdmin) return;
+
+    const { data: chatRow } = await this.supabase
+      .from("telegram_chats")
+      .select("id")
+      .eq("chat_id", chatId)
+      .maybeSingle();
+
+    if (!chatRow) {
+      await this.sender.sendMessage(chatId, "Этот чат ещё не подключён. Сначала выполни /link TOKEN.");
+      return;
+    }
+
+    const { data: incidents, error } = await this.supabase
+      .from("telegram_moderation_incidents")
+      .select("severity, reason, occurred_at")
+      .eq("telegram_chat_id", chatRow.id)
+      .order("occurred_at", { ascending: false })
+      .limit(50);
+
+    if (error) {
+      this.logger.error("[TelegramBot] Failed to load moderation stats", { error: error.message, chatId });
+      await this.sender.sendMessage(chatId, "Не удалось загрузить статистику модерации. Попробуй позже.");
+      return;
+    }
+
+    const total = incidents?.length ?? 0;
+    const severe = incidents?.filter((item) => item.severity === "severe").length ?? 0;
+    const medium = incidents?.filter((item) => item.severity === "medium").length ?? 0;
+    const lastReasons = Array.from(new Set((incidents ?? []).map((item) => item.reason))).slice(0, 5);
+
+    await this.sender.sendMessage(chatId,
+      `<b>Статистика модерации этого чата</b>\n\n` +
+      `Всего срабатываний: <b>${total}</b>\n` +
+      `Сильные санкции: <b>${severe}</b>\n` +
+      `Средние санкции: <b>${medium}</b>\n` +
+      `Последние причины: ${lastReasons.length ? lastReasons.join(", ") : "нет"}`);
   }
 
   // ── Group moderation ──────────────────────────────────────────────────────
@@ -469,26 +628,52 @@ export class TelegramBotHandler {
     const chatId = msg.chat.id;
     const userId = msg.from!.id;
     const messageId = msg.message_id;
+    let actionApplied = false;
+    let durationSeconds: number | null = null;
 
     if (action === "delete_message") {
-      await this.sender.deleteMessage(chatId, messageId);
+      actionApplied = await this.sender.deleteMessage(chatId, messageId);
     } else if (action === "ban") {
       await this.sender.deleteMessage(chatId, messageId);
-      await this.sender.banChatMember(chatId, userId);
+      actionApplied = await this.sender.banChatMember(chatId, userId);
     } else if (action === "mute") {
       const until = Math.floor(Date.now() / 1000) + 3600;
-      await this.sender.restrictChatMember(chatId, userId, until);
+      durationSeconds = 3600;
+      actionApplied = await this.sender.restrictChatMember(chatId, userId, until);
     }
 
     // Record incident
-    await this.supabase.from("telegram_moderation_incidents").insert({
+    const { data: incident, error: incidentError } = await this.supabase.from("telegram_moderation_incidents").insert({
       telegram_chat_id: chatRowId,
       streamer_id: streamerId,
       telegram_user_id: userId,
       reason,
       severity: action === "ban" ? "severe" : "medium",
       payload: { message_text: msg.text ?? "", message_id: messageId },
-    });
+    }).select("id").maybeSingle();
+
+    if (incidentError) {
+      this.logger.error("[TelegramBot] Failed to record moderation incident", { error: incidentError.message, chatId, userId });
+    }
+
+    if (["ban", "mute", "delete_message", "warn"].includes(action)) {
+      const { error: actionError } = await this.supabase.from("telegram_moderation_actions").insert({
+        telegram_chat_id: chatRowId,
+        streamer_id: streamerId,
+        incident_id: incident?.id ?? null,
+        telegram_user_id: userId,
+        action_type: action,
+        status: actionApplied ? "applied" : "failed",
+        duration_seconds: durationSeconds,
+        reason,
+        executed_at: actionApplied ? new Date().toISOString() : null,
+        metadata: { message_id: messageId },
+      });
+
+      if (actionError) {
+        this.logger.error("[TelegramBot] Failed to record moderation action", { error: actionError.message, chatId, userId, action });
+      }
+    }
 
     this.logger.info("[TelegramBot] Moderation applied", { chatId, userId, action, reason });
   }
@@ -510,7 +695,11 @@ export class TelegramBotHandler {
           `1. Зайди на <b><a href="https://live.novaboost.cloud/studio">live.novaboost.cloud/studio</a></b>\n` +
           `2. Нажми «Создать токен для канала»\n` +
           `3. Скопируй команду и отправь её сюда:\n` +
-          `<code>/link ВАШ_ТОКЕН</code>`);
+          `<code>/link ВАШ_ТОКЕН</code>\n\n` +
+          `<b>Команды администратора:</b>\n` +
+          `/status\n` +
+          `/bans\n` +
+          `/modstats`);
       }
     }
 
@@ -640,6 +829,11 @@ export class TelegramBotHandler {
         ]],
       },
     };
+  }
+
+  private async isChatAdmin(chatId: number, userId: number) {
+    const member = await this.sender.getChatMember(chatId, userId);
+    return member?.status === "creator" || member?.status === "administrator";
   }
 
   private async getOrCreateTelegramChat(chatId: number, streamerId: string, chatKind: string) {
