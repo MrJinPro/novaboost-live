@@ -57,6 +57,7 @@ function parseTrackingNumber(value: unknown) {
 
 function deriveTrackingCounters(details: StreamTrackingDetails | null) {
   let totalLikes = 0;
+  let maxTotalLikes = 0;
   let totalGifts = 0;
   let totalMessages = 0;
   let peakViewerCount = 0;
@@ -70,8 +71,13 @@ function deriveTrackingCounters(details: StreamTrackingDetails | null) {
     }
 
     if (event.event_type === "like_received") {
+      maxTotalLikes = Math.max(maxTotalLikes, parseTrackingNumber(payload.total_like_count) ?? 0);
       totalLikes += Math.max(1, parseTrackingNumber(payload.like_count) ?? 1);
       continue;
+    }
+
+    if (event.event_type === "snapshot_updated") {
+      maxTotalLikes = Math.max(maxTotalLikes, parseTrackingNumber(payload.like_count) ?? 0);
     }
 
     if (event.event_type === "gift_received") {
@@ -84,7 +90,12 @@ function deriveTrackingCounters(details: StreamTrackingDetails | null) {
     }
   }
 
-  return { totalLikes, totalGifts, totalMessages, peakViewerCount };
+  return {
+    totalLikes: Math.max(totalLikes, maxTotalLikes),
+    totalGifts,
+    totalMessages,
+    peakViewerCount,
+  };
 }
 
 function canAccessPost(post: StreamerPost, membership: StreamerMembershipState) {

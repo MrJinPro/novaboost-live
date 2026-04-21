@@ -411,6 +411,7 @@ function parseTrackingNumber(value: unknown) {
 
 function deriveTrackingEventCounters(events: TrackingRecentEvent[] | null | undefined) {
   let totalLikes = 0;
+  let maxTotalLikes = 0;
   let totalGifts = 0;
   let totalMessages = 0;
   let peakViewerCount = 0;
@@ -424,8 +425,13 @@ function deriveTrackingEventCounters(events: TrackingRecentEvent[] | null | unde
     }
 
     if (event.event_type === "like_received") {
+      maxTotalLikes = Math.max(maxTotalLikes, parseTrackingNumber(payload.total_like_count) ?? 0);
       totalLikes += Math.max(1, parseTrackingNumber(payload.like_count) ?? 1);
       continue;
+    }
+
+    if (event.event_type === "snapshot_updated") {
+      maxTotalLikes = Math.max(maxTotalLikes, parseTrackingNumber(payload.like_count) ?? 0);
     }
 
     if (event.event_type === "gift_received") {
@@ -439,11 +445,17 @@ function deriveTrackingEventCounters(events: TrackingRecentEvent[] | null | unde
   }
 
   return {
-    totalLikes,
+    totalLikes: Math.max(totalLikes, maxTotalLikes),
     totalGifts,
     totalMessages,
     peakViewerCount,
   };
+}
+
+function readStringArray(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0)
+    : [];
 }
 
 function mapLiveEvent(row: DbStreamEvent) {
@@ -453,6 +465,8 @@ function mapLiveEvent(row: DbStreamEvent) {
   const giftCount = typeof payload.gift_count === "number" ? payload.gift_count : 0;
   const viewerCount = typeof payload.viewer_count === "number" ? payload.viewer_count : 0;
   const commentText = typeof payload.comment_text === "string" ? payload.comment_text : null;
+  const battleUsers = readStringArray(payload.battle_users);
+  const totalLikeCount = parseTrackingNumber(payload.total_like_count) ?? 0;
 
   switch (row.event_type) {
     case "live_started":
@@ -493,7 +507,9 @@ function mapLiveEvent(row: DbStreamEvent) {
         type: row.event_type,
         createdAt: formatEventTime(row.event_timestamp),
         title: "Пришли лайки",
-        description: `${username ? `@${username} отправил` : "Получено"} ${likeCount || 1} лайк${likeCount === 1 ? "" : likeCount < 5 ? "а" : "ов"}.`,
+        description: totalLikeCount > 0
+          ? `Сейчас в эфире ${totalLikeCount} лайков${username ? `, последнее действие от @${username}` : ""}.`
+          : `${username ? `@${username} отправил` : "Получено"} ${likeCount || 1} лайк${likeCount === 1 ? "" : likeCount < 5 ? "а" : "ов"}.`,
       };
     case "gift_received":
       return {
@@ -518,7 +534,9 @@ function mapLiveEvent(row: DbStreamEvent) {
         createdAt: formatEventTime(row.event_timestamp),
         title: "Режим батла обновлён",
         description: typeof payload.live_mode_label === "string"
-          ? `Эфир перешёл в режим: ${payload.live_mode_label}.`
+          ? battleUsers.length > 0
+            ? `Эфир перешёл в режим: ${payload.live_mode_label}. Участники батла: ${battleUsers.map((user) => `@${user}`).join(", ")}.`
+            : `Эфир перешёл в режим: ${payload.live_mode_label}.`
           : "Система зафиксировала изменение battle-режима.",
       };
     case "link_scene_changed":
@@ -528,7 +546,9 @@ function mapLiveEvent(row: DbStreamEvent) {
         createdAt: formatEventTime(row.event_timestamp),
         title: "Режим эфира обновлён",
         description: typeof payload.live_mode_label === "string"
-          ? `Текущий режим эфира: ${payload.live_mode_label}.`
+          ? typeof payload.scene === "number"
+            ? `Текущий режим эфира: ${payload.live_mode_label}. Сцена TikTok: ${payload.scene}.`
+            : `Текущий режим эфира: ${payload.live_mode_label}.`
           : "Система зафиксировала изменение сцены link mic.",
       };
     default:

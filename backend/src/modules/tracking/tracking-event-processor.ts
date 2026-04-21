@@ -186,6 +186,7 @@ export class TrackingEventProcessor {
         external_viewer_sec_uid: normalizedEvent.externalViewerSecUid,
         comment_text: normalizedEvent.commentText,
         like_count: normalizedEvent.likeCount,
+        total_like_count: parseNumber(normalizedEvent.rawPayload.total_like_count),
         gift_count: normalizedEvent.giftCount,
         gift_diamond_count: normalizedEvent.giftDiamondCount,
         viewer_level: normalizedEvent.viewerLevel,
