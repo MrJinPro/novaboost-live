@@ -11,14 +11,24 @@ import { BoostBadge } from "@/components/BoostBadge";
 import { Button } from "@/components/ui/button";
 import { AppAvatar } from "@/components/AppAvatar";
 import { useStreamerDirectory } from "@/hooks/use-streamer-directory";
-import { ArrowRight, Crown, Eye, ExternalLink, Flame, Send, Smartphone, Sparkles, Trophy, Zap } from "lucide-react";
+import { ArrowRight, Copy, Crown, Eye, ExternalLink, Flame, Gift, Send, Smartphone, Sparkles, Trophy, Zap } from "lucide-react";
 import { formatNumber } from "@/lib/format";
 import { loadHomeActivityFeed, type HomeActivityItem } from "@/lib/home-activity-data";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 import { getStreamerPublicRouteParam } from "@/lib/streamer-public-route";
+import { loadStreamerReferralSummary, type StreamerReferralSummary } from "@/lib/referral-program-data";
+import { getOwnedStreamerPublicPage } from "@/lib/streamer-studio-data";
 
 const PLAY_TESTING_URL = "https://play.google.com/apps/testing/com.novaboost.live";
+const REFERRAL_CONTEST_GIFT = {
+  giftId: 6820,
+  nameEn: "Whale Diving",
+  nameRu: "Ныряющий Кит",
+  image: "https://cdn.dps.vc/iblock/db2/db286be21ff2672b6e825a883c8c3e8f/ab9021773e219665f526cee02252f936.webp",
+  diamondCount: 2150,
+};
+const REFERRAL_CONTEST_DEADLINE = new Date("2026-05-15T23:59:59+03:00");
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -32,8 +42,65 @@ export const Route = createFileRoute("/")({
 
 function HomePage() {
   const [activityFeed, setActivityFeed] = useState<HomeActivityItem[]>([]);
+  const [contestNow, setContestNow] = useState(() => Date.now());
+  const [contestReferralSummary, setContestReferralSummary] = useState<StreamerReferralSummary | null>(null);
+  const [contestReferralLoading, setContestReferralLoading] = useState(false);
   const { user } = useAuth();
   const { streamers, isInitialLoading, error } = useStreamerDirectory();
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setContestNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    if (!user?.isStreamer) {
+      setContestReferralSummary(null);
+      return;
+    }
+
+    const syncContestReferral = async () => {
+      setContestReferralLoading(true);
+      try {
+        const publicPage = await getOwnedStreamerPublicPage(user.id);
+        if (!publicPage) {
+          if (active) {
+            setContestReferralSummary(null);
+          }
+          return;
+        }
+
+        const summary = await loadStreamerReferralSummary({
+          streamerId: publicPage.id,
+          displayName: publicPage.displayName,
+          tiktokUsername: publicPage.tiktokUsername,
+        });
+
+        if (active) {
+          setContestReferralSummary(summary);
+        }
+      } catch {
+        if (active) {
+          setContestReferralSummary(null);
+        }
+      } finally {
+        if (active) {
+          setContestReferralLoading(false);
+        }
+      }
+    };
+
+    void syncContestReferral();
+
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   useEffect(() => {
     if (error) {
@@ -73,6 +140,22 @@ function HomePage() {
   const needsBoost = streamers.filter((s) => s.needs_boost && s.is_live).slice(0, 4);
   const top = [...streamers].sort((a, b) => (b.subscription_count ?? 0) - (a.subscription_count ?? 0)).slice(0, 5);
   const totalLiveViewers = live.reduce((acc, s) => acc + s.viewer_count, 0);
+  const countdown = getReferralContestCountdown(contestNow);
+  const contestFinished = countdown.totalMs <= 0;
+
+  const handleCopyContestLink = async () => {
+    if (!contestReferralSummary?.inviteLink) {
+      toast.error(user?.isStreamer ? "Не удалось подготовить твою конкурсную ссылку." : "Конкурсная ссылка доступна в кабинете стримера.");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(contestReferralSummary.inviteLink);
+      toast.success("Твоя конкурсная ссылка скопирована. Все регистрации по ней будут засчитаны тебе.");
+    } catch {
+      toast.error("Не удалось скопировать ссылку. Попробуй ещё раз.");
+    }
+  };
 
   const helpPanel = (
     <ProjectHelpPanel
@@ -143,6 +226,104 @@ function HomePage() {
                     </Button>
                   </Link>
                 )}
+              </div>
+              <div className="mt-6 overflow-hidden rounded-[28px] border border-amber/35 bg-[linear-gradient(135deg,rgba(249,115,22,0.16),rgba(217,70,239,0.10),rgba(99,102,241,0.14))] shadow-[0_24px_80px_rgba(249,115,22,0.12)] backdrop-blur">
+                <div className="grid gap-5 p-5 md:grid-cols-[1.25fr_0.75fr] md:p-6">
+                  <div>
+                    <div className="inline-flex items-center gap-2 rounded-full border border-amber/40 bg-background/35 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-amber">
+                      <Trophy className="h-3.5 w-3.5" /> Конкурс приглашений до 15 мая
+                    </div>
+                    <h2 className="mt-4 max-w-2xl font-display text-2xl font-bold leading-tight sm:text-3xl">
+                      Кто пригласит больше всего людей в NovaBoost Live, тот получит TikTok-подарок
+                      <span className="text-amber"> «{REFERRAL_CONTEST_GIFT.nameRu}»</span>
+                    </h2>
+                    <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
+                      До конца 15 мая считаем регистрации по твоей реферальной ссылке. Победитель получает подарок {REFERRAL_CONTEST_GIFT.nameRu} ({formatNumber(REFERRAL_CONTEST_GIFT.diamondCount)} diamonds) в TikTok.
+                    </p>
+
+                    <div className="mt-5 grid grid-cols-4 gap-2 sm:max-w-xl sm:gap-3">
+                      <CountdownTile value={countdown.days} label="дней" />
+                      <CountdownTile value={countdown.hours} label="часов" />
+                      <CountdownTile value={countdown.minutes} label="минут" />
+                      <CountdownTile value={countdown.seconds} label="секунд" />
+                    </div>
+
+                    <div className="mt-5 rounded-2xl border border-white/10 bg-background/35 p-4">
+                      {user?.isStreamer ? (
+                        <>
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                            <div>
+                              <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Твой результат</div>
+                              <div className="mt-1 font-display text-3xl font-bold text-foreground">
+                                {contestReferralLoading ? "..." : formatNumber(contestReferralSummary?.referralsCount ?? 0)}
+                              </div>
+                              <div className="text-sm text-muted-foreground">приглашённых регистраций уже закреплено за тобой</div>
+                            </div>
+                            <Button onClick={handleCopyContestLink} disabled={!contestReferralSummary?.inviteLink || contestFinished} className="gap-2 bg-gradient-blast font-bold text-blast-foreground hover:opacity-90">
+                              <Copy className="h-4 w-4" />
+                              {contestFinished ? "Конкурс завершён" : "Скопировать мою ссылку"}
+                            </Button>
+                          </div>
+                          <div className="mt-3 break-all rounded-xl border border-border/50 bg-black/20 px-3 py-2 text-xs leading-5 text-foreground/90">
+                            {contestReferralSummary?.inviteLink ?? "Готовим твою реферальную ссылку..."}
+                          </div>
+                        </>
+                      ) : user ? (
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <div className="font-semibold text-foreground">У тебя есть кабинет, но конкурсный подсчёт сейчас работает по ссылкам стримеров.</div>
+                            <div className="mt-1 text-sm text-muted-foreground">Если ты стример, открой кабинет стримера и скопируй свою ссылку. Если ты зритель, можешь участвовать через любимого стримера.</div>
+                          </div>
+                          <Link to="/profile">
+                            <Button variant="outline" className="gap-2 border-amber/40 hover:bg-amber/10">
+                              Открыть кабинет
+                              <ArrowRight className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <div className="font-semibold text-foreground">Авторизуйся, чтобы участвовать в гонке приглашений.</div>
+                            <div className="mt-1 text-sm text-muted-foreground">После входа стример увидит здесь кнопку копирования своей уникальной ссылки и текущий счёт.</div>
+                          </div>
+                          <Link to="/auth">
+                            <Button className="gap-2 bg-gradient-cosmic text-foreground hover:opacity-90">
+                              Войти и участвовать
+                              <ArrowRight className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="relative flex items-center justify-center">
+                    <div className="absolute inset-x-10 inset-y-8 rounded-full bg-amber/20 blur-3xl" />
+                    <div className="relative w-full max-w-[320px] rounded-[28px] border border-white/15 bg-background/55 p-4 shadow-2xl backdrop-blur">
+                      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber">
+                        <Gift className="h-4 w-4" /> Главный приз
+                      </div>
+                      <div className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-black/15">
+                        <img src={REFERRAL_CONTEST_GIFT.image} alt={REFERRAL_CONTEST_GIFT.nameRu} className="h-48 w-full object-cover" />
+                      </div>
+                      <div className="mt-4 flex items-start justify-between gap-3">
+                        <div>
+                          <div className="font-display text-2xl font-bold text-foreground">{REFERRAL_CONTEST_GIFT.nameRu}</div>
+                          <div className="text-sm text-muted-foreground">{REFERRAL_CONTEST_GIFT.nameEn}</div>
+                        </div>
+                        <div className="rounded-2xl border border-amber/35 bg-amber/10 px-3 py-2 text-right">
+                          <div className="text-[10px] uppercase tracking-[0.18em] text-amber">TikTok gift</div>
+                          <div className="font-display text-xl font-bold text-foreground">{formatNumber(REFERRAL_CONTEST_GIFT.diamondCount)}</div>
+                          <div className="text-[11px] text-muted-foreground">diamonds</div>
+                        </div>
+                      </div>
+                      <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                        Продвигай свою персональную ссылку в TikTok, Telegram, bio и сторис. Чем больше людей зарегистрируется по ней до дедлайна, тем выше шанс забрать подарок.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div className="mt-4 rounded-2xl border border-cosmic/30 bg-cosmic/8 p-4 backdrop-blur">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -373,4 +554,30 @@ function BlockHeader({ icon, title, subtitle }: { icon: React.ReactNode; title: 
 
 function EmptyState({ text }: { text: string }) {
   return <div className="text-sm text-muted-foreground py-3 text-center">{text}</div>;
+}
+
+function CountdownTile({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-background/40 px-3 py-3 text-center backdrop-blur">
+      <div className="font-display text-2xl font-bold text-foreground sm:text-3xl">{String(value).padStart(2, "0")}</div>
+      <div className="mt-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{label}</div>
+    </div>
+  );
+}
+
+function getReferralContestCountdown(nowMs: number) {
+  const totalMs = Math.max(0, REFERRAL_CONTEST_DEADLINE.getTime() - nowMs);
+  const totalSeconds = Math.floor(totalMs / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return {
+    totalMs,
+    days,
+    hours,
+    minutes,
+    seconds,
+  };
 }

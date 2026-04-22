@@ -19,7 +19,7 @@ export function buildStreamerReferralLink(input: {
   tiktokUsername: string;
 }) {
   const appOrigin = getAppOrigin();
-  const url = new URL("/auth", appOrigin || "https://novaboost.live");
+  const url = new URL("/auth", appOrigin || "https://live.novaboost.cloud");
   url.searchParams.set("ref", input.streamerId);
   url.searchParams.set("refName", input.displayName);
   url.searchParams.set("refUsername", input.tiktokUsername);
