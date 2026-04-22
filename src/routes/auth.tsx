@@ -13,8 +13,63 @@ import { normalizeTikTokUsername } from "@/lib/tiktok-profile-data";
 import { Eye, EyeOff, Search } from "lucide-react";
 import { toast } from "sonner";
 
+function getAuthMeta(search: string) {
+  const params = new URLSearchParams(search);
+  const referralId = params.get("ref")?.trim() ?? "";
+  const referralName = params.get("refName")?.trim() ?? "";
+  const referralUsername = normalizeTikTokUsername(params.get("refUsername") ?? "");
+  const inviteTikTokUsername = normalizeTikTokUsername(params.get("tiktok") ?? "");
+  const appUrl = (import.meta.env.VITE_APP_URL || "https://live.novaboost.cloud").replace(/\/$/, "");
+  const canonicalUrl = `${appUrl}/auth${search || ""}`;
+
+  if (referralId) {
+    const inviterLabel = referralName || (referralUsername ? `@${referralUsername}` : "друг из NovaBoost Live");
+    const title = `Конкурс NovaBoost Live: присоединяйся по приглашению ${inviterLabel}`;
+    const description = "Присоединяйся к конкурсу NovaBoost Live, регистрируйся, приглашай друзей, стримеров и зрителей. До 15 мая идёт гонка приглашений, а лидер получит TikTok-подарок «Ныряющий Кит» на 2150 diamonds.";
+
+    return {
+      title,
+      description,
+      canonicalUrl,
+    };
+  }
+
+  if (inviteTikTokUsername) {
+    const title = `NovaBoost Live: регистрация для @${inviteTikTokUsername}`;
+    const description = "Заверши регистрацию в NovaBoost Live, подключи свой TikTok username и включайся в рост через бусты, Telegram, контент и конкурс приглашений.";
+
+    return {
+      title,
+      description,
+      canonicalUrl,
+    };
+  }
+
+  return {
+    title: "Вход и регистрация — NovaBoost Live",
+    description: "Создай аккаунт NovaBoost Live и подключайся к платформе роста для TikTok LIVE: приглашения, бусты, Telegram, контент и активности вокруг эфиров.",
+    canonicalUrl,
+  };
+}
+
 export const Route = createFileRoute("/auth")({
-  head: () => ({ meta: [{ title: "Вход и регистрация — NovaBoost Live" }] }),
+  head: ({ location }) => {
+    const meta = getAuthMeta(location.search);
+
+    return {
+      meta: [
+        { title: meta.title },
+        { name: "description", content: meta.description },
+        { property: "og:title", content: meta.title },
+        { property: "og:description", content: meta.description },
+        { property: "og:url", content: meta.canonicalUrl },
+        { property: "og:type", content: "website" },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:title", content: meta.title },
+        { name: "twitter:description", content: meta.description },
+      ],
+    };
+  },
   component: AuthPage,
 });
 
