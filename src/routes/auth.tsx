@@ -55,7 +55,7 @@ function getAuthMeta(search: string) {
 
 export const Route = createFileRoute("/auth")({
   head: ({ location }) => {
-    const meta = getAuthMeta(location.search);
+    const meta = getAuthMeta(location?.search ?? "");
 
     return {
       meta: [
