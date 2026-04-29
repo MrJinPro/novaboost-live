@@ -1,6 +1,7 @@
 import { createFileRoute, useLocation, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
 import { Logo } from "@/components/Logo";
 import { PlatformDisclaimer } from "@/components/PlatformDisclaimer";
@@ -155,6 +156,52 @@ function AuthPage() {
       toast.error(directoryError.message);
     }
   }, [directoryError]);
+
+  // Handle email confirmation tokens from URL hash
+  useEffect(() => {
+    const handleEmailConfirmation = async () => {
+      // First, try to get existing session
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData.session) {
+        console.log('Existing session found, redirecting to profile');
+        navigate({ to: "/profile" });
+        return;
+      }
+
+      const hash = window.location.hash;
+      if (!hash) return;
+
+      const params = new URLSearchParams(hash.substring(1));
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+      const type = params.get('type');
+
+      if (type && accessToken && refreshToken) {
+        try {
+          console.log('Processing auth tokens from URL, type:', type);
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (error) {
+            console.error('Error setting session from URL:', error);
+            toast.error('Ошибка аутентификации. Попробуйте войти вручную.');
+          } else if (data.session) {
+            console.log('Auth successful, session set');
+            // Clear the hash from URL
+            window.history.replaceState(null, '', window.location.pathname + window.location.search);
+            navigate({ to: "/profile" });
+          }
+        } catch (err) {
+          console.error('Unexpected error during auth:', err);
+          toast.error('Неожиданная ошибка при аутентификации.');
+        }
+      }
+    };
+
+    handleEmailConfirmation();
+  }, [navigate]);
 
   const referralMatches = referralQuery
     ? directoryStreamers.filter((s) =>

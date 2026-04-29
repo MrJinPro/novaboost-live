@@ -33,11 +33,13 @@ function getAuthEmailRedirectUrl() {
   const appOrigin = configuredAppUrl?.trim().replace(/\/$/, "")
     || (typeof window !== "undefined" ? window.location.origin : "");
 
+  console.log('getAuthEmailRedirectUrl:', { configuredAppUrl, appOrigin });
+
   if (!appOrigin) {
     return undefined;
   }
 
-  return `${appOrigin}/auth?confirmed=signup`;
+  return `${appOrigin}/auth`;
 }
 
 async function getProfile(userId: string) {
@@ -238,6 +240,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      console.log('Auth state change:', _event, !!nextSession, nextSession?.user?.email);
       void syncSession(nextSession);
     });
 
@@ -292,6 +295,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       },
     });
+
+    console.log('SignUp result:', { user: !!data.user, session: !!data.session, error });
 
     if (error) {
       throw error;
