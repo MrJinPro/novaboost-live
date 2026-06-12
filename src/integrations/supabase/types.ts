@@ -189,6 +189,176 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_orders: {
+        Row: {
+          amount_value: number
+          created_at: string
+          currency_code: string
+          environment: string
+          failure_reason: string | null
+          id: string
+          payer_email: string | null
+          payer_name: string | null
+          provider: string
+          provider_capture_id: string | null
+          provider_order_id: string | null
+          raw_capture: Json | null
+          raw_create: Json | null
+          scenario: string
+          scenario_ref: Json
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          amount_value: number
+          created_at?: string
+          currency_code?: string
+          environment: string
+          failure_reason?: string | null
+          id?: string
+          payer_email?: string | null
+          payer_name?: string | null
+          provider?: string
+          provider_capture_id?: string | null
+          provider_order_id?: string | null
+          raw_capture?: Json | null
+          raw_create?: Json | null
+          scenario: string
+          scenario_ref?: Json
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          amount_value?: number
+          created_at?: string
+          currency_code?: string
+          environment?: string
+          failure_reason?: string | null
+          id?: string
+          payer_email?: string | null
+          payer_name?: string | null
+          provider?: string
+          provider_capture_id?: string | null
+          provider_order_id?: string | null
+          raw_capture?: Json | null
+          raw_create?: Json | null
+          scenario?: string
+          scenario_ref?: Json
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      payment_subscriptions: {
+        Row: {
+          created_at: string
+          current_period_end: string | null
+          environment: string
+          id: string
+          last_payment_amount: number | null
+          last_payment_currency: string | null
+          payer_email: string | null
+          paypal_plan_id: string
+          plan_key: string
+          provider: string
+          provider_subscription_id: string | null
+          raw_payload: Json | null
+          status: string
+          streamer_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_period_end?: string | null
+          environment: string
+          id?: string
+          last_payment_amount?: number | null
+          last_payment_currency?: string | null
+          payer_email?: string | null
+          paypal_plan_id: string
+          plan_key: string
+          provider?: string
+          provider_subscription_id?: string | null
+          raw_payload?: Json | null
+          status?: string
+          streamer_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_period_end?: string | null
+          environment?: string
+          id?: string
+          last_payment_amount?: number | null
+          last_payment_currency?: string | null
+          payer_email?: string | null
+          paypal_plan_id?: string
+          plan_key?: string
+          provider?: string
+          provider_subscription_id?: string | null
+          raw_payload?: Json | null
+          status?: string
+          streamer_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_subscriptions_streamer_id_fkey"
+            columns: ["streamer_id"]
+            isOneToOne: false
+            referencedRelation: "streamers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_webhook_events: {
+        Row: {
+          created_at: string
+          environment: string
+          event_id: string | null
+          event_type: string
+          id: string
+          payload: Json
+          process_error: string | null
+          processed_at: string | null
+          provider: string
+          resource_id: string | null
+          verified: boolean
+        }
+        Insert: {
+          created_at?: string
+          environment: string
+          event_id?: string | null
+          event_type: string
+          id?: string
+          payload: Json
+          process_error?: string | null
+          processed_at?: string | null
+          provider?: string
+          resource_id?: string | null
+          verified?: boolean
+        }
+        Update: {
+          created_at?: string
+          environment?: string
+          event_id?: string | null
+          event_type?: string
+          id?: string
+          payload?: Json
+          process_error?: string | null
+          processed_at?: string | null
+          provider?: string
+          resource_id?: string | null
+          verified?: boolean
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           activity_score: number

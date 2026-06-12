@@ -86,9 +86,58 @@ export function AppFooter() {
       <div className="border-t border-border/40">
         <div className="container mx-auto flex flex-col gap-2 px-4 py-4 text-xs text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
           <div>© 2026 NovaBoost Live</div>
+          <PaymentMethodIcons />
           <div className="max-w-3xl leading-5">Используя сервис, пользователь соглашается с правилами платформы и обработкой данных в рамках работы NovaBoost Live.</div>
         </div>
       </div>
     </footer>
+  );
+}
+
+function PaymentMethodIcons() {
+  return (
+    <div className="flex items-center gap-2" aria-label="Accepted payment methods">
+      <span className="sr-only">Принимаем оплату через</span>
+      <PaymentBadge label="Visa" bg="#1A1F71" textColor="#fff">VISA</PaymentBadge>
+      <PaymentBadge label="Mastercard" bg="#fff" textColor="#1A1F71">
+        <span className="flex items-center">
+          <span className="h-4 w-4 rounded-full bg-[#EB001B]" />
+          <span className="-ml-1.5 h-4 w-4 rounded-full bg-[#F79E1B] mix-blend-multiply" />
+        </span>
+      </PaymentBadge>
+      <PaymentBadge label="Google Pay" bg="#fff" textColor="#3c4043">
+        <span className="text-[10px] font-medium tracking-tight">
+          <span className="text-[#4285F4]">G</span>
+          <span className="text-[#EA4335]">o</span>
+          <span className="text-[#FBBC04]">o</span>
+          <span className="text-[#4285F4]">g</span>
+          <span className="text-[#34A853]">l</span>
+          <span className="text-[#EA4335]">e</span>
+          <span className="text-[#3c4043]"> Pay</span>
+        </span>
+      </PaymentBadge>
+      <PaymentBadge label="Apple Pay" bg="#000" textColor="#fff">
+        <span className="text-[10px] font-semibold tracking-tight"> Pay</span>
+      </PaymentBadge>
+      <PaymentBadge label="PayPal" bg="#fff" textColor="#003087">
+        <span className="text-[10px] font-bold italic">
+          <span className="text-[#003087]">Pay</span>
+          <span className="text-[#009CDE]">Pal</span>
+        </span>
+      </PaymentBadge>
+    </div>
+  );
+}
+
+function PaymentBadge({ label, bg, textColor, children }: { label: string; bg: string; textColor: string; children: React.ReactNode }) {
+  return (
+    <span
+      title={label}
+      aria-label={label}
+      className="flex h-6 min-w-[40px] items-center justify-center rounded-md border border-border/40 px-1.5 text-[10px] font-bold tracking-wide shadow-sm"
+      style={{ backgroundColor: bg, color: textColor }}
+    >
+      {children}
+    </span>
   );
 }

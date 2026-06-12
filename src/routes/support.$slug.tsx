@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { usePaymentComingSoonSurvey } from "@/components/PaymentComingSoonDialog";
+import { usePayPalCheckout } from "@/components/PayPalCheckoutDialog";
 import { ArrowLeft, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { convertCurrency, formatEditableAmount, getLocalizedMoney, useCurrencyPreference } from "@/lib/currency";
@@ -55,7 +55,7 @@ function SupportPage() {
   const [amount, setAmount] = useState("");
   const [message, setMessage] = useState("");
   const [donorName, setDonorName] = useState("");
-  const { openSurvey, surveyDialog } = usePaymentComingSoonSurvey();
+  const { openCheckout, checkoutDialog } = usePayPalCheckout();
 
   useEffect(() => {
     let active = true;
@@ -139,21 +139,28 @@ function SupportPage() {
   }
 
   const handleDonate = () => {
-    openSurvey({
-      userId: user?.id ?? null,
-      entryPoint: "support-page",
-      triggerLabel: "donation-support",
-      title: `Поддержка стримера ${linkData.streamers?.display_name ?? "NovaBoost creator"}`,
-      description: "Донаты через NovaBoost Live ещё не принимают реальную оплату. Но можно оставить предпочтительный способ оплаты, чтобы мы запустили его первым. / Donations are not processing real payments yet, but you can tell us which payment method to launch first.",
-      context: {
+    // Convert entered amount to USD for PayPal charge
+    const usdAmount = Number.isFinite(parsedEnteredAmount)
+      ? Number(convertCurrency(parsedEnteredAmount, currencyPreference.primaryCurrency, "USD").toFixed(2))
+      : 0;
+    if (!usdAmount || usdAmount < 1) {
+      toast.error("Минимальная сумма $1 USD / Minimum amount is $1 USD");
+      return;
+    }
+    void openCheckout({
+      scenario: "donation",
+      amount: usdAmount,
+      description: `Donation to ${linkData.streamers?.display_name ?? "NovaBoost creator"}`,
+      title: `Поддержка ${linkData.streamers?.display_name ?? "стримера"}`,
+      subtitle: message.trim() || "Поддержка через NovaBoost Live",
+      scenarioRef: {
         streamerId: linkData.streamer_id,
         donationLinkId: linkData.id,
         slug: linkData.slug,
-        amountRub: Number.isFinite(parsedBaseAmount) ? parsedBaseAmount : null,
-        enteredAmount: Number.isFinite(parsedEnteredAmount) ? parsedEnteredAmount : null,
-        enteredCurrency: currencyPreference.primaryCurrency,
         donorName: donorName.trim() || null,
         message: message.trim() || null,
+        enteredAmount: Number.isFinite(parsedEnteredAmount) ? parsedEnteredAmount : null,
+        enteredCurrency: currencyPreference.primaryCurrency,
       },
     });
   };
@@ -273,7 +280,7 @@ function SupportPage() {
           </div>
         </div>
       </div>
-      {surveyDialog}
+      {checkoutDialog}
     </div>
   );
 }
