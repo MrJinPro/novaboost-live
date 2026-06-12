@@ -35,6 +35,7 @@ import { Route as ApiRevealKeyRouteImport } from './routes/api/reveal-key'
 import { Route as ApiCurrencyPreferenceRouteImport } from './routes/api/currency-preference'
 import { Route as OverlayDonationSlugRouteImport } from './routes/overlay.donation.$slug'
 import { Route as ApiStudioTelegramRouteImport } from './routes/api/studio/telegram'
+import { Route as ApiPublicPaypalWebhookRouteImport } from './routes/api/public/paypal-webhook'
 import { Route as ApiAdminUsersRouteImport } from './routes/api/admin/users'
 import { Route as ApiAdminTasksRouteImport } from './routes/api/admin/tasks'
 import { Route as ApiAdminStreamerApplicationsRouteImport } from './routes/api/admin/streamer-applications'
@@ -171,6 +172,11 @@ const ApiStudioTelegramRoute = ApiStudioTelegramRouteImport.update({
   path: '/api/studio/telegram',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicPaypalWebhookRoute = ApiPublicPaypalWebhookRouteImport.update({
+  id: '/api/public/paypal-webhook',
+  path: '/api/public/paypal-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAdminUsersRoute = ApiAdminUsersRouteImport.update({
   id: '/api/admin/users',
   path: '/api/admin/users',
@@ -227,6 +233,7 @@ export interface FileRoutesByFullPath {
   '/api/admin/streamer-applications': typeof ApiAdminStreamerApplicationsRoute
   '/api/admin/tasks': typeof ApiAdminTasksRoute
   '/api/admin/users': typeof ApiAdminUsersRoute
+  '/api/public/paypal-webhook': typeof ApiPublicPaypalWebhookRoute
   '/api/studio/telegram': typeof ApiStudioTelegramRoute
   '/overlay/donation/$slug': typeof OverlayDonationSlugRoute
   '/overlay/widget/$slug/$widget': typeof OverlayWidgetSlugWidgetRoute
@@ -260,6 +267,7 @@ export interface FileRoutesByTo {
   '/api/admin/streamer-applications': typeof ApiAdminStreamerApplicationsRoute
   '/api/admin/tasks': typeof ApiAdminTasksRoute
   '/api/admin/users': typeof ApiAdminUsersRoute
+  '/api/public/paypal-webhook': typeof ApiPublicPaypalWebhookRoute
   '/api/studio/telegram': typeof ApiStudioTelegramRoute
   '/overlay/donation/$slug': typeof OverlayDonationSlugRoute
   '/overlay/widget/$slug/$widget': typeof OverlayWidgetSlugWidgetRoute
@@ -294,6 +302,7 @@ export interface FileRoutesById {
   '/api/admin/streamer-applications': typeof ApiAdminStreamerApplicationsRoute
   '/api/admin/tasks': typeof ApiAdminTasksRoute
   '/api/admin/users': typeof ApiAdminUsersRoute
+  '/api/public/paypal-webhook': typeof ApiPublicPaypalWebhookRoute
   '/api/studio/telegram': typeof ApiStudioTelegramRoute
   '/overlay/donation/$slug': typeof OverlayDonationSlugRoute
   '/overlay/widget/$slug/$widget': typeof OverlayWidgetSlugWidgetRoute
@@ -329,6 +338,7 @@ export interface FileRouteTypes {
     | '/api/admin/streamer-applications'
     | '/api/admin/tasks'
     | '/api/admin/users'
+    | '/api/public/paypal-webhook'
     | '/api/studio/telegram'
     | '/overlay/donation/$slug'
     | '/overlay/widget/$slug/$widget'
@@ -362,6 +372,7 @@ export interface FileRouteTypes {
     | '/api/admin/streamer-applications'
     | '/api/admin/tasks'
     | '/api/admin/users'
+    | '/api/public/paypal-webhook'
     | '/api/studio/telegram'
     | '/overlay/donation/$slug'
     | '/overlay/widget/$slug/$widget'
@@ -395,6 +406,7 @@ export interface FileRouteTypes {
     | '/api/admin/streamer-applications'
     | '/api/admin/tasks'
     | '/api/admin/users'
+    | '/api/public/paypal-webhook'
     | '/api/studio/telegram'
     | '/overlay/donation/$slug'
     | '/overlay/widget/$slug/$widget'
@@ -429,6 +441,7 @@ export interface RootRouteChildren {
   ApiAdminStreamerApplicationsRoute: typeof ApiAdminStreamerApplicationsRoute
   ApiAdminTasksRoute: typeof ApiAdminTasksRoute
   ApiAdminUsersRoute: typeof ApiAdminUsersRoute
+  ApiPublicPaypalWebhookRoute: typeof ApiPublicPaypalWebhookRoute
   ApiStudioTelegramRoute: typeof ApiStudioTelegramRoute
   OverlayDonationSlugRoute: typeof OverlayDonationSlugRoute
   OverlayWidgetSlugWidgetRoute: typeof OverlayWidgetSlugWidgetRoute
@@ -618,6 +631,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiStudioTelegramRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/paypal-webhook': {
+      id: '/api/public/paypal-webhook'
+      path: '/api/public/paypal-webhook'
+      fullPath: '/api/public/paypal-webhook'
+      preLoaderRoute: typeof ApiPublicPaypalWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/admin/users': {
       id: '/api/admin/users'
       path: '/api/admin/users'
@@ -685,6 +705,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminStreamerApplicationsRoute: ApiAdminStreamerApplicationsRoute,
   ApiAdminTasksRoute: ApiAdminTasksRoute,
   ApiAdminUsersRoute: ApiAdminUsersRoute,
+  ApiPublicPaypalWebhookRoute: ApiPublicPaypalWebhookRoute,
   ApiStudioTelegramRoute: ApiStudioTelegramRoute,
   OverlayDonationSlugRoute: OverlayDonationSlugRoute,
   OverlayWidgetSlugWidgetRoute: OverlayWidgetSlugWidgetRoute,
