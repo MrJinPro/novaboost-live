@@ -8,7 +8,7 @@ import { BoostBadge } from "@/components/BoostBadge";
 import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
 import { AppAvatar } from "@/components/AppAvatar";
 import { LocalizedPrice } from "@/components/LocalizedPrice";
-import { usePaymentComingSoonSurvey } from "@/components/PaymentComingSoonDialog";
+import { usePayPalCheckout } from "@/components/PayPalCheckoutDialog";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Bell, ChevronDown, Crown, Eye, ExternalLink, Facebook, Instagram, Play, Send, Sparkles, Twitter, Users, Wallet, Zap, TrendingUp } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -121,7 +121,7 @@ function StreamerProfile() {
   const [activePromotionGroupKey, setActivePromotionGroupKey] = useState("");
   const [showGrowthTools, setShowGrowthTools] = useState(false);
   const [inviteReferral, setInviteReferral] = useState<{ id: string; displayName: string; tiktokUsername: string } | null>(null);
-  const { openSurvey, surveyDialog } = usePaymentComingSoonSurvey();
+  const { openCheckout, checkoutDialog } = usePayPalCheckout();
 
   useEffect(() => {
     let active = true;
@@ -475,27 +475,44 @@ function StreamerProfile() {
     }
   };
 
-  const handlePlanUpgrade = (planKey: SubscriptionPlanKey) => {
+  const handlePlanUpgrade = async (planKey: SubscriptionPlanKey) => {
     if (!isRegistered) {
       toast.error("Платные сценарии станут доступны после регистрации стримера в NovaBoost Live.");
       return;
     }
-
+    if (!user) {
+      toast.error("Войди, чтобы оформить тариф");
+      navigate({ to: "/auth" });
+      return;
+    }
     const plan = SUBSCRIPTION_PLANS.find((item) => item.key === planKey);
-    openSurvey({
-      userId: user?.id ?? null,
-      entryPoint: "streamer-plan",
-      triggerLabel: `plan-${planKey}`,
-      title: `Тариф ${plan?.title ?? planKey} для ${streamer.display_name}`,
-      description: "Оплата тарифов ещё не включена. По кнопке мы просто собираем предпочтительный способ оплаты, чтобы запустить подписки с правильным gateway. / Membership payments are not live yet. We are only collecting preferred payment methods before launch.",
-      context: {
+    if (!plan || plan.price <= 0) return;
+    const result = await openCheckout({
+      scenario: "membership",
+      amount: plan.price,
+      description: `Membership ${plan.title} for ${streamer.display_name}`,
+      title: `Оформить ${plan.title}`,
+      subtitle: `Доступ к платному контенту на 30 дней / 30-day access`,
+      scenarioRef: {
         streamerId: streamer.id,
         streamerName: streamer.display_name,
         planKey,
-        planTitle: plan?.title ?? planKey,
-        priceRub: plan?.price ?? 0,
+        planTitle: plan.title,
+        priceUsd: plan.price,
       },
     });
+    if (result) {
+      setMembershipLoading(true);
+      try {
+        const next = await activateStreamerPlan(streamer.id, user.id, planKey);
+        setMembershipState(next);
+        toast.success(`Тариф ${plan.title} активирован`);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Не удалось активировать тариф локально");
+      } finally {
+        setMembershipLoading(false);
+      }
+    }
   };
 
   const handleReactionToggle = async (postId: string, reactionType: PostReactionType) => {
