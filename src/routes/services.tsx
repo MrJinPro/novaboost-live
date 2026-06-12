@@ -11,7 +11,7 @@ import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
 import { Button } from "@/components/ui/button";
 import { useStreamerDirectory } from "@/hooks/use-streamer-directory";
 import { useAuth } from "@/lib/auth-context";
-import { getLocalizedMoney, resolveSupportedCurrency, useCurrencyPreference } from "@/lib/currency";
+import { convertCurrency, getLocalizedMoney, resolveSupportedCurrency, useCurrencyPreference } from "@/lib/currency";
 import { calculateCustomerAmount, getPromotionTargetMeta, groupTikTokPromotionServices, loadTikTokPromotionServices, type TikTokPromotionService } from "@/lib/prmotion-data";
 import { loadMyPromotionOrders, type PromotionOrderSummary } from "@/lib/promotion-orders-data";
 import { ArrowLeft, Sparkles } from "lucide-react";
@@ -216,13 +216,7 @@ function ServicesPage() {
       return;
     }
     // pricing.customerAmount is in RUB historically. Convert to USD for PayPal.
-    const usdAmount = Number(
-      (require("@/lib/currency") as typeof import("@/lib/currency")).convertCurrency(
-        pricing.customerAmount,
-        "RUB",
-        "USD",
-      ).toFixed(2),
-    );
+    const usdAmount = Number(convertCurrency(pricing.customerAmount, "RUB", "USD").toFixed(2));
     if (!usdAmount || usdAmount < 1) {
       toast.error("Минимальная сумма заказа $1 USD / Minimum order is $1 USD");
       return;
