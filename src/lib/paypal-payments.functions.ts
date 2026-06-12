@@ -2,6 +2,15 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+type OrderRow = {
+  id: string;
+  scenario: string;
+  scenario_ref: Record<string, unknown> | null;
+  amount_value: number;
+  currency_code: string;
+  user_id: string | null;
+};
+
 const ScenarioSchema = z.enum(["donation", "promotion", "membership", "other"]);
 
 const CreateOrderSchema = z.object({
@@ -50,17 +59,18 @@ export const createPayPalOrderFn = createServerFn({ method: "POST" })
       userId = null;
     }
 
-    const { data: inserted, error } = await supabaseAdmin
-      .from("payment_orders")
-      .insert({
-        user_id: userId,
-        environment: env,
-        scenario: data.scenario,
-        scenario_ref: data.scenarioRef,
-        amount_value: Number(amountStr),
-        currency_code: data.currency,
-        status: "created",
-      })
+    const insertPayload = {
+      user_id: userId,
+      environment: env,
+      scenario: data.scenario,
+      scenario_ref: data.scenarioRef,
+      amount_value: Number(amountStr),
+      currency_code: data.currency,
+      status: "created",
+    };
+    const { data: inserted, error } = await (supabaseAdmin
+      .from("payment_orders") as unknown as { insert: (v: unknown) => { select: (s: string) => { single: () => Promise<{ data: { id: string } | null; error: { message: string } | null }> } } })
+      .insert(insertPayload)
       .select("id")
       .single();
     if (error || !inserted) throw new Error(error?.message ?? "Failed to record order");
@@ -73,9 +83,10 @@ export const createPayPalOrderFn = createServerFn({ method: "POST" })
       invoice_id: `nbl-${inserted.id.slice(0, 8)}-${Date.now()}`,
     });
 
-    await supabaseAdmin
-      .from("payment_orders")
-      .update({ provider_order_id: order.id, raw_create: order as unknown as Record<string, unknown> })
+    await (supabaseAdmin.from("payment_orders") as unknown as {
+      update: (v: unknown) => { eq: (c: string, v: string) => Promise<unknown> };
+    })
+      .update({ provider_order_id: order.id, raw_create: order as unknown })
       .eq("id", inserted.id);
 
     return { orderId: order.id, internalId: inserted.id };
@@ -93,14 +104,15 @@ export const capturePayPalOrderFn = createServerFn({ method: "POST" })
 
     const payerName = [captured.payer?.name?.given_name, captured.payer?.name?.surname].filter(Boolean).join(" ").trim() || null;
 
-    const { data: orderRow } = await supabaseAdmin
-      .from("payment_orders")
+    const { data: orderRow } = await (supabaseAdmin.from("payment_orders") as unknown as {
+      update: (v: unknown) => { eq: (c: string, v: string) => { select: (s: string) => { maybeSingle: () => Promise<{ data: OrderRow | null }> } } };
+    })
       .update({
         provider_capture_id: capture?.id ?? null,
         payer_email: captured.payer?.email_address ?? null,
         payer_name: payerName,
         status: isSuccess ? "captured" : "failed",
-        raw_capture: captured as unknown as Record<string, unknown>,
+        raw_capture: captured as unknown,
         failure_reason: isSuccess ? null : `Capture status: ${captured.status}`,
       })
       .eq("provider_order_id", data.orderId)
@@ -119,14 +131,7 @@ export const capturePayPalOrderFn = createServerFn({ method: "POST" })
     return { status: isSuccess ? "success" : "failed" as const, captureId: capture?.id ?? null };
   });
 
-async function fulfillOrder(order: {
-  id: string;
-  scenario: string;
-  scenario_ref: Record<string, unknown> | null;
-  amount_value: number;
-  currency_code: string;
-  user_id: string | null;
-}) {
+async function fulfillOrder(order: OrderRow) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const ref = order.scenario_ref ?? {};
 
@@ -179,8 +184,9 @@ export const createPayPalSubscriptionFn = createServerFn({ method: "POST" })
     }
 
     const userId = context.userId;
-    const { data: inserted, error } = await supabaseAdmin
-      .from("payment_subscriptions")
+    const { data: inserted, error } = await (supabaseAdmin.from("payment_subscriptions") as unknown as {
+      insert: (v: unknown) => { select: (s: string) => { single: () => Promise<{ data: { id: string } | null; error: { message: string } | null }> } };
+    })
       .insert({
         user_id: userId,
         streamer_id: data.streamerId ?? null,
@@ -198,12 +204,13 @@ export const createPayPalSubscriptionFn = createServerFn({ method: "POST" })
       custom_id: inserted.id,
     });
 
-    await supabaseAdmin
-      .from("payment_subscriptions")
+    await (supabaseAdmin.from("payment_subscriptions") as unknown as {
+      update: (v: unknown) => { eq: (c: string, v: string) => Promise<unknown> };
+    })
       .update({
         provider_subscription_id: subscription.id,
         status: "approval_pending",
-        raw_payload: subscription as unknown as Record<string, unknown>,
+        raw_payload: subscription as unknown,
       })
       .eq("id", inserted.id);
 
@@ -223,15 +230,16 @@ export const activatePayPalSubscriptionFn = createServerFn({ method: "POST" })
       : sub.status?.toLowerCase() === "cancelled" ? "cancelled"
       : "pending";
 
-    await supabaseAdmin
-      .from("payment_subscriptions")
+    await (supabaseAdmin.from("payment_subscriptions") as unknown as {
+      update: (v: unknown) => { eq: (c: string, v: string) => Promise<unknown> };
+    })
       .update({
         status,
         payer_email: sub.subscriber?.email_address ?? null,
         current_period_end: sub.billing_info?.next_billing_time ?? null,
         last_payment_amount: sub.billing_info?.last_payment?.amount?.value ? Number(sub.billing_info.last_payment.amount.value) : null,
         last_payment_currency: sub.billing_info?.last_payment?.amount?.currency_code ?? null,
-        raw_payload: sub as unknown as Record<string, unknown>,
+        raw_payload: sub as unknown,
       })
       .eq("provider_subscription_id", data.subscriptionId);
 
