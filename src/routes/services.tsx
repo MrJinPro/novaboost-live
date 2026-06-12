@@ -6,7 +6,7 @@ import { CurrencySwitcher } from "@/components/CurrencySwitcher";
 import { HelpTooltip } from "@/components/HelpTooltip";
 import { HowItWorksLink } from "@/components/HowItWorksLink";
 import { LocalizedPrice } from "@/components/LocalizedPrice";
-import { usePaymentComingSoonSurvey } from "@/components/PaymentComingSoonDialog";
+import { usePayPalCheckout } from "@/components/PayPalCheckoutDialog";
 import { ProjectHelpPanel } from "@/components/ProjectHelpPanel";
 import { Button } from "@/components/ui/button";
 import { useStreamerDirectory } from "@/hooks/use-streamer-directory";
@@ -48,7 +48,7 @@ function ServicesPage() {
   const [targetLink, setTargetLink] = useState("");
   const [quantity, setQuantity] = useState("100");
   const [orders, setOrders] = useState<PromotionOrderSummary[]>([]);
-  const { openSurvey, surveyDialog } = usePaymentComingSoonSurvey();
+  const { openCheckout, checkoutDialog } = usePayPalCheckout();
 
   useEffect(() => {
     if (streamerDirectoryError) {
@@ -211,13 +211,29 @@ function ServicesPage() {
       return;
     }
 
-    openSurvey({
-      userId: user?.id ?? null,
-      entryPoint: "services-page",
-      triggerLabel: "promotion-order",
-      title: `${selectedService.name} для ${selectedStreamer?.display_name ?? "стримера"}`,
-      description: "Оплата услуг продвижения ещё не включена. После клика мы собираем только предпочтительный способ оплаты, чтобы выбрать первый gateway. / Promotion checkout is not live yet. We are only collecting preferred payment methods for launch planning.",
-      context: {
+    if (!pricing) {
+      toast.error("Не удалось рассчитать стоимость");
+      return;
+    }
+    // pricing.customerAmount is in RUB historically. Convert to USD for PayPal.
+    const usdAmount = Number(
+      (require("@/lib/currency") as typeof import("@/lib/currency")).convertCurrency(
+        pricing.customerAmount,
+        "RUB",
+        "USD",
+      ).toFixed(2),
+    );
+    if (!usdAmount || usdAmount < 1) {
+      toast.error("Минимальная сумма заказа $1 USD / Minimum order is $1 USD");
+      return;
+    }
+    void openCheckout({
+      scenario: "promotion",
+      amount: usdAmount,
+      description: `${selectedService.name} x ${parsedQuantity}`,
+      title: `${selectedService.name}`,
+      subtitle: `${parsedQuantity} ед. для ${selectedStreamer?.display_name ?? "стримера"}`,
+      scenarioRef: {
         streamerId: selectedStreamerId,
         streamerName: selectedStreamer?.display_name ?? null,
         serviceId: selectedService.id,
@@ -226,7 +242,6 @@ function ServicesPage() {
         targetLink: targetLink.trim(),
         quantity: parsedQuantity,
         role,
-        orderCurrency: currencyPreference.orderCurrency,
       },
     });
   };
@@ -457,7 +472,7 @@ function ServicesPage() {
           {helpPanel}
         </div>
       </div>
-      {surveyDialog}
+      {checkoutDialog}
     </div>
   );
 }
