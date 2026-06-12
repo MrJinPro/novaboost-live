@@ -34,6 +34,7 @@ import { Route as LegalAcceptableUseRouteImport } from './routes/legal.acceptabl
 import { Route as ApiRevealKeyRouteImport } from './routes/api/reveal-key'
 import { Route as ApiCurrencyPreferenceRouteImport } from './routes/api/currency-preference'
 import { Route as OverlayDonationSlugRouteImport } from './routes/overlay.donation.$slug'
+import { Route as ApiStudioTelegramRouteImport } from './routes/api/studio/telegram'
 import { Route as ApiAdminUsersRouteImport } from './routes/api/admin/users'
 import { Route as ApiAdminTasksRouteImport } from './routes/api/admin/tasks'
 import { Route as ApiAdminStreamerApplicationsRouteImport } from './routes/api/admin/streamer-applications'
@@ -165,6 +166,11 @@ const OverlayDonationSlugRoute = OverlayDonationSlugRouteImport.update({
   path: '/overlay/donation/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiStudioTelegramRoute = ApiStudioTelegramRouteImport.update({
+  id: '/api/studio/telegram',
+  path: '/api/studio/telegram',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAdminUsersRoute = ApiAdminUsersRouteImport.update({
   id: '/api/admin/users',
   path: '/api/admin/users',
@@ -221,6 +227,7 @@ export interface FileRoutesByFullPath {
   '/api/admin/streamer-applications': typeof ApiAdminStreamerApplicationsRoute
   '/api/admin/tasks': typeof ApiAdminTasksRoute
   '/api/admin/users': typeof ApiAdminUsersRoute
+  '/api/studio/telegram': typeof ApiStudioTelegramRoute
   '/overlay/donation/$slug': typeof OverlayDonationSlugRoute
   '/overlay/widget/$slug/$widget': typeof OverlayWidgetSlugWidgetRoute
 }
@@ -253,6 +260,7 @@ export interface FileRoutesByTo {
   '/api/admin/streamer-applications': typeof ApiAdminStreamerApplicationsRoute
   '/api/admin/tasks': typeof ApiAdminTasksRoute
   '/api/admin/users': typeof ApiAdminUsersRoute
+  '/api/studio/telegram': typeof ApiStudioTelegramRoute
   '/overlay/donation/$slug': typeof OverlayDonationSlugRoute
   '/overlay/widget/$slug/$widget': typeof OverlayWidgetSlugWidgetRoute
 }
@@ -286,6 +294,7 @@ export interface FileRoutesById {
   '/api/admin/streamer-applications': typeof ApiAdminStreamerApplicationsRoute
   '/api/admin/tasks': typeof ApiAdminTasksRoute
   '/api/admin/users': typeof ApiAdminUsersRoute
+  '/api/studio/telegram': typeof ApiStudioTelegramRoute
   '/overlay/donation/$slug': typeof OverlayDonationSlugRoute
   '/overlay/widget/$slug/$widget': typeof OverlayWidgetSlugWidgetRoute
 }
@@ -320,6 +329,7 @@ export interface FileRouteTypes {
     | '/api/admin/streamer-applications'
     | '/api/admin/tasks'
     | '/api/admin/users'
+    | '/api/studio/telegram'
     | '/overlay/donation/$slug'
     | '/overlay/widget/$slug/$widget'
   fileRoutesByTo: FileRoutesByTo
@@ -352,6 +362,7 @@ export interface FileRouteTypes {
     | '/api/admin/streamer-applications'
     | '/api/admin/tasks'
     | '/api/admin/users'
+    | '/api/studio/telegram'
     | '/overlay/donation/$slug'
     | '/overlay/widget/$slug/$widget'
   id:
@@ -384,6 +395,7 @@ export interface FileRouteTypes {
     | '/api/admin/streamer-applications'
     | '/api/admin/tasks'
     | '/api/admin/users'
+    | '/api/studio/telegram'
     | '/overlay/donation/$slug'
     | '/overlay/widget/$slug/$widget'
   fileRoutesById: FileRoutesById
@@ -417,6 +429,7 @@ export interface RootRouteChildren {
   ApiAdminStreamerApplicationsRoute: typeof ApiAdminStreamerApplicationsRoute
   ApiAdminTasksRoute: typeof ApiAdminTasksRoute
   ApiAdminUsersRoute: typeof ApiAdminUsersRoute
+  ApiStudioTelegramRoute: typeof ApiStudioTelegramRoute
   OverlayDonationSlugRoute: typeof OverlayDonationSlugRoute
   OverlayWidgetSlugWidgetRoute: typeof OverlayWidgetSlugWidgetRoute
 }
@@ -598,6 +611,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OverlayDonationSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/studio/telegram': {
+      id: '/api/studio/telegram'
+      path: '/api/studio/telegram'
+      fullPath: '/api/studio/telegram'
+      preLoaderRoute: typeof ApiStudioTelegramRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/admin/users': {
       id: '/api/admin/users'
       path: '/api/admin/users'
@@ -665,6 +685,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminStreamerApplicationsRoute: ApiAdminStreamerApplicationsRoute,
   ApiAdminTasksRoute: ApiAdminTasksRoute,
   ApiAdminUsersRoute: ApiAdminUsersRoute,
+  ApiStudioTelegramRoute: ApiStudioTelegramRoute,
   OverlayDonationSlugRoute: OverlayDonationSlugRoute,
   OverlayWidgetSlugWidgetRoute: OverlayWidgetSlugWidgetRoute,
 }
