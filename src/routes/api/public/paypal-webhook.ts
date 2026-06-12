@@ -29,13 +29,19 @@ export const Route = createFileRoute("/api/public/paypal-webhook")({
         const resource = (payload as { resource?: Record<string, unknown> }).resource ?? null;
         const resourceId = resource && typeof resource.id === "string" ? (resource.id as string) : null;
 
-        await supabaseAdmin.from("payment_webhook_events").upsert(
+        const adminAny = supabaseAdmin as unknown as {
+          from: (name: string) => {
+            upsert: (v: unknown, opts?: unknown) => Promise<unknown>;
+            update: (v: unknown) => { eq: (col: string, val: string) => Promise<unknown> };
+          };
+        };
+        await adminAny.from("payment_webhook_events").upsert(
           {
             environment: env,
             event_id: eventId,
             event_type: eventType,
             resource_id: resourceId,
-            payload: payload as unknown as Record<string, unknown>,
+            payload,
             verified,
           },
           { onConflict: "event_id" },
@@ -46,14 +52,12 @@ export const Route = createFileRoute("/api/public/paypal-webhook")({
         }
 
         try {
-          await processEvent(eventType, resource, supabaseAdmin);
-          await supabaseAdmin
-            .from("payment_webhook_events")
+          await processEvent(eventType, resource, adminAny);
+          await adminAny.from("payment_webhook_events")
             .update({ processed_at: new Date().toISOString(), process_error: null })
             .eq("event_id", eventId ?? "");
         } catch (error) {
-          await supabaseAdmin
-            .from("payment_webhook_events")
+          await adminAny.from("payment_webhook_events")
             .update({ process_error: error instanceof Error ? error.message : String(error) })
             .eq("event_id", eventId ?? "");
         }
@@ -64,10 +68,16 @@ export const Route = createFileRoute("/api/public/paypal-webhook")({
   },
 });
 
+type AdminLoose = {
+  from: (name: string) => {
+    update: (v: unknown) => { eq: (col: string, val: string) => Promise<unknown> };
+  };
+};
+
 async function processEvent(
   eventType: string,
   resource: Record<string, unknown> | null,
-  supabaseAdmin: Awaited<ReturnType<typeof importSupabaseAdmin>>,
+  supabaseAdmin: AdminLoose,
 ) {
   if (!resource) return;
 
@@ -107,9 +117,4 @@ async function processEvent(
       .update({ status: "refunded" })
       .eq("provider_capture_id", captureId);
   }
-}
-
-async function importSupabaseAdmin() {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  return supabaseAdmin;
 }
